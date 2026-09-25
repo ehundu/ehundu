@@ -1,0 +1,22 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Ehundu\CompiladorEnProceso;
+use Ehundu\Consola\Aplicacion;
+
+// Cuando el motor se instala como dependencia, Composer indica dónde está su
+// autoload; si no, es el del propio paquete.
+$autoload = $GLOBALS['_composer_autoload_path'] ?? __DIR__ . '/../vendor/autoload.php';
+
+if (!is_file($autoload)) {
+    fwrite(STDERR, "No se encuentra el autoload de Composer. Ejecuta «composer install».\n");
+    exit(1);
+}
+
+require $autoload;
+
+$aplicacion = new Aplicacion(new CompiladorEnProceso(), STDOUT, STDERR);
+
+exit($aplicacion->ejecutar(array_slice($argv, 1)));

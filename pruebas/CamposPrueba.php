@@ -169,6 +169,16 @@ final class CamposPrueba extends TestCase
     }
 
     #[Test]
+    public function laEtiquetaTodoSeQuitaConAviso(): void
+    {
+        self::assertSame(['etiquetas' => ['blog']], $this->normalizar('etiquetas: [todo, blog]'));
+        self::assertSame(
+            ['contenido/a.md:2: «todo» es el nombre de la colección con todas las páginas; no se puede usar como etiqueta y se quita'],
+            $this->avisos(),
+        );
+    }
+
+    #[Test]
     public function avisaDeEtiquetasQueNoSonTextos(): void
     {
         self::assertSame([], $this->normalizar("tags:\n  blog: sí"));

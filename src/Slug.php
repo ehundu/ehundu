@@ -34,12 +34,15 @@ final class Slug
         'z' => 'źżž',
     ];
 
-    private const array OTRAS = [
+    private const array LIGADURAS = [
         'ß' => 'ss',
         'æ' => 'ae',
         'œ' => 'oe',
         'þ' => 'th',
         'ĳ' => 'ij',
+    ];
+
+    private const array SIMBOLOS = [
         '·' => '',
         '&' => ' y ',
     ];
@@ -49,10 +52,19 @@ final class Slug
 
     public static function de(string $texto): string
     {
-        $texto = strtr(mb_strtolower($texto, 'UTF-8'), self::tabla());
+        $texto = strtr(self::sinTildes(mb_strtolower($texto, 'UTF-8')), self::SIMBOLOS);
         $texto = preg_replace('/[^a-z0-9]+/', '-', $texto);
 
         return trim($texto, '-');
+    }
+
+    /**
+     * Quita tildes, diéresis y demás marcas de un texto ya en minúsculas, y
+     * deshace las ligaduras: «ñandú» da «nandu» y «straße», «strasse».
+     */
+    public static function sinTildes(string $minusculas): string
+    {
+        return strtr($minusculas, self::tabla());
     }
 
     /**
@@ -61,7 +73,7 @@ final class Slug
     private static function tabla(): array
     {
         if (self::$tabla === null) {
-            self::$tabla = self::OTRAS;
+            self::$tabla = self::LIGADURAS;
 
             foreach (self::LETRAS as $base => $variantes) {
                 foreach (mb_str_split($variantes) as $variante) {

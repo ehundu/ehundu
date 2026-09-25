@@ -243,21 +243,59 @@ así que no chocan con nada.
 ## 6. Colecciones
 
 Una colección es el conjunto de páginas que comparten una etiqueta. Se declaran
-con `etiquetas`, normalmente desde el `_datos.yml` de la carpeta.
+con `etiquetas`, normalmente desde el `_datos.yml` de la carpeta. Los
+fragmentos entran en las colecciones de sus etiquetas.
+
+Toda página con URL está además en la colección implícita `todo`. Por eso
+`todo` no se puede usar como etiqueta: si aparece, se avisa y se quita.
+
+No entran en ninguna colección, tampoco en `todo`, los borradores, las páginas
+con `publicar` en el futuro y las de `listada: no`. Este último es el caso de
+los textos legales, la página de error o `robots.txt`: se publican, pero no
+salen en listados ni en el sitemap.
 
 Desde una plantilla:
 
     {% for articulo in coleccion('blog')|orden('fecha desc')|limite(6) %}
 
-Filtros de la v1: `orden` (por cualquier campo, `asc` o `desc`; por defecto
-`fecha desc`), `limite`, `invertir`, `sin` (excluye una página, normalmente la
-actual), `donde` (campo igual a valor).
+### 6.1 Orden de una colección
 
-Toda página con URL está además en la colección implícita `todo`.
+`coleccion()` devuelve las páginas por fecha, de la más antigua a la más
+reciente, y a igual fecha por ruta. Las que no tienen fecha van al final,
+también por ruta.
 
-Una página con `listada: no` no entra en ninguna colección, tampoco en `todo`.
-Es el caso de los textos legales, la página de error o `robots.txt`: se
-publican, pero no salen en listados ni en el sitemap.
+Es el mismo orden que usa Eleventy, salvo en las páginas sin fecha: Eleventy
+les da la fecha de creación del fichero, que cambia de una máquina a otra, y
+un proyecto tiene que dar el mismo resultado en cualquiera.
+
+### 6.2 Filtros
+
+- `orden(criterio)` ordena por uno o varios campos separados por comas, cada
+  uno seguido si acaso de `asc` o `desc` (`asc` si no se indica):
+  `orden('orden, titulo')`. Sin criterio es `orden('fecha desc')`. Las
+  páginas a las que les falta el campo van al final en las dos direcciones.
+  Los números se comparan como números, las fechas como fechas y los textos
+  sin distinguir mayúsculas ni tildes, con la `ñ` después de la `n`, como en
+  el diccionario. A igualdad, las páginas quedan en el orden que tenían.
+- `limite(n)` deja las `n` primeras.
+- `invertir` da la vuelta a la lista.
+- `sin(pagina)` quita una página, normalmente la actual.
+- `donde(campo, valor)` deja las páginas en las que el campo vale eso. Si el
+  campo es una lista, las que lo contienen: `donde('etiquetas', 'novela')`.
+  Una fecha se compara con su día (`donde('fecha', '2025-03-15')`).
+- `anterior(pagina)` y `siguiente(pagina)` no filtran: devuelven la página que
+  va antes o después de la indicada en la lista, o nada si es la primera, la
+  última o no está. Con el orden de `coleccion()`, la anterior es la más
+  antigua.
+
+Los filtros aceptan también los alias ingleses de los campos (`date`,
+`title`).
+
+Como `orden` respeta el orden previo en los empates, `orden('fecha desc')` no
+es lo mismo que `invertir` cuando hay páginas con la misma fecha: la primera
+las deja por ruta y la segunda, al revés. Lo que en Eleventy es
+`collections.blog | reverse | head(6)` es aquí
+`coleccion('blog')|invertir|limite(6)`.
 
 ---
 
@@ -446,6 +484,15 @@ Si al añadirlas hay que romper el contrato, el contrato estaba mal.
     URL (§5).
 18. **Cerrada.** Dos páginas que se publican en el mismo fichero detienen el
     build (§5.3).
+19. **Cerrada.** `coleccion()` ordena por fecha ascendente y, a igual fecha,
+    por ruta, como Eleventy (§6.1).
+20. **Cerrada.** Las páginas sin fecha van al final de una colección, por ruta
+    (§6.1).
+21. **Cerrada.** `orden` admite varios campos, deja al final los valores que
+    faltan y compara los textos como el diccionario (§6.2).
+22. **Cerrada.** `donde` sobre una lista significa «contiene» (§6.2).
+23. **Cerrada.** Filtros `anterior` y `siguiente` (§6.2).
+24. **Cerrada.** `todo` no se puede usar como etiqueta (§6).
 
 ---
 

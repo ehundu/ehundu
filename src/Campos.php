@@ -74,6 +74,17 @@ final class Campos
             } catch (\UnexpectedValueException $problema) {
                 $avisos->registrar(str_replace('%s', "«{$escrito[$nombre]}»", $problema->getMessage()), $fichero, $linea);
                 unset($normalizados[$nombre]);
+
+                continue;
+            }
+
+            if ($nombre === 'etiquetas' && in_array(Colecciones::TODO, $normalizados['etiquetas'], true)) {
+                $avisos->registrar(
+                    '«todo» es el nombre de la colección con todas las páginas; no se puede usar como etiqueta y se quita',
+                    $fichero,
+                    $linea,
+                );
+                $normalizados['etiquetas'] = array_values(array_diff($normalizados['etiquetas'], [Colecciones::TODO]));
             }
         }
 

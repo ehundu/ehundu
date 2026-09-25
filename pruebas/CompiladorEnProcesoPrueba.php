@@ -49,6 +49,32 @@ final class CompiladorEnProcesoPrueba extends TestCase
     }
 
     #[Test]
+    public function dosPaginasConLaMismaUrlDetienenLaCompilacion(): void
+    {
+        $this->crearSitioMinimo();
+        $this->crearFichero('contenido/contacto.md', "---\ntitulo: Contacto\n---\n");
+        $this->crearFichero('contenido/escribenos.md', "---\ntitulo: Escríbenos\nurl: /contacto/\n---\n");
+
+        $this->expectException(ErrorDeProyecto::class);
+        $this->expectExceptionMessage('Dos páginas van al mismo fichero de salida, contacto/index.html');
+
+        $this->compilar();
+    }
+
+    #[Test]
+    public function unaPaginaQueAunNoSePublicaNoChoca(): void
+    {
+        $this->crearSitioMinimo();
+        $this->crearFichero('contenido/contacto.md', "---\ntitulo: Contacto\n---\n");
+        $this->crearFichero('contenido/escribenos.md', "---\ntitulo: Escríbenos\nurl: /contacto/\npublicar: 2026-10-01\n---\n");
+
+        $informe = (new CompiladorEnProceso(new \DateTimeImmutable('2026-09-25', new \DateTimeZone('UTC'))))
+            ->compilar(Proyecto::abrir($this->carpetaTemporal()));
+
+        self::assertSame([], $informe->avisos);
+    }
+
+    #[Test]
     public function noTocaLaSalidaSiLaLecturaFalla(): void
     {
         try {

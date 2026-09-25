@@ -187,6 +187,7 @@ final class LectorPrueba extends TestCase
         self::assertSame('Diez novelas para leer en otoño', $pagina->campos['titulo']);
         self::assertSame('articulo', $pagina->campos['plantilla']);
         self::assertSame('/blog/{{ titulo|slug }}/', $pagina->campos['url']);
+        self::assertSame('/blog/diez-novelas-para-leer-en-otono/', $pagina->url);
         self::assertSame(['blog', 'novela', 'otono', 'recomendaciones'], $pagina->campos['etiquetas']);
         self::assertSame('blog/otono.jpg', $pagina->campos['imgmain']);
         self::assertSame('2025-03-18', $pagina->campos['fecha']->format('Y-m-d'));

@@ -10,11 +10,22 @@ namespace Ehundu;
  */
 final class CompiladorEnProceso implements Compilador
 {
+    /**
+     * @param \DateTimeImmutable|null $ahora el momento con el que se decide qué está
+     *                                       publicado; si falta, el de cada compilación
+     */
+    public function __construct(
+        private readonly ?\DateTimeImmutable $ahora = null,
+    ) {
+    }
+
     public function compilar(Proyecto $proyecto): Informe
     {
         $inicio = hrtime(true);
+        $ahora = $this->ahora ?? new \DateTimeImmutable();
 
         $lectura = (new Lector())->leer($proyecto);
+        Url::comprobarColisiones($lectura->paginas, $ahora);
 
         $salida = $proyecto->ruta(Proyecto::SALIDA);
         if (!is_dir($salida) && !@mkdir($salida, 0777, true) && !is_dir($salida)) {

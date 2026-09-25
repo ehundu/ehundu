@@ -168,17 +168,75 @@ la vez el nombre inglés y el español, gana el español y se avisa.
 ## 5. URL
 
 Por defecto, la URL sale de la ruta dentro de `contenido/`, quitando la
-extensión y añadiendo barra final:
+extensión y añadiendo barra final. Un `index` da la URL de su carpeta, en
+cualquier nivel:
 
     contenido/servicios/encuadernacion.md  →  /servicios/encuadernacion/
+    contenido/blog/index.md                 →  /blog/
     contenido/index.md                      →  /
 
-El campo `url` la sustituye. Admite expresiones sobre el propio front matter:
+La ruta se usa tal cual. Si da una mala URL (espacios, mayúsculas, tildes o
+`ñ`), el motor avisa: conviene renombrar el fichero o darle un `url`.
+
+El campo `url` la sustituye. Tiene que empezar por `/`; si no, se avisa y se
+le añade. Lo que se escribe en `salida/` depende de cómo acaba:
+
+- en `/`: un `index.html` dentro de esa carpeta (`/contacto/` →
+  `contacto/index.html`);
+- en un nombre con extensión: ese fichero tal cual (`/404.html`,
+  `/robots.txt`);
+- en otra cosa (`/contacto`): se avisa y se toma como `/contacto/`.
+
+Una URL nunca escribe fuera de `salida/`. Si lleva tramos `.` o `..`, o
+caracteres que no caben en un nombre de fichero (`\ ? # : * " < > |`), se avisa
+y se usa la URL que sale de la ruta. Un `url` en blanco también deja la de la
+ruta.
+
+### 5.1 Patrones
+
+`url` admite un patrón con valores del propio front matter:
 
     url: "/blog/{{ titulo|slug }}/"
 
+El vocabulario es cerrado: `{{ campo }}` pone el valor de un campo y
+`{{ campo|slug }}` lo pasa antes por el filtro `slug`. No hay más filtros, ni
+expresiones, ni condiciones. Dentro del patrón se aceptan también los alias
+ingleses (`title`, `slugify`).
+
+Si el patrón usa un campo que la página no tiene, o que no es un texto o un
+número, si un `slug` sale vacío, o si entre las llaves hay otra cosa, se avisa
+y se usa la URL que sale de la ruta.
+
+### 5.2 El filtro `slug`
+
+Convierte un texto en un tramo de URL:
+
+- pasa a minúsculas y quita tildes y diéresis (`ü` → `u`, `ñ` → `n`,
+  `ç` → `c`; también `ß` → `ss`, `æ` → `ae`, `œ` → `oe`);
+- `&` se convierte en `y`, y el punto volado del catalán desaparece
+  (`col·legi` → `collegi`);
+- cualquier otro carácter que no sea una letra latina o un número se
+  convierte en guion, sin guiones repetidos ni en los extremos. Las letras de
+  otros alfabetos desaparecen.
+
+`Cómo elegir un buen libro: guía` da `como-elegir-un-buen-libro-guia`.
+
+Para los títulos habituales en español da lo mismo que el filtro `slugify` de
+Eleventy. Difiere en la diéresis (Eleventy da `ue`: `bilingüe` →
+`bilinguee`), en `&` (Eleventy da `and`) y en símbolos como `€` (Eleventy da
+`e`; aquí desaparece). Al migrar, las páginas afectadas conservan su dirección
+con un `url` explícito.
+
+### 5.3 Fragmentos y colisiones
+
 `url: false` produce un fragmento: se lee, se puede consultar desde otras
 páginas y se puede editar desde un editor, pero no genera fichero.
+
+Si dos páginas que se publican van al mismo fichero de salida, el build se
+detiene con un error que nombra las dos. Las mayúsculas no cuentan, porque en
+Windows y en macOS `/Blog/` y `/blog/` son la misma carpeta. Los fragmentos,
+los borradores y las páginas con `publicar` en el futuro no generan fichero,
+así que no chocan con nada.
 
 ---
 
@@ -378,6 +436,16 @@ Si al añadirlas hay que romper el contrato, el contrato estaba mal.
 12. **Cerrada.** Un front matter que no es YAML válido detiene el build (§4).
 13. **Cerrada.** Lo que empieza por punto se ignora en `contenido/` y
     `datos/`; en `datos/`, el `.yml` gana al `.json` (§3, §4).
+14. **Cerrada.** Filtro `slug` propio, pensado para el español, en lugar de
+    copiar el de Eleventy (§5.2).
+15. **Cerrada.** Los patrones de `url` tienen un vocabulario cerrado:
+    `{{ campo }}` y `{{ campo|slug }}`, con los alias ingleses (§5.1).
+16. **Cerrada.** Una URL sin barra final ni extensión se toma como carpeta,
+    con aviso (§5).
+17. **Cerrada.** La URL derivada usa la ruta tal cual y avisa si da una mala
+    URL (§5).
+18. **Cerrada.** Dos páginas que se publican en el mismo fichero detienen el
+    build (§5.3).
 
 ---
 

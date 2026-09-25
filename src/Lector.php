@@ -168,11 +168,13 @@ final class Lector
         );
 
         $carpeta = str_contains($ruta, '/') ? substr($ruta, 0, strrpos($ruta, '/')) : '';
+        $campos = Cascada::combinar($cascada->campos($carpeta), $propios);
 
         return new Pagina(
             $ruta,
             pathinfo($ruta, PATHINFO_EXTENSION),
-            Cascada::combinar($cascada->campos($carpeta), $propios),
+            $campos,
+            Url::resolver($ruta, $campos, $fichero, $avisos),
             $frontMatter->cuerpo,
             $frontMatter->lineaCuerpo,
         );

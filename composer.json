@@ -1,0 +1,25 @@
+{
+    "name": "ehundu/ehundu",
+    "description": "Generador de sitios estáticos en PHP, pensado para compilar también dentro de un proceso web.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": [
+        "ssg",
+        "static-site-generator",
+        "generador-de-sitios-estaticos",
+        "markdown",
+        "twig",
+        "php",
+        "español"
+    ],
+    "homepage": "https://ehundu.com",
+    "authors": [
+        {
+            "name": "Idenautas",
+            "homepage": "https://idenautas.com"
+        }
+    ],
+    "require": {
+        "php": ">=8.4"
+    }
+}

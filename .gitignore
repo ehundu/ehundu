@@ -1,0 +1,17 @@
+# Dependencias de Composer
+/vendor/
+
+# PHPUnit
+/.phpunit.cache/
+/.phpunit.result.cache
+
+# Sistema y editores
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+
+# Ajustes locales de Claude Code
+/.claude/settings.local.json

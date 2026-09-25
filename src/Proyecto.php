@@ -79,4 +79,80 @@ final readonly class Proyecto
 
         return str_replace(["\r\n", "\r"], "\n", $texto);
     }
+
+    /**
+     * Borra todo lo que hay dentro de `salida/` y deja la carpeta vacía. Es lo
+     * único que el motor borra, y nunca sigue enlaces: un enlace dentro de
+     * `salida/` se quita, pero no lo que hay al otro lado.
+     *
+     * @throws ErrorDeProyecto si `salida/` es un enlace o no se puede vaciar
+     */
+    public function vaciarSalida(): void
+    {
+        $salida = $this->ruta(self::SALIDA);
+
+        if (is_link($salida)) {
+            throw new ErrorDeProyecto('salida/ es un enlace a otra carpeta; el motor no la vacía');
+        }
+
+        if (!is_dir($salida)) {
+            if (!@mkdir($salida, 0777, true) && !is_dir($salida)) {
+                throw new ErrorDeProyecto('No se puede crear la carpeta salida/');
+            }
+
+            return;
+        }
+
+        foreach (scandir($salida) ?: [] as $nombre) {
+            if ($nombre !== '.' && $nombre !== '..') {
+                self::borrar("{$salida}/{$nombre}");
+            }
+        }
+    }
+
+    /**
+     * Escribe un fichero dentro de `salida/`, con las carpetas que hagan falta.
+     *
+     * @param string $fichero ruta relativa a `salida/`, sin tramos `..`
+     *
+     * @throws ErrorDeProyecto si no se puede escribir
+     */
+    public function escribirEnSalida(string $fichero, string $contenido): void
+    {
+        if (preg_match('#(^|/)\.\.?(/|$)|\\\\#', $fichero) === 1 || str_starts_with($fichero, '/')) {
+            throw new ErrorDeProyecto("No se escribe fuera de salida/: {$fichero}");
+        }
+
+        $completa = $this->ruta(self::SALIDA, $fichero);
+        $carpeta = dirname($completa);
+
+        if (!is_dir($carpeta) && !@mkdir($carpeta, 0777, true) && !is_dir($carpeta)) {
+            throw new ErrorDeProyecto('No se puede crear la carpeta', self::SALIDA . '/' . dirname($fichero));
+        }
+
+        if (@file_put_contents($completa, $contenido) === false) {
+            throw new ErrorDeProyecto('No se puede escribir el fichero', self::SALIDA . "/{$fichero}");
+        }
+    }
+
+    private static function borrar(string $ruta): void
+    {
+        if (is_link($ruta) || !is_dir($ruta)) {
+            if (!@unlink($ruta) && !(is_dir($ruta) && @rmdir($ruta))) {
+                throw new ErrorDeProyecto("No se puede borrar {$ruta} al vaciar salida/");
+            }
+
+            return;
+        }
+
+        foreach (scandir($ruta) ?: [] as $nombre) {
+            if ($nombre !== '.' && $nombre !== '..') {
+                self::borrar("{$ruta}/{$nombre}");
+            }
+        }
+
+        if (!@rmdir($ruta)) {
+            throw new ErrorDeProyecto("No se puede borrar {$ruta} al vaciar salida/");
+        }
+    }
 }

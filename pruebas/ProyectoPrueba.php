@@ -87,6 +87,45 @@ final class ProyectoPrueba extends TestCase
     }
 
     #[Test]
+    public function vaciarSalidaBorraTodoLoQueHayDentro(): void
+    {
+        $this->crearFichero('salida/viejo.html', 'viejo');
+        $this->crearFichero('salida/blog/antiguo/index.html', 'viejo');
+        $this->crearFichero('contenido/index.md', 'se queda');
+
+        Proyecto::abrir($this->carpetaTemporal())->vaciarSalida();
+
+        self::assertDirectoryExists($this->carpetaTemporal() . '/salida');
+        self::assertSame(['.', '..'], scandir($this->carpetaTemporal() . '/salida'));
+        self::assertFileExists($this->carpetaTemporal() . '/contenido/index.md');
+    }
+
+    #[Test]
+    public function vaciarSalidaLaCreaSiNoExiste(): void
+    {
+        Proyecto::abrir($this->carpetaTemporal())->vaciarSalida();
+
+        self::assertDirectoryExists($this->carpetaTemporal() . '/salida');
+    }
+
+    #[Test]
+    public function escribeEnSalidaConSusCarpetas(): void
+    {
+        Proyecto::abrir($this->carpetaTemporal())->escribirEnSalida('blog/uno/index.html', '<p>Uno</p>');
+
+        self::assertSame('<p>Uno</p>', $this->leerFichero('salida/blog/uno/index.html'));
+    }
+
+    #[Test]
+    public function noEscribeFueraDeSalida(): void
+    {
+        $this->expectException(ErrorDeProyecto::class);
+        $this->expectExceptionMessage('No se escribe fuera de salida/: ../contenido/index.md');
+
+        Proyecto::abrir($this->carpetaTemporal())->escribirEnSalida('../contenido/index.md', 'fuera');
+    }
+
+    #[Test]
     public function fallaSiLaRutaEsUnFichero(): void
     {
         $fichero = $this->carpetaTemporal() . '/sitio.yml';

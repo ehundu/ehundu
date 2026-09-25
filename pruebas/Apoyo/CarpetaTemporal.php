@@ -48,6 +48,19 @@ trait CarpetaTemporal
         $this->crearFichero('contenido/.gitkeep', '');
     }
 
+    /**
+     * Una `plantillas/pagina.twig` que solo pone el contenido de la página.
+     */
+    protected function crearPlantillaMinima(): void
+    {
+        $this->crearFichero('plantillas/pagina.twig', '{{ pagina.contenido }}');
+    }
+
+    protected function leerFichero(string $ruta): string
+    {
+        return (string) file_get_contents($this->carpetaTemporal() . "/{$ruta}");
+    }
+
     #[After]
     protected function borrarCarpetaTemporal(): void
     {

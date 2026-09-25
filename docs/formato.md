@@ -68,6 +68,10 @@ es la dirección absoluta del sitio, con `http://` o `https://`. Si falta el
 fichero o alguno de esos dos campos, el build se detiene con un error: sin
 ellos no se pueden generar ni el sitemap ni el feed.
 
+`zonaHoraria` es la zona en la que se leen y se escriben todas las fechas del
+sitio, con su nombre estándar (`Europe/Madrid`, `America/Mexico_City`). Si
+falta, es UTC. Una zona que no existe detiene el build.
+
 Destinos admitidos en la v1: `carpeta`, `ftp`, `sftp`, `s3`.
 
 `.secretos.yml` tiene la misma forma, solo con las claves sensibles. El motor
@@ -150,8 +154,9 @@ Detalles de los tipos:
 
 - **sí/no** admite `sí`, `si`, `no`, `true` y `false`. YAML solo reconoce los
   dos últimos, así que el motor traduce los otros tres.
-- **fecha** se escribe `AAAA-MM-DD`, con o sin comillas. Como en YAML, es la
-  medianoche de ese día en UTC.
+- **fecha** se escribe `AAAA-MM-DD`, con o sin comillas. Es ese día en la
+  zona horaria del sitio (§2), desde su medianoche: `publicar: 2026-10-01`
+  publica a las 00:00 del 1 de octubre en esa zona.
 - **texto** admite un número, que se toma como texto (`titulo: 2024`).
 - **número** admite un número entre comillas (`orden: "2"`).
 - **`etiquetas`** admite un texto suelto, que cuenta como una lista de un
@@ -301,21 +306,76 @@ las deja por ruta y la segunda, al revés. Lo que en Eleventy es
 
 ## 7. Plantillas
 
-Motor: **Twig**. Los layouts viven en `plantillas/`, los fragmentos en
-`parciales/`. El layout se elige con `plantilla`; si no se indica, se usa
-`pagina`. Con `plantilla: false` la página sale tal cual, sin layout, que es lo
-que necesita un `robots.txt`.
+Motor: **Twig**. Los layouts viven en `plantillas/` y los fragmentos
+reutilizables en `parciales/`.
 
-Variables disponibles en cualquier plantilla:
+### 7.1 Plantillas y parciales
+
+Dentro de Twig, las plantillas y los parciales se nombran con su ruta desde la
+raíz del proyecto, y Twig no puede leer nada fuera de esas dos carpetas:
+
+    {% extends 'plantillas/base.twig' %}
+    {% include 'parciales/cabecera.twig' %}
+
+El layout de una página se elige con `plantilla`, por su nombre sin carpeta ni
+extensión: `plantilla: articulo` es `plantillas/articulo.twig`. Si no se
+indica, se usa `pagina`. Con `plantilla: false` la página sale tal cual, sin
+layout, que es lo que necesita un `robots.txt`. Si la plantilla que usa una
+página no existe, el build se detiene: publicar el contenido sin su layout
+sería peor que no publicarlo.
+
+Las plantillas no llevan front matter. Se anidan con `{% extends %}` y
+bloques, como en cualquier proyecto de Twig. El cuerpo de la página está
+siempre en `{{ pagina.contenido }}`:
+
+    {# plantillas/articulo.twig #}
+    {% extends 'plantillas/base.twig' %}
+    {% block cuerpo %}
+      <article>{{ pagina.contenido }}</article>
+    {% endblock %}
+
+Las páginas `.twig` de `contenido/` son plantillas de Twig con las mismas
+variables; su resultado es `pagina.contenido` y va dentro de su layout como el
+de cualquier otra página.
+
+### 7.2 Variables
 
 - `sitio`: lo que hay en `sitio.yml` (sin la sección de despliegue).
 - `datos`: los ficheros de `datos/`.
 - `pagina`: el front matter de la página actual, más `pagina.url`,
-  `pagina.contenido` (el cuerpo ya renderizado) y `pagina.ruta`.
-- Funciones: `coleccion()`, `svg()` (incrusta un SVG de `publico/`),
-  `activo()` (si una URL es la de la página actual).
+  `pagina.contenido` (el cuerpo ya convertido a HTML) y `pagina.ruta`.
 
-Los parciales se incluyen con el `include` de Twig, sin invento propio.
+Las páginas que dan `coleccion()` y sus filtros tienen la misma forma:
+`articulo.titulo`, `articulo.url`. También `articulo.contenido`, que se
+convierte la primera vez que alguien lo pide. Si una página acaba necesitando
+su propio contenido para construirse (una página `.twig` que lista una
+colección en la que está ella misma y pide el contenido de cada una), el build
+se detiene con un error que muestra la cadena de páginas.
+
+Un campo que falta sale vacío, como en Nunjucks: `{% if pagina.imagen %}`
+funciona sin comprobar antes si existe. Twig escapa el HTML de todo lo que
+escribe, salvo `pagina.contenido` y lo que devuelve `svg()`.
+
+### 7.3 Funciones y filtros
+
+- `coleccion(nombre)` y los filtros de colección del §6.2.
+- `svg(ruta)` incrusta un SVG de `publico/`, tal cual; solo le quita la
+  declaración `<?xml ?>` y el `DOCTYPE`, que no caben dentro de HTML:
+  `{{ svg('svg/telefono.svg') }}`. Si el fichero no existe, no es un `.svg` o
+  la ruta sale de `publico/`, se avisa y no se inserta nada.
+- `activo(url)` dice si la página actual es esa URL o está dentro de ella:
+  `activo('/blog/')` es cierto en `/blog/` y en `/blog/un-articulo/`. `/` solo
+  es activo en la portada. Para comparar exacto, `pagina.url == url`.
+- `slug` (§5.2).
+- `fecha(formato)` escribe una fecha con las mismas letras que el filtro
+  `date` de Twig, pero con los nombres de meses y días en español:
+  `pagina.fecha|fecha('d F Y')` da `18 marzo 2025`. Sin formato, da
+  `18 de marzo de 2025`. Una letra que tiene que salir tal cual se escapa
+  con dos barras dentro de la plantilla, igual que con `date`:
+  `fecha('j \\d\\e F')` da `18 de marzo`.
+
+Todas las fechas se escriben en la zona horaria del sitio (§2), también las
+del filtro `date` de Twig, que por sí solo usaría la de la máquina.
 
 ---
 
@@ -390,6 +450,11 @@ si existe una página con esa URL. Nada más: los añadidos van como ficheros
 normales dentro de `contenido/`.
 
 El sitemap lleva todas las páginas con URL salvo las de `listada: no`.
+
+Una compilación completa vacía `salida/` antes de escribir, para que no queden
+restos de compilaciones anteriores que luego se desplegarían. Solo borra lo que
+hay dentro de `salida/`, y solo después de haber construido todas las páginas
+sin errores: si una plantilla falla, `salida/` se queda como estaba.
 
 ---
 
@@ -493,6 +558,22 @@ Si al añadirlas hay que romper el contrato, el contrato estaba mal.
 22. **Cerrada.** `donde` sobre una lista significa «contiene» (§6.2).
 23. **Cerrada.** Filtros `anterior` y `siguiente` (§6.2).
 24. **Cerrada.** `todo` no se puede usar como etiqueta (§6).
+25. **Cerrada.** Plantillas y parciales se nombran desde la raíz del
+    proyecto, y Twig solo lee `plantillas/` y `parciales/` (§7.1).
+26. **Cerrada.** Las plantillas no llevan front matter; se anidan con
+    `extends` (§7.1).
+27. **Cerrada.** Una compilación completa vacía `salida/` antes de escribir
+    (§10).
+28. **Cerrada.** `svg()` inserta el fichero tal cual, sin declaración XML ni
+    `DOCTYPE` (§7.3).
+29. **Cerrada.** `activo()` es cierto también en las páginas de dentro de esa
+    URL; `/` solo en la portada (§7.3).
+30. **Cerrada.** Las fechas son días en la zona horaria del sitio, UTC si no
+    se indica, y el filtro `fecha` las escribe en español (§2, §4, §7.3).
+31. **Cerrada.** El contenido de otras páginas se convierte cuando se pide; si
+    una página se necesita a sí misma, error (§7.2).
+32. **Cerrada.** Si falta la plantilla de una página, el build se detiene
+    (§7.1).
 
 ---
 

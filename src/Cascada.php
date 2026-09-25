@@ -23,6 +23,7 @@ final class Cascada
     public function __construct(
         private readonly Proyecto $proyecto,
         private readonly Avisos $avisos,
+        private readonly \DateTimeZone $zona = new \DateTimeZone('UTC'),
     ) {
     }
 
@@ -82,7 +83,7 @@ final class Cascada
 
         $yaml = $this->proyecto->leerTexto($fichero);
 
-        return Campos::normalizar(Yaml::leerCampos($yaml, $fichero), $yaml, 1, $fichero, $this->avisos);
+        return Campos::normalizar(Yaml::leerCampos($yaml, $fichero), $yaml, 1, $fichero, $this->avisos, $this->zona);
     }
 
     private static function padre(string $carpeta): string

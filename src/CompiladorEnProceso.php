@@ -4,9 +4,15 @@ declare(strict_types=1);
 
 namespace Ehundu;
 
+use Ehundu\Plantillas\Maquetador;
+
 /**
  * La implementación por defecto: compila el proyecto entero dentro del
  * proceso que la llama.
+ *
+ * Primero construye todas las páginas en memoria; solo si todas salen bien
+ * vacía `salida/` y las escribe. Un error en una plantilla no deja `salida/`
+ * a medias.
  */
 final class CompiladorEnProceso implements Compilador
 {
@@ -23,18 +29,31 @@ final class CompiladorEnProceso implements Compilador
     {
         $inicio = hrtime(true);
         $ahora = $this->ahora ?? new \DateTimeImmutable();
+        $avisos = new Avisos();
 
         $lectura = (new Lector())->leer($proyecto);
         Url::comprobarColisiones($lectura->paginas, $ahora);
 
-        $salida = $proyecto->ruta(Proyecto::SALIDA);
-        if (!is_dir($salida) && !@mkdir($salida, 0777, true) && !is_dir($salida)) {
-            throw new ErrorDeProyecto("No se puede crear la carpeta de salida: {$salida}");
+        $maquetador = new Maquetador($proyecto, $lectura, new Colecciones($lectura->paginas, $ahora), $avisos);
+
+        /** @var array<string, string> $ficheros HTML de cada fichero de salida */
+        $ficheros = [];
+
+        foreach ($lectura->paginas as $pagina) {
+            if ($pagina->url !== false && $pagina->estaPublicada($ahora)) {
+                $ficheros[Url::fichero($pagina->url)] = $maquetador->maquetar($pagina);
+            }
+        }
+
+        $proyecto->vaciarSalida();
+
+        foreach ($ficheros as $fichero => $html) {
+            $proyecto->escribirEnSalida($fichero, $html);
         }
 
         return new Informe(
-            paginas: 0,
-            avisos: $lectura->avisos,
+            paginas: count($ficheros),
+            avisos: [...$lectura->avisos, ...$avisos->todos()],
             segundos: (hrtime(true) - $inicio) / 1e9,
         );
     }

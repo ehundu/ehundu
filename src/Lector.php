@@ -21,11 +21,11 @@ final class Lector
         $avisos = new Avisos();
         $sitio = $this->leerSitio($proyecto);
         $datos = $this->leerDatos($proyecto, $avisos);
-        $cascada = new Cascada($proyecto, $avisos);
+        $cascada = new Cascada($proyecto, $avisos, $sitio->zonaHoraria);
 
         $paginas = [];
         foreach ($this->rutasDePaginas($proyecto, $avisos) as $ruta) {
-            $paginas[] = $this->leerPagina($proyecto, $ruta, $cascada, $avisos);
+            $paginas[] = $this->leerPagina($proyecto, $ruta, $cascada, $sitio->zonaHoraria, $avisos);
         }
 
         return new Lectura($sitio, $datos, $paginas, $avisos->todos());
@@ -63,10 +63,21 @@ final class Lector
             );
         }
 
+        $zona = $campos['zonaHoraria'] ?? 'UTC';
+        try {
+            $zonaHoraria = new \DateTimeZone(is_string($zona) ? $zona : '');
+        } catch (\Exception) {
+            throw new ErrorDeProyecto(
+                '«zonaHoraria» no es una zona horaria válida; se escribe como Europe/Madrid o America/Mexico_City',
+                $fichero,
+                $lineas['zonaHoraria'] ?? null,
+            );
+        }
+
         $campos['url'] = rtrim($url, '/');
         unset($campos['despliegue']);
 
-        return new Sitio($nombre, $campos['url'], $campos);
+        return new Sitio($nombre, $campos['url'], $zonaHoraria, $campos);
     }
 
     /**
@@ -154,7 +165,7 @@ final class Lector
         return $rutas;
     }
 
-    private function leerPagina(Proyecto $proyecto, string $ruta, Cascada $cascada, Avisos $avisos): Pagina
+    private function leerPagina(Proyecto $proyecto, string $ruta, Cascada $cascada, \DateTimeZone $zona, Avisos $avisos): Pagina
     {
         $fichero = Proyecto::CONTENIDO . "/{$ruta}";
         $frontMatter = FrontMatter::separar($proyecto->leerTexto($fichero), $fichero);
@@ -165,6 +176,7 @@ final class Lector
             $frontMatter->lineaYaml,
             $fichero,
             $avisos,
+            $zona,
         );
 
         $carpeta = str_contains($ruta, '/') ? substr($ruta, 0, strrpos($ruta, '/')) : '';

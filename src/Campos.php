@@ -37,11 +37,19 @@ final class Campos
      * @param string                  $yaml         el texto del que salen, para situar los avisos
      * @param int                     $primeraLinea línea del fichero en la que empieza ese texto
      * @param string                  $fichero      ruta relativa a la raíz del proyecto
+     * @param \DateTimeZone|null      $zona         la del sitio, en la que se leen las fechas; UTC si falta
      *
      * @return array<array-key, mixed>
      */
-    public static function normalizar(array $campos, string $yaml, int $primeraLinea, string $fichero, Avisos $avisos): array
-    {
+    public static function normalizar(
+        array $campos,
+        string $yaml,
+        int $primeraLinea,
+        string $fichero,
+        Avisos $avisos,
+        ?\DateTimeZone $zona = null,
+    ): array {
+        $zona ??= new \DateTimeZone('UTC');
         $lineas = Yaml::lineasDeClaves($yaml, $primeraLinea);
         $textoDeLinea = explode("\n", $yaml);
 
@@ -70,7 +78,7 @@ final class Campos
             $original = $linea === null ? '' : $textoDeLinea[$linea - $primeraLinea];
 
             try {
-                $normalizados[$nombre] = self::comprobar((string) $nombre, $valor, $original);
+                $normalizados[$nombre] = self::comprobar((string) $nombre, $valor, $original, $zona);
             } catch (\UnexpectedValueException $problema) {
                 $avisos->registrar(str_replace('%s', "«{$escrito[$nombre]}»", $problema->getMessage()), $fichero, $linea);
                 unset($normalizados[$nombre]);
@@ -96,11 +104,11 @@ final class Campos
      *
      * @throws \UnexpectedValueException con un mensaje en el que `%s` es el nombre del campo
      */
-    private static function comprobar(string $nombre, mixed $valor, string $original): mixed
+    private static function comprobar(string $nombre, mixed $valor, string $original, \DateTimeZone $zona): mixed
     {
         return match (true) {
             in_array($nombre, self::TEXTOS, true) => self::texto($valor),
-            in_array($nombre, self::FECHAS, true) => self::fecha($valor, $original),
+            in_array($nombre, self::FECHAS, true) => self::fecha($valor, $original, $zona),
             in_array($nombre, self::SI_NO, true) => self::siNo($valor),
             $nombre === 'orden' => self::numero($valor),
             $nombre === 'etiquetas' => self::etiquetas($valor),
@@ -123,7 +131,11 @@ final class Campos
         throw new \UnexpectedValueException('%s tiene que ser un texto');
     }
 
-    private static function fecha(mixed $valor, string $original): \DateTimeImmutable
+    /**
+     * Una fecha es ese día en la zona horaria del sitio. YAML lee las fechas
+     * sin zona como UTC; aquí se toma lo escrito y se sitúa en la del sitio.
+     */
+    private static function fecha(mixed $valor, string $original, \DateTimeZone $zona): \DateTimeImmutable
     {
         // YAML convierte sin avisar una fecha imposible en otra que sí existe
         // (el 31 de febrero en el 3 de marzo), así que se mira lo escrito.
@@ -133,7 +145,9 @@ final class Campos
         }
 
         if ($valor instanceof \DateTimeImmutable) {
-            return $valor;
+            return $valor->getTimezone()->getName() === 'UTC'
+                ? new \DateTimeImmutable($valor->format('Y-m-d H:i:s'), $zona)
+                : $valor;
         }
 
         if (is_string($valor) && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $valor, $partes) === 1) {
@@ -141,7 +155,7 @@ final class Campos
                 throw new \UnexpectedValueException("%s no es una fecha posible: {$valor}");
             }
 
-            return new \DateTimeImmutable("{$valor} 00:00:00", new \DateTimeZone('UTC'));
+            return new \DateTimeImmutable("{$valor} 00:00:00", $zona);
         }
 
         throw new \UnexpectedValueException('%s tiene que ser una fecha AAAA-MM-DD');

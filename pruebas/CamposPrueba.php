@@ -114,6 +114,18 @@ final class CamposPrueba extends TestCase
     }
 
     #[Test]
+    public function lasFechasSonElDiaEnLaZonaDelSitio(): void
+    {
+        $madrid = new \DateTimeZone('Europe/Madrid');
+
+        foreach (['fecha: 2025-03-18', 'fecha: "2025-03-18"'] as $yaml) {
+            $fecha = Campos::normalizar(Yaml::leerCampos($yaml, 'contenido/a.md', 2), $yaml, 2, 'contenido/a.md', $this->avisos, $madrid)['fecha'];
+
+            self::assertSame('2025-03-18 00:00:00 Europe/Madrid', $fecha->format('Y-m-d H:i:s e'), $yaml);
+        }
+    }
+
+    #[Test]
     public function avisaDeUnaFechaImposibleConOSinComillas(): void
     {
         self::assertSame([], $this->normalizar('fecha: 2025-02-31'));

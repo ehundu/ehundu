@@ -82,6 +82,37 @@ final class LectorPrueba extends TestCase
     }
 
     #[Test]
+    public function laZonaHorariaEsLaDelSitioOUtc(): void
+    {
+        $this->crearFichero('sitio.yml', "nombre: Librería La Esquina\nurl: https://www.ejemplo.com\nzonaHoraria: Europe/Madrid\n");
+        $this->crearFichero('contenido/blog/uno.md', "---\ntitulo: Uno\nfecha: 2025-03-18\n---\n");
+
+        $lectura = $this->leer();
+
+        self::assertSame('Europe/Madrid', $lectura->sitio->zonaHoraria->getName());
+        self::assertSame('2025-03-18 00:00:00 Europe/Madrid', $lectura->paginas[0]->campos['fecha']->format('Y-m-d H:i:s e'));
+    }
+
+    #[Test]
+    public function sinZonaHorariaEsUtc(): void
+    {
+        $this->crearSitioMinimo();
+
+        self::assertSame('UTC', $this->leer()->sitio->zonaHoraria->getName());
+    }
+
+    #[Test]
+    public function fallaConUnaZonaHorariaQueNoExiste(): void
+    {
+        $this->crearFichero('sitio.yml', "nombre: Librería La Esquina\nurl: https://www.ejemplo.com\nzonaHoraria: Madrid\n");
+
+        $this->expectException(ErrorDeProyecto::class);
+        $this->expectExceptionMessage('sitio.yml:3: «zonaHoraria» no es una zona horaria válida');
+
+        $this->leer();
+    }
+
+    #[Test]
     public function leeLosDatosPorNombre(): void
     {
         $this->crearSitioMinimo();

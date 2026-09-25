@@ -41,6 +41,9 @@ Las clases de prueba llevan el sufijo `Prueba` y los métodos el atributo
 `#[Test]`, para que se llamen en español (`fallaSiLaCarpetaNoExiste`). Las
 pruebas se ejecutan con `composer pruebas`.
 
+El trabajo va en la rama `desarrollo`. `main` solo recibe versiones
+publicadas, la primera en la 0.1: no hagas commits en `main`.
+
 **Nada privado entra en este repositorio:** ni nombres ni datos de clientes,
 ni rutas de máquinas concretas. Los ejemplos de las pruebas y de la
 documentación son inventados.

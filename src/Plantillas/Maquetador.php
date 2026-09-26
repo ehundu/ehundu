@@ -163,8 +163,12 @@ final class Maquetador
         $nombre = Proyecto::PLANTILLAS . "/{$plantilla}.twig";
 
         if (!$this->twig->getLoader()->exists($nombre)) {
+            // Lo normal al migrar: el valor de «layout» de Eleventy o Lume, con su extensión.
+            $sinExtension = preg_match('/^(.+)\.[A-Za-z0-9]+$/', $plantilla, $partes) === 1 ? $partes[1] : null;
+
             throw new ErrorDeProyecto(
-                "La página usa la plantilla «{$plantilla}», pero no existe {$nombre}",
+                "La página usa la plantilla «{$plantilla}», pero no existe {$nombre}"
+                    . ($sinExtension === null ? '' : ". El nombre va sin extensión: «{$sinExtension}»"),
                 Proyecto::CONTENIDO . "/{$pagina->ruta}",
             );
         }
@@ -256,6 +260,7 @@ final class Maquetador
                     'alt' => $alt,
                     'pie' => $pie === '' ? null : new \Twig\Markup($pie, 'UTF-8'),
                     'enlace' => $enlace,
+                    ...$this->atajos->medidasDeFigura($src),
                 ], $this->fichero, $linea);
             }
         };

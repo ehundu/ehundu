@@ -277,6 +277,36 @@ final class LectorPrueba extends TestCase
     }
 
     #[Test]
+    public function avisaSiUnaPaginaHtmlNoTieneTitulo(): void
+    {
+        $this->crearSitioMinimo();
+        $this->crearFichero('contenido/index.md', 'Inicio');
+        $this->crearFichero('contenido/vacio.md', "---\ntitulo: ''\n---\n");
+        $this->crearFichero('contenido/ingles.md', "---\ntitle: Contact\n---\n");
+        $this->crearFichero('contenido/clinicas/_datos.yml', 'url: false');
+        $this->crearFichero('contenido/clinicas/norte.md', 'Un fragmento no lo necesita.');
+        $this->crearFichero('contenido/robots.twig', "---\nurl: /robots.txt\nplantilla: false\n---\nNi un robots.txt.");
+
+        self::assertSame([
+            'contenido/index.md: Falta «titulo», el título de la página',
+            'contenido/vacio.md: Falta «titulo», el título de la página',
+        ], $this->avisos($this->leer()));
+    }
+
+    #[Test]
+    public function lasPaginasQueEmpiezanPorGuionBajoSeCompilanComoLasDemas(): void
+    {
+        $this->crearSitioMinimo();
+        $this->crearFichero('contenido/_portada/index.md', "---\ntitulo: Inicio\nurl: /\n---\n");
+        $this->crearFichero('contenido/_fragmento.md', "---\nurl: false\n---\n");
+
+        self::assertSame(
+            ['_fragmento.md', '_portada/index.md'],
+            array_map(fn (Pagina $pagina) => $pagina->ruta, $this->leer()->paginas),
+        );
+    }
+
+    #[Test]
     public function losAvisosDeUnaPaginaLlevanSuRutaYLinea(): void
     {
         $this->crearSitioMinimo();

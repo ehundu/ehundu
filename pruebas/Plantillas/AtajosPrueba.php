@@ -11,6 +11,7 @@ use Ehundu\Lector;
 use Ehundu\Plantillas\Maquetador;
 use Ehundu\Proyecto;
 use Ehundu\Pruebas\Apoyo\CarpetaTemporal;
+use Ehundu\Pruebas\Apoyo\Png;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -60,6 +61,39 @@ final class AtajosPrueba extends TestCase
             $this->cuerpo('[imagen fichero="img/escaparate.jpg" alt="El escaparate" pie="La tienda & el otoño"]'),
         );
         self::assertSame([], $this->avisos());
+    }
+
+    #[Test]
+    public function laImagenLlevaSusMedidasSiSePuedenLeer(): void
+    {
+        $this->crearFichero('publico/img/escaparate.png', Png::de(800, 600));
+        $this->crearFichero('publico/img/logo.svg', '<svg></svg>');
+
+        self::assertSame(
+            "<figure><img src=\"/img/escaparate.png\" alt=\"El escaparate\" width=\"800\" height=\"600\"><figcaption>El escaparate</figcaption></figure>\n",
+            $this->cuerpo('[imagen fichero="img/escaparate.png" alt="El escaparate"]'),
+        );
+        self::assertSame(
+            "<figure><img src=\"/img/escaparate.png\" alt=\"El escaparate\" width=\"800\" height=\"600\"><figcaption>El escaparate</figcaption></figure>\n",
+            $this->cuerpo('![El escaparate](/img/escaparate.png)'),
+        );
+        self::assertSame(
+            "<figure><img src=\"/img/logo.svg\" alt=\"Logo\"><figcaption>Logo</figcaption></figure>\n",
+            $this->cuerpo('[imagen fichero="img/logo.svg" alt="Logo"]'),
+        );
+        self::assertSame(
+            "<figure><img src=\"https://ejemplo.com/img/escaparate.png\" alt=\"Fuera\"><figcaption>Fuera</figcaption></figure>\n",
+            $this->cuerpo('![Fuera](https://ejemplo.com/img/escaparate.png)'),
+        );
+    }
+
+    #[Test]
+    public function elSitioQueSustituyeLaImagenRecibeSusMedidas(): void
+    {
+        $this->crearFichero('publico/img/a.png', Png::de(40, 30));
+        $this->crearFichero('parciales/atajos/imagen.twig', '<img src="{{ src }}" style="aspect-ratio: {{ ancho }} / {{ alto }}">');
+
+        self::assertSame('<img src="/img/a.png" style="aspect-ratio: 40 / 30">', trim($this->cuerpo('![A](/img/a.png)')));
     }
 
     #[Test]

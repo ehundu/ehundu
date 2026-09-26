@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ehundu\Plantillas;
 
 use Ehundu\Avisos;
+use Ehundu\Dimensiones;
 use Ehundu\Lectura;
 use Ehundu\Proyecto;
 use Twig\Environment;
@@ -20,7 +21,7 @@ use Twig\Markup;
  * Cada atajo es una plantilla de Twig que recibe sus atributos como
  * variables, `contenido` si envuelve algo, y `sitio`, `datos` y `pagina`.
  * Los de Ehundu preparan antes algunas variables: `imagen` recibe `src`,
- * `alt` y `pie`; `video`, `insercion` o `src` y `proporcion`; `archivo`,
+ * `alt`, `pie`, `enlace`, `ancho` y `alto`; `video`, `insercion` o `src` y `proporcion`; `archivo`,
  * `href`, `texto`, `tipo` y `peso`; `dato`, `valor`.
  */
 final class Atajos
@@ -159,7 +160,42 @@ final class Atajos
             'alt' => $alt,
             'pie' => $pie === '' ? null : new Markup(htmlspecialchars($pie, ENT_QUOTES, 'UTF-8'), 'UTF-8'),
             'enlace' => $atributos['enlace'] ?? null,
+            ...$this->medidas($fichero),
         ];
+    }
+
+    /**
+     * El ancho y el alto de la imagen de una figura del Markdown, si su
+     * dirección empieza por `/` y es un fichero de `publico/`. Una dirección
+     * externa o relativa no se mira.
+     *
+     * @return array{ancho: ?int, alto: ?int}
+     */
+    public function medidasDeFigura(string $src): array
+    {
+        if (!str_starts_with($src, '/') || str_starts_with($src, '//')) {
+            return ['ancho' => null, 'alto' => null];
+        }
+
+        $fichero = ltrim(rawurldecode((string) strtok($src, '?#')), '/');
+
+        if ($fichero === '' || str_contains($fichero, '\\') || preg_match('#(^|/)\.\.?(/|$)#', $fichero) === 1) {
+            return ['ancho' => null, 'alto' => null];
+        }
+
+        return $this->medidas($fichero);
+    }
+
+    /**
+     * @return array{ancho: ?int, alto: ?int}
+     */
+    private function medidas(string $fichero): array
+    {
+        $medidas = $this->existe($fichero)
+            ? Dimensiones::leer($this->proyecto->ruta(Proyecto::PUBLICO, $fichero))
+            : null;
+
+        return ['ancho' => $medidas['ancho'] ?? null, 'alto' => $medidas['alto'] ?? null];
     }
 
     /**

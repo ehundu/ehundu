@@ -165,7 +165,7 @@ Campos reservados:
 
 | Campo         | Tipo    | Significado                                              |
 |---------------|---------|----------------------------------------------------------|
-| `titulo`      | texto   | Título de la página. Obligatorio.                         |
+| `titulo`      | texto   | Título de la página. Obligatorio si genera HTML.          |
 | `subtitulo`   | texto   | Entradilla o descripción corta.                           |
 | `descripcion` | texto   | Descripción para buscadores (`meta description`).         |
 | `fecha`       | fecha   | Fecha de publicación (`AAAA-MM-DD`).                      |
@@ -189,7 +189,15 @@ el nombre mal escrito es, para el motor, un campo desconocido más.
 Lo que sí comprueba es el valor de los campos reservados. Si no vale (una fecha
 imposible, un `orden` que no es un número), avisa con fichero y línea y trata
 el campo como si no estuviera. Nunca detiene el build por eso. Un campo en
-blanco (`imagen:`) no es un error: pasa vacío y sin aviso.
+blanco (`imagen:`) no es un error: pasa vacío y sin aviso. La excepción es
+`titulo`: una página que genera HTML sin título, o con el título vacío,
+avisa, porque su `<title>` saldría vacío. Un fragmento (`url: false`) o una
+página que genera otra cosa (`/robots.txt`) no lo necesitan.
+
+Un fichero `.md` o `.twig` cuyo nombre, o el de su carpeta, empieza por guion
+bajo (`_portada/index.md`) es una página como cualquier otra, igual que en
+Eleventy. El guion bajo solo impide que se copien los ficheros que no son
+páginas.
 
 Detalles de los tipos:
 
@@ -208,7 +216,14 @@ Detalles de los tipos:
 Se aceptan como alias los nombres ingleses habituales en Eleventy y Lume
 (`title`, `subtitle`, `description`, `date`, `tags`, `layout`, `permalink`),
 para no tener que reescribir el front matter al migrar. Si una página lleva a
-la vez el nombre inglés y el español, gana el español y se avisa.
+la vez el nombre inglés y el español, gana el español y se avisa. Los alias
+valen también en `_datos.yml`.
+
+El alias es para el nombre del campo, no para su valor. `layout: post` vale,
+pero `layout: post.njk` no: `plantilla` es el nombre de una plantilla de
+Ehundu, sin extensión, y la plantilla que no existe detiene el build (§7.1).
+El error dice cómo quedaría el nombre sin extensión. Al migrar, los nombres
+de las plantillas se eligen de nuevo al pasarlas a Twig.
 
 ---
 
@@ -329,7 +344,8 @@ un proyecto tiene que dar el mismo resultado en cualquiera.
 - `sin(pagina)` quita una página, normalmente la actual.
 - `donde(campo, valor)` deja las páginas en las que el campo vale eso. Si el
   campo es una lista, las que lo contienen: `donde('etiquetas', 'novela')`.
-  Una fecha se compara con su día (`donde('fecha', '2025-03-15')`).
+  Una fecha se compara con su día (`donde('fecha', '2025-03-15')`). Los
+  textos se comparan exactos: con mayúsculas, tildes y espacios.
 - `anterior(pagina)` y `siguiente(pagina)` no filtran: devuelven la página que
   va antes o después de la indicada en la lista, o nada si es la primera, la
   última o no está. Con el orden de `coleccion()`, la anterior es la más
@@ -405,6 +421,13 @@ escribe, salvo `pagina.contenido` y lo que devuelve `svg()`.
   declaración `<?xml ?>` y el `DOCTYPE`, que no caben dentro de HTML:
   `{{ svg('svg/telefono.svg') }}`. Si el fichero no existe, no es un `.svg` o
   la ruta sale de `publico/`, se avisa y no se inserta nada.
+- `dimensiones(ruta)` da el ancho y el alto de una imagen de `publico/`, en
+  píxeles, para `width`, `height` o `aspect-ratio`:
+  `{% set d = dimensiones('img/sede.jpg') %}` y luego `{{ d.ancho }}` y
+  `{{ d.alto }}`. Lee la cabecera del fichero con lo que trae PHP (JPEG, PNG,
+  GIF, WebP, AVIF); no procesa la imagen. De un SVG o de un fichero que no es
+  imagen da `null`, sin aviso. Si el fichero no existe o la ruta sale de
+  `publico/`, avisa y da `null`.
 - `activo(url)` dice si la página actual es esa URL o está dentro de ella:
   `activo('/blog/')` es cierto en `/blog/` y en `/blog/un-articulo/`. `/` solo
   es activo en la portada. Para comparar exacto, `pagina.url == url`.
@@ -418,6 +441,14 @@ escribe, salvo `pagina.contenido` y lo que devuelve `svg()`.
 
 Todas las fechas se escriben en la zona horaria del sitio (§2), también las
 del filtro `date` de Twig, que por sí solo usaría la de la máquina.
+
+Las plantillas pueden usar `random()` de Twig para elegir al azar, y la fecha
+del momento (`'now'|date('Y')`, para el año del pie). Son las dos únicas
+formas de que el mismo proyecto dé otro HTML (§12.3), y tienen un precio: con
+`random()`, cada compilación completa elige de nuevo, así que esa página
+cambia y se vuelve a subir en cada despliegue. La previsualización, que
+compila de forma incremental, conserva lo elegido, o la fecha, mientras no
+cambie nada de lo que la página usa.
 
 ---
 
@@ -438,8 +469,10 @@ Dos añadidos forman parte del contrato:
   la vez el `alt` de la imagen, en texto plano, y el pie, con su Markdown
   convertido: `![El **escaparate** en otoño](/img/escaparate.jpg)` lleva
   `alt="El escaparate en otoño"` y el pie `El <strong>escaparate</strong> en
-  otoño`. Un sitio que quiera otro marcado para sus figuras (una clase, un
-  `loading="lazy"`) lo da con su propia plantilla `imagen`.
+  otoño`. Si la dirección empieza por `/` y es una imagen de `publico/`,
+  lleva también su ancho y su alto, como el atajo. Un sitio que quiera otro
+  marcado para sus figuras (una clase, un `loading="lazy"`) lo da con su
+  propia plantilla `imagen`.
 - **Enlaces externos.** Un enlace escrito en Markdown a otro dominio recibe
   `target="_blank"` y `rel="noopener"`. El dominio del sitio es el de `url`
   en `sitio.yml`, con y sin `www.`. El HTML escrito a mano y los enlaces de
@@ -502,9 +535,12 @@ nombre en `parciales/atajos/`, que recibe las mismas variables.
 - **`imagen`**: `[imagen fichero="img/escaparate.jpg" alt="…" pie="…"]`, con
   `fichero` dentro de `publico/`. Da `<figure>` con la imagen y, si hay pie,
   `<figcaption>`. Sin `pie`, el pie es el `alt`; con `pie=""`, no hay pie.
-  `enlace` hace la imagen enlazada. La plantilla recibe `src`, `alt`, `pie`
-  (ya en HTML) y `enlace`. Se avisa si falta `alt` o si el fichero no existe;
-  sin `fichero` no se inserta nada.
+  `enlace` hace la imagen enlazada. La imagen lleva `width` y `height` cuando
+  se pueden leer del fichero (§7.3, `dimensiones()`), para que el navegador
+  le reserve el sitio antes de cargarla. La plantilla recibe `src`, `alt`,
+  `pie` (ya en HTML), `enlace`, `ancho` y `alto` (`null` si no se pueden
+  leer). Se avisa si falta `alt` o si el fichero no existe; sin `fichero` no
+  se inserta nada.
 - **`video`**: `[video url="https://www.youtube.com/watch?v=…" titulo="…"]`
   admite YouTube, que se inserta desde `youtube-nocookie.com` para no poner
   cookies hasta que se reproduce, y Vimeo, con `dnt=1`. Con
@@ -675,7 +711,8 @@ campos, que es el caso de las páginas de aterrizaje.
 2. La orden de consola y cualquier programa que incruste el motor usan la
    misma API; la orden es una envoltura fina.
 3. Un proyecto exportado en zip compila en cualquier máquina con PHP y da el
-   mismo HTML.
+   mismo HTML, salvo lo que una plantilla elija al azar con `random()` o
+   saque de la fecha del momento (§7.3).
 4. El motor no ejecuta código propio del sitio en la v1.
 
 ---
@@ -688,6 +725,9 @@ procesadores sobre el HTML ya generado, pasos posteriores al build y búsqueda.
 
 Ninguna de estas cosas debería obligar a cambiar lo de arriba cuando llegue.
 Si al añadirlas hay que romper el contrato, el contrato estaba mal.
+
+Por eso queda reservado ya el campo `componentes`, que será el del catálogo:
+un sitio de la v1 no debe usarlo como campo propio.
 
 ---
 
@@ -812,6 +852,21 @@ Si al añadirlas hay que romper el contrato, el contrato estaba mal.
     servicios ni vaciado de cachés de una CDN (`despliegue.md`).
 61. **Cerrada.** Los secretos se escriben entre comillas simples, y los
     errores de `.secretos.yml` no enseñan su contenido (§2).
+62. **Cerrada.** `dimensiones()` lee el ancho y el alto de una imagen de
+    `publico/` sin procesarla, y el atajo `imagen` y las figuras del
+    Markdown los ponen como `width` y `height` (§7.3, §8, §8.2).
+63. **Cerrada.** Las plantillas pueden usar `random()`; es, con la fecha del
+    momento, la excepción a que el mismo proyecto dé el mismo HTML (§7.3,
+    §12.3).
+64. **Cerrada.** Una página que genera HTML sin `titulo` avisa; un fragmento
+    o un `robots.txt` no lo necesitan (§4).
+65. **Cerrada.** Las páginas cuyo nombre o carpeta empieza por `_` se
+    compilan como las demás (§4).
+66. **Cerrada.** Los alias ingleses valen para el nombre del campo, no para su
+    valor: `layout: post.njk` no es una plantilla de Ehundu, y el error dice
+    cómo quitar la extensión. Valen también en `_datos.yml` (§4).
+67. **Cerrada.** `donde` compara los textos exactos (§6.2).
+68. **Cerrada.** `componentes` queda reservado para el catálogo de la v2 (§13).
 
 ---
 

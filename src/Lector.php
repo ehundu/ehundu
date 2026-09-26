@@ -197,12 +197,19 @@ final class Lector
 
         $carpeta = str_contains($ruta, '/') ? substr($ruta, 0, strrpos($ruta, '/')) : '';
         $campos = Cascada::combinar($cascada->campos($carpeta), $propios);
+        $url = Url::resolver($ruta, $campos, $fichero, $avisos);
+
+        // Obligatorio en las páginas HTML, por su <title>; un fragmento o un
+        // robots.txt no lo necesitan.
+        if ($url !== false && str_ends_with(Url::fichero($url), '.html') && ($campos['titulo'] ?? '') === '') {
+            $avisos->registrar('Falta «titulo», el título de la página', $fichero);
+        }
 
         return new Pagina(
             $ruta,
             pathinfo($ruta, PATHINFO_EXTENSION),
             $campos,
-            Url::resolver($ruta, $campos, $fichero, $avisos),
+            $url,
             $frontMatter->cuerpo,
             $frontMatter->lineaCuerpo,
         );

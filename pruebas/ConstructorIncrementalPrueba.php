@@ -8,6 +8,7 @@ use Ehundu\Construccion;
 use Ehundu\Constructor;
 use Ehundu\Proyecto;
 use Ehundu\Pruebas\Apoyo\CarpetaTemporal;
+use Ehundu\Pruebas\Apoyo\Png;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -57,6 +58,11 @@ final class ConstructorIncrementalPrueba extends TestCase
             ],
             'desaparece el documento que enlaza la portada' => [fn () => $this->quitar('publico/doc.pdf'), 1],
             'vuelve con otro tamaño' => [fn () => $this->poner('publico/doc.pdf', str_repeat('PDF', 900)), 1],
+            'la foto de los artículos pasa a tener medidas: ellos y la portada, que los muestra' => [
+                fn () => $this->poner('publico/foto.jpg', Png::de(4, 3)),
+                3,
+            ],
+            'y cambian sus medidas' => [fn () => $this->poner('publico/foto.jpg', Png::de(8, 3)), 3],
             'aparece un artículo: él y la portada' => [
                 fn () => $this->poner('contenido/blog/tres.md', "---\ntitulo: Tres\nfecha: 2024-02-15\n---\nTercer artículo.\n"),
                 2,
@@ -344,6 +350,7 @@ final class ConstructorIncrementalPrueba extends TestCase
                     ? $this->quitar('publico/doc.pdf')
                     : $this->poner('publico/doc.pdf', str_repeat('PDF', $aleatorio->getInt(1, 2000)));
             },
+            'foto con otras medidas' => fn () => $this->poner('publico/foto.jpg', Png::de($aleatorio->getInt(1, 9), $aleatorio->getInt(1, 9))),
             'foto que va y viene' => function (): void {
                 isset($this->ficheros['publico/falta.jpg']) ? $this->quitar('publico/falta.jpg') : $this->poner('publico/falta.jpg', 'JPEG');
             },

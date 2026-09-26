@@ -13,6 +13,7 @@ use Ehundu\Pagina;
 use Ehundu\Plantillas\Maquetador;
 use Ehundu\Proyecto;
 use Ehundu\Pruebas\Apoyo\CarpetaTemporal;
+use Ehundu\Pruebas\Apoyo\Png;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -99,6 +100,20 @@ final class MaquetadorPrueba extends TestCase
     }
 
     #[Test]
+    public function unaPlantillaConExtensionDiceQueVaSinElla(): void
+    {
+        $this->crearFichero('contenido/blog/uno.md', "---\ntitulo: Uno\nlayout: layouts/post.njk\n---\nHola");
+
+        $this->expectException(ErrorDeProyecto::class);
+        $this->expectExceptionMessage(
+            'contenido/blog/uno.md: La página usa la plantilla «layouts/post.njk», pero no existe plantillas/layouts/post.njk.twig. '
+            . 'El nombre va sin extensión: «layouts/post»',
+        );
+
+        $this->maquetar('blog/uno.md');
+    }
+
+    #[Test]
     public function losErroresDeTwigEnElCuerpoLlevanLaLineaDelFichero(): void
     {
         $this->crearFichero('contenido/index.twig', "---\ntitulo: Inicio\n---\n<h1>Hola</h1>\n{{ pagina.titulo|mayusculas }}\n");
@@ -142,6 +157,32 @@ final class MaquetadorPrueba extends TestCase
             "svg('svg/falta.svg'): no existe publico/svg/falta.svg; no se inserta nada",
             "svg('../sitio.yml'): solo se insertan ficheros .svg de dentro de publico/; no se inserta nada",
             "svg('css/estilos.css'): solo se insertan ficheros .svg de dentro de publico/; no se inserta nada",
+        ], array_map(strval(...), $this->avisos->todos()));
+    }
+
+    #[Test]
+    public function dimensionesDaElAnchoYElAltoDeUnaImagen(): void
+    {
+        $this->crearFichero('publico/img/foto.png', Png::de(640, 480));
+        $this->crearFichero('publico/svg/logo.svg', '<svg></svg>');
+        $this->crearFichero(
+            'contenido/index.twig',
+            "---\nplantilla: false\n---\n{% set d = dimensiones('img/foto.png') %}{{ d.ancho }}x{{ d.alto }}|{{ dimensiones('/img/foto.png').alto }}|{{ dimensiones('svg/logo.svg') is null ? 'sin medidas' }}",
+        );
+
+        self::assertSame('640x480|480|sin medidas', $this->maquetar('index.twig'));
+        self::assertSame([], $this->avisos->todos());
+    }
+
+    #[Test]
+    public function dimensionesAvisaSiNoPuedeLeerElFichero(): void
+    {
+        $this->crearFichero('contenido/index.twig', "---\nplantilla: false\n---\n{{ dimensiones('img/falta.png') is null ? 'a' }}{{ dimensiones('../sitio.yml') is null ? 'b' }}");
+
+        self::assertSame('ab', $this->maquetar('index.twig'));
+        self::assertSame([
+            "dimensiones('img/falta.png'): no existe publico/img/falta.png",
+            "dimensiones('../sitio.yml'): solo se leen imágenes de dentro de publico/",
         ], array_map(strval(...), $this->avisos->todos()));
     }
 

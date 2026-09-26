@@ -42,11 +42,11 @@ final class CompiladorEnProcesoPrueba extends TestCase
     {
         $this->crearSitioMinimo();
         $this->crearPlantillaMinima();
-        $this->crearFichero('contenido/index.md', "---\nborrador: quizá\n---\n");
+        $this->crearFichero('contenido/index.md', "---\ntitulo: Inicio\nborrador: quizá\n---\n");
 
         $avisos = array_map(strval(...), $this->compilar()->avisos);
 
-        self::assertSame(['contenido/index.md:2: «borrador» tiene que ser sí o no'], $avisos);
+        self::assertSame(['contenido/index.md:3: «borrador» tiene que ser sí o no'], $avisos);
     }
 
     #[Test]

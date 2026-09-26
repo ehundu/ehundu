@@ -7,6 +7,7 @@ namespace Ehundu\Plantillas;
 use Ehundu\Avisos;
 use Ehundu\Coleccion;
 use Ehundu\Colecciones;
+use Ehundu\Dimensiones;
 use Ehundu\Fecha;
 use Ehundu\Pagina;
 use Ehundu\Proyecto;
@@ -17,7 +18,7 @@ use Twig\TwigFunction;
 
 /**
  * Lo que Ehundu añade a Twig (formato §5.2, §6, §7 y §9): las funciones
- * `coleccion()`, `svg()`, `activo()`, `css()` y `js()`, y los filtros `slug`, `fecha`, `orden`,
+ * `coleccion()`, `svg()`, `dimensiones()`, `activo()`, `css()` y `js()`, y los filtros `slug`, `fecha`, `orden`,
  * `limite`, `invertir`, `sin`, `donde`, `anterior` y `siguiente`.
  *
  * Las plantillas trabajan con vistas de página; los filtros de colección
@@ -56,6 +57,7 @@ final class ExtensionTwig extends AbstractExtension
                 return $this->vistas($this->colecciones->coleccion($nombre, $idioma));
             }),
             new TwigFunction('svg', $this->svg(...), ['is_safe' => ['html']]),
+            new TwigFunction('dimensiones', $this->dimensiones(...)),
             new TwigFunction('activo', $this->activo(...), ['needs_context' => true]),
             new TwigFunction('css', fn (string ...$rutas) => $this->recurso('css', $rutas), ['is_safe' => ['html']]),
             new TwigFunction('js', fn (string ...$rutas) => $this->recurso('js', $rutas), ['is_safe' => ['html']]),
@@ -136,6 +138,38 @@ final class ExtensionTwig extends AbstractExtension
         $svg = (string) preg_replace('/^\s*<!DOCTYPE[^>]*>\s*/i', '', $svg);
 
         return $this->svgs[$relativa] = $svg;
+    }
+
+    /**
+     * El ancho y el alto de una imagen de `publico/`, o null si no se pueden
+     * leer (un SVG, un fichero que no es imagen). Si el fichero no existe o
+     * la ruta sale de `publico/`, se avisa.
+     *
+     * @return array{ancho: int, alto: int}|null
+     */
+    public function dimensiones(string $ruta): ?array
+    {
+        $relativa = ltrim($ruta, '/');
+        $this->registros?->anotar('publico', $relativa);
+        $fichero = Proyecto::PUBLICO . "/{$relativa}";
+
+        if ($this->proyecto === null) {
+            return null;
+        }
+
+        if ($relativa === '' || str_contains($relativa, '\\') || preg_match('#(^|/)\.\.?(/|$)#', $relativa) === 1) {
+            $this->avisos->registrar("dimensiones('{$ruta}'): solo se leen imágenes de dentro de publico/");
+
+            return null;
+        }
+
+        if (!is_file($this->proyecto->ruta($fichero))) {
+            $this->avisos->registrar("dimensiones('{$ruta}'): no existe {$fichero}");
+
+            return null;
+        }
+
+        return Dimensiones::leer($this->proyecto->ruta($fichero));
     }
 
     /**

@@ -182,7 +182,7 @@ final class AplicacionPrueba extends TestCase
         $publicado = $this->carpetaTemporal() . '-publicado';
         $this->crearFichero('sitio.yml', "nombre: Prueba\nurl: https://ejemplo.com\ndespliegue:\n  destino: carpeta\n  ruta: {$publicado}\n");
         $this->crearPlantillaMinima();
-        $this->crearFichero('contenido/index.md', 'Hola');
+        $this->crearFichero('contenido/index.md', "---\ntitulo: Hola\n---\nHola");
 
         try {
             $simulado = $this->aplicacion()->ejecutar(['desplegar', '--simular', $this->carpetaTemporal()]);
@@ -222,7 +222,7 @@ final class AplicacionPrueba extends TestCase
         // Un campo de más avisa; que el destino esté dentro del proyecto detiene el despliegue.
         $this->crearFichero('sitio.yml', "nombre: Prueba\nurl: https://ejemplo.com\ndespliegue:\n  destino: carpeta\n  ruta: dentro\n  cubo: x\n");
         $this->crearPlantillaMinima();
-        $this->crearFichero('contenido/index.md', 'Hola');
+        $this->crearFichero('contenido/index.md', "---\ntitulo: Hola\n---\nHola");
 
         $codigo = $this->aplicacion()->ejecutar(['desplegar', $this->carpetaTemporal()]);
 

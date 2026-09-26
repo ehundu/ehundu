@@ -10,6 +10,7 @@ use Ehundu\Compilador;
 use Ehundu\CompiladorEnProceso;
 use Ehundu\ErrorDeProyecto;
 use Ehundu\Informe;
+use Ehundu\Lector;
 use Ehundu\Proyecto;
 
 /**
@@ -72,11 +73,13 @@ final class Desplegador
         $compilacion = $this->compilador->compilar($proyecto);
         $alCompilar !== null && $alCompilar($compilacion);
         $ficheros = self::ficheros($proyecto);
+        $url = (new Lector())->leerSitio($proyecto)->url;
         $destino = $this->abrir($configuracion, $proyecto, $avisos);
 
         try {
             $anterior = self::manifiesto($destino, $todo, $avisos);
-            $plan = PlanDeDespliegue::trazar($ficheros, $anterior, $todo);
+            self::comprobarSitio($anterior, $url, $todo, $avisos);
+            $plan = PlanDeDespliegue::trazar($ficheros, $anterior, $todo, $url);
 
             if (!$simular) {
                 $this->ejecutar($plan, $proyecto, $destino, $anterior, $alAvanzar);
@@ -108,11 +111,13 @@ final class Desplegador
      */
     public function ejecutar(PlanDeDespliegue $plan, Proyecto $proyecto, Destino $destino, ?Manifiesto $anterior, ?\Closure $alAvanzar = null): void
     {
-        if ($plan->estaVacio() && $anterior !== null) {
+        $url = $plan->url ?? $anterior?->url;
+
+        if ($plan->estaVacio() && $anterior !== null && $anterior->url === $url) {
             return;
         }
 
-        $manifiesto = new Manifiesto($anterior?->ficheros() ?? []);
+        $manifiesto = new Manifiesto($anterior?->ficheros() ?? [], $url);
         $sinGuardar = 0;
         $guardado = hrtime(true);
 
@@ -209,6 +214,29 @@ final class Desplegador
 
             return null;
         }
+    }
+
+    /**
+     * Que el destino sea de este sitio. Si su manifiesto es de otra `url`, lo
+     * normal es que la ruta esté mal, y desplegar borraría lo que subió el
+     * otro sitio; `--todo` confirma que es este mismo con otra dirección. Un
+     * manifiesto sin `url`, de Ehundu 0.1, se acepta.
+     */
+    private static function comprobarSitio(?Manifiesto $anterior, string $url, bool $todo, Avisos $avisos): void
+    {
+        if ($anterior?->url === null || $anterior->url === $url) {
+            return;
+        }
+
+        if (!$todo) {
+            throw new ErrorDeProyecto(
+                'El destino es de otro sitio: su ' . Manifiesto::FICHERO . " dice {$anterior->url} y " . Proyecto::SITIO
+                    . " dice {$url}. Si la ruta de despliegue está mal, corrígela: desplegar ahí borraría lo que subió "
+                    . 'ese sitio. Si es este mismo sitio con otra dirección, despliega con --todo',
+            );
+        }
+
+        $avisos->registrar("El destino era de {$anterior->url} y pasa a ser de {$url}");
     }
 
     private function abrir(Configuracion $configuracion, Proyecto $proyecto, Avisos $avisos): Destino

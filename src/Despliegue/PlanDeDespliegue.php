@@ -21,11 +21,15 @@ final readonly class PlanDeDespliegue
      * @param list<array{ruta: string, md5: string, tamano: int}> $subidas    en el orden en que se suben
      * @param list<string>                                         $borrados
      * @param int                                                  $sinCambios ficheros que ya están como deben
+     * @param string|null                                          $url        la del sitio, que queda en el
+     *                                                                         manifiesto; sin ella, se queda
+     *                                                                         la que tuviera
      */
     public function __construct(
         public array $subidas,
         public array $borrados,
         public int $sinCambios,
+        public ?string $url = null,
     ) {
     }
 
@@ -33,8 +37,9 @@ final readonly class PlanDeDespliegue
      * @param array<string, array{md5: string, tamano: int}> $ficheros los de `salida/`, por ruta
      * @param Manifiesto|null                                $anterior el del destino, si lo hay
      * @param bool                                           $todo     si se sube todo aunque no haya cambiado
+     * @param string|null                                    $url      la del sitio que se despliega
      */
-    public static function trazar(array $ficheros, ?Manifiesto $anterior, bool $todo = false): self
+    public static function trazar(array $ficheros, ?Manifiesto $anterior, bool $todo = false, ?string $url = null): self
     {
         $subidos = $anterior?->ficheros() ?? [];
         $subidas = [];
@@ -60,7 +65,7 @@ final readonly class PlanDeDespliegue
         ));
         sort($borrados, SORT_STRING);
 
-        return new self($subidas, $borrados, $sinCambios);
+        return new self($subidas, $borrados, $sinCambios, $url);
     }
 
     public function bytes(): int

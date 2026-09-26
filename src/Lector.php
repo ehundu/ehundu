@@ -36,7 +36,12 @@ final class Lector
         return new Lectura($sitio, $datos, $paginas, $avisos->todos(), $ficheros);
     }
 
-    private function leerSitio(Proyecto $proyecto): Sitio
+    /**
+     * Solo `sitio.yml`, sin el resto del proyecto.
+     *
+     * @throws ErrorDeProyecto si falta o le falta algo imprescindible
+     */
+    public function leerSitio(Proyecto $proyecto): Sitio
     {
         $fichero = Proyecto::SITIO;
 

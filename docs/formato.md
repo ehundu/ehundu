@@ -875,6 +875,10 @@ un sitio de la v1 no debe usarlo como campo propio.
 69. **Cerrada.** El Markdown sigue CommonMark también en los bloques de código
     sangrados, aunque Eleventy los desactive; al migrar se quita la sangría
     accidental (§8).
+70. **Cerrada.** El manifiesto del destino guarda también la `url` del sitio.
+    Si la del destino es otra, el despliegue se detiene antes de tocar nada,
+    porque lo normal es que la `ruta` apunte a otro sitio; `--todo` confirma
+    que es el mismo sitio con otra dirección (`despliegue.md`).
 
 ---
 

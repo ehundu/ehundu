@@ -41,7 +41,9 @@ final class Aplicacion
                                       subió Ehundu y ya no se genera.
                 --simular             Dice qué subiría y qué borraría, sin
                                       tocar el destino.
-                --todo                Lo sube todo, aunque no haya cambiado.
+                --todo                Lo sube todo, aunque no haya cambiado, y
+                                      confirma que el destino es de este sitio
+                                      si ha cambiado su url.
           ehundu --ayuda              Muestra esta ayuda.
 
         TXT;

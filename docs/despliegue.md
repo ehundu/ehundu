@@ -10,18 +10,18 @@ campos de cada destino y los secretos están en el §2 del formato.
 Con `--simular` dice qué subiría y qué borraría, sin tocar el destino; sí se
 conecta, para saber qué hay allí. Con `--todo` lo sube todo aunque no haya
 cambiado, que es lo que hace falta si alguien ha tocado a mano los ficheros
-del servidor.
+del servidor o si el sitio ha cambiado de dirección.
 
 ## Qué se sube y qué se borra
 
 Ehundu deja en el destino un fichero, `.ehundu.json`, con lo que ha subido:
-la ruta, el MD5 y el tamaño de cada fichero, y nada más. Al desplegar lo lee,
-compara con lo que acaba de compilar y sube solo lo nuevo o lo que ha
-cambiado. El manifiesto vive en el propio destino para que cualquier máquina
-que despliegue el sitio vea lo mismo, y para que el motor no tenga que
-escribir nada en el proyecto fuera de `salida/`. Se puede leer desde la web,
-como cualquier fichero del sitio: dice qué ficheros hay, también los que no
-enlaza ninguna página.
+la `url` del sitio y la ruta, el MD5 y el tamaño de cada fichero, y nada
+más. Al desplegar lo lee, compara con lo que acaba de compilar y sube solo
+lo nuevo o lo que ha cambiado. El manifiesto vive en el propio destino para
+que cualquier máquina que despliegue el sitio vea lo mismo, y para que el
+motor no tenga que escribir nada en el proyecto fuera de `salida/`. Se puede
+leer desde la web, como cualquier fichero del sitio: dice qué ficheros hay,
+también los que no enlaza ninguna página.
 
 Se borra solo lo que subió Ehundu y ya no se genera. Lo que haya en el
 destino y no esté en el manifiesto no se toca nunca: el fichero con el que se
@@ -34,6 +34,23 @@ tienen algo más, se quedan.
 Si el destino no tiene manifiesto, se sube todo y no se borra nada. Si lo
 tiene pero está estropeado, el despliegue se detiene: sin él no se sabe qué
 se puede borrar. `--todo` lo rehace.
+
+## Un destino de otro sitio
+
+La `url` del manifiesto dice de qué sitio es el destino. Si no es la de
+`sitio.yml`, el despliegue se detiene antes de tocar nada, también al
+simular. Lo normal es que la `ruta` esté mal, por ejemplo en un `sitio.yml`
+copiado de otro sitio que comparte servidor, y desplegar ahí borraría todo
+lo que subió el otro sitio.
+
+Si es el mismo sitio con otra dirección (otro dominio, con `www` o sin él,
+de `http` a `https`), `--todo` lo confirma: se sube todo, se borra lo que
+subió Ehundu y ya no se genera, como siempre, y el manifiesto pasa a la
+dirección nueva. Un aviso lo deja dicho. La comparación es exacta, sin la
+barra final: cualquier cambio en la `url` pide confirmarlo.
+
+Un manifiesto sin `url`, de un despliegue con Ehundu 0.1, se acepta y la
+gana en el siguiente despliegue.
 
 ## En qué orden
 

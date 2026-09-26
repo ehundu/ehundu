@@ -39,6 +39,34 @@ final class ManifiestoPrueba extends TestCase
     }
 
     #[Test]
+    public function guardaLaUrlDelSitioDelanteDeLosFicheros(): void
+    {
+        $manifiesto = new Manifiesto(['index.html' => ['md5' => md5('hola'), 'tamano' => 4]], 'https://www.ejemplo.com');
+
+        $json = $manifiesto->json();
+
+        self::assertStringStartsWith("{\n    \"ehundu\": 1,\n    \"url\": \"https://www.ejemplo.com\",\n    \"ficheros\": {", $json);
+        self::assertSame('https://www.ejemplo.com', Manifiesto::leer($json)->url);
+    }
+
+    #[Test]
+    public function unManifiestoSinUrlDeEhundu01SeLee(): void
+    {
+        $manifiesto = Manifiesto::leer('{"ehundu": 1, "ficheros": {"a.html": {"md5": "x", "tamano": 1}}}');
+
+        self::assertNull($manifiesto->url);
+        self::assertSame(['a.html'], array_keys($manifiesto->ficheros()));
+    }
+
+    #[Test]
+    public function unaUrlQueNoEsUnTextoNoSeLee(): void
+    {
+        $this->expectExceptionMessage('tiene una «url» que no se entiende');
+
+        Manifiesto::leer('{"ehundu": 1, "url": 3, "ficheros": {}}');
+    }
+
+    #[Test]
     public function unManifiestoVacioSigueSiendoUnObjeto(): void
     {
         self::assertSame([], Manifiesto::leer((new Manifiesto())->json())->ficheros());

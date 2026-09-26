@@ -38,9 +38,80 @@ final class DesplegadorPrueba extends TestCase
             ['css/a.css', 'index.html', 'otra/index.html', 'sitemap.xml'],
             array_keys(Manifiesto::leer($this->destino->ficheros[Manifiesto::FICHERO])->ficheros()),
         );
+        self::assertSame('https://ejemplo.com', Manifiesto::leer($this->destino->ficheros[Manifiesto::FICHERO])->url);
         self::assertSame(4, count($informe->subidos));
         self::assertStringStartsWith('Compilado: 2 páginas y 1 fichero ', $informe->compilacion->resumen());
         self::assertTrue($this->destino->cerrado);
+    }
+
+    #[Test]
+    public function unDestinoDeOtroSitioDetieneElDespliegueSinTocarNada(): void
+    {
+        $this->crearSitio();
+        $this->desplegar();
+        $this->destino->operaciones = [];
+        $this->destino->cerrado = false;
+        $antes = $this->destino->ficheros;
+
+        // Un sitio.yml copiado de otro sitio con la misma ruta.
+        $this->crearFichero('sitio.yml', "nombre: Otro\nurl: https://otro.com/\ndespliegue:\n  destino: carpeta\n  ruta: /publicado\n");
+        unlink($this->carpetaTemporal() . '/contenido/otra.md');
+
+        foreach ([false, true] as $simular) {
+            try {
+                $this->desplegar(simular: $simular);
+                self::fail('Tenía que fallar');
+            } catch (ErrorDeProyecto $error) {
+                self::assertSame(
+                    'El destino es de otro sitio: su .ehundu.json dice https://ejemplo.com y sitio.yml dice https://otro.com. '
+                        . 'Si la ruta de despliegue está mal, corrígela: desplegar ahí borraría lo que subió ese sitio. '
+                        . 'Si es este mismo sitio con otra dirección, despliega con --todo',
+                    $error->getMessage(),
+                );
+            }
+        }
+
+        self::assertSame([], $this->destino->operaciones);
+        self::assertSame($antes, $this->destino->ficheros);
+        self::assertTrue($this->destino->cerrado);
+    }
+
+    #[Test]
+    public function conTodoElDestinoPasaAEsteSitio(): void
+    {
+        $this->crearSitio();
+        $this->desplegar();
+        $this->destino->operaciones = [];
+
+        $this->crearFichero('sitio.yml', "nombre: Prueba\nurl: https://www.ejemplo.com\ndespliegue:\n  destino: carpeta\n  ruta: /publicado\n");
+        unlink($this->carpetaTemporal() . '/contenido/otra.md');
+        $informe = $this->desplegar(todo: true);
+
+        self::assertSame(['El destino era de https://ejemplo.com y pasa a ser de https://www.ejemplo.com'], array_map('strval', $informe->avisos));
+        self::assertSame(['otra/index.html'], $informe->borrados);
+        self::assertSame('https://www.ejemplo.com', Manifiesto::leer($this->destino->ficheros[Manifiesto::FICHERO])->url);
+
+        // Y a partir de ahí, como siempre.
+        $this->destino->operaciones = [];
+        $this->desplegar();
+        self::assertSame([], $this->destino->operaciones);
+    }
+
+    #[Test]
+    public function unManifiestoSinUrlSeAceptaYLaGanaAunqueNoHayaCambios(): void
+    {
+        $this->crearSitio();
+        $this->desplegar();
+        $deEhundu01 = new Manifiesto(Manifiesto::leer($this->destino->ficheros[Manifiesto::FICHERO])->ficheros());
+        $this->destino->ficheros[Manifiesto::FICHERO] = $deEhundu01->json();
+        $this->destino->operaciones = [];
+
+        $informe = $this->desplegar();
+
+        self::assertSame(['escribir ' . Manifiesto::FICHERO], $this->destino->operaciones);
+        self::assertSame([], $informe->subidos);
+        self::assertSame([], $informe->avisos);
+        self::assertSame('https://ejemplo.com', Manifiesto::leer($this->destino->ficheros[Manifiesto::FICHERO])->url);
     }
 
     #[Test]

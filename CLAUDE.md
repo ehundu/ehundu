@@ -38,6 +38,8 @@ Ese es el rasgo que lo distingue y el criterio para decidir qué entra.
     recursos/     plantillas que trae el motor (los atajos incluidos)
     docs/         documentación: el formato (formato.md), la previsualización,
                   la compilación incremental y el despliegue
+    marca/        el logotipo de Ehundu en SVG: símbolo, horizontal y vertical,
+                  en color y en negativo
 
 Las clases de prueba llevan el sufijo `Prueba` y los métodos el atributo
 `#[Test]`, para que se llamen en español (`fallaSiLaCarpetaNoExiste`). Las

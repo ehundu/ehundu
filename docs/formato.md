@@ -121,7 +121,10 @@ Extensiones reconocidas: `.md` (Markdown) y `.twig` (plantilla). Cualquier otra
 cosa dentro de `contenido/` se copia tal cual a `salida/`, con su misma ruta
 (`contenido/blog/foto.jpg` → `blog/foto.jpg`), salvo los ficheros que empiezan
 por guion bajo, como `_datos.yml`. Lo que empieza por punto (`.gitkeep`,
-`.git/`) se ignora.
+`.git/`) se ignora. Las plantillas y los datos de otros generadores (`.njk`,
+`.liquid`, `.vto`, `.webc`, `.11ty.js`, `.11tydata.js`, `.11tydata.json`) no
+se copian nunca, y se avisa: publicar el código de una plantilla no es lo que
+se quiere, y en una migración es fácil que alguno se quede atrás.
 
 El front matter va entre `---`, en YAML. Si no es YAML válido, el build se
 detiene con un error que indica fichero y línea: seguir sin esa página haría
@@ -730,6 +733,8 @@ Si al añadirlas hay que romper el contrato, el contrato estaba mal.
     gana al del motor (§10, §10.1).
 45. **Cerrada.** Feed Atom solo si `sitio.yml` tiene la sección `feed`, con la
     colección de la que sale (§2, §10.2).
+46. **Cerrada.** Las plantillas y los datos de otros generadores que haya en
+    `contenido/` no se copian, y se avisa (§4).
 
 ---
 

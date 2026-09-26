@@ -13,6 +13,9 @@ final class Lector
     private const array FORMATOS = ['md', 'twig'];
     private const array FORMATOS_DE_DATOS = ['yml', 'json'];
 
+    /** Plantillas y datos de otros generadores, que nunca se publican (formato §4). */
+    private const string DE_OTROS_GENERADORES = '/\.(?:njk|liquid|vto|webc)$|\.11ty\.[cm]?js$|\.11tydata\.(?:[cm]?js|json)$/i';
+
     /**
      * @throws ErrorDeProyecto si falta algo imprescindible o un fichero no se puede leer
      */
@@ -161,6 +164,11 @@ final class Lector
                     } else {
                         $rutas[] = $ruta;
                     }
+                } elseif (preg_match(self::DE_OTROS_GENERADORES, $nombre) === 1) {
+                    $avisos->registrar(
+                        'Es una plantilla o unos datos de otro generador; no se copia a salida/',
+                        Proyecto::CONTENIDO . "/{$ruta}",
+                    );
                 } elseif (!str_starts_with($nombre, '_')) {
                     $ficheros[] = $ruta;
                 }

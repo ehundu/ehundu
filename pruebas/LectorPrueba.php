@@ -198,6 +198,28 @@ final class LectorPrueba extends TestCase
     }
 
     #[Test]
+    public function losDemasFicherosDeContenidoSeCopianSalvoLosReservadosYLosDeOtrosGeneradores(): void
+    {
+        $this->crearSitioMinimo();
+        $this->crearFichero('contenido/blog/foto.jpg', 'jpg');
+        $this->crearFichero('contenido/blog/_notas.txt', 'privado');
+        $this->crearFichero('contenido/index.njk', '{{ content }}');
+        $this->crearFichero('contenido/blog/blog.11tydata.js', 'export default {};');
+        $this->crearFichero('contenido/datos.11tydata.json', '{}');
+        $this->crearFichero('contenido/lista.liquid', '{{ x }}');
+
+        $lectura = $this->leer();
+
+        self::assertSame(['blog/foto.jpg'], $lectura->ficheros);
+        self::assertSame([
+            'contenido/datos.11tydata.json: Es una plantilla o unos datos de otro generador; no se copia a salida/',
+            'contenido/index.njk: Es una plantilla o unos datos de otro generador; no se copia a salida/',
+            'contenido/lista.liquid: Es una plantilla o unos datos de otro generador; no se copia a salida/',
+            'contenido/blog/blog.11tydata.js: Es una plantilla o unos datos de otro generador; no se copia a salida/',
+        ], $this->avisos($lectura));
+    }
+
+    #[Test]
     public function combinaLaCascadaConElFrontMatter(): void
     {
         $this->crearSitioMinimo();

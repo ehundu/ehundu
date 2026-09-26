@@ -60,7 +60,7 @@ desactivada; y para FTPS o S3, `openssl`, que traen casi todas las
 instalaciones.
 
 **Un solo fichero.** Descarga `ehundu.phar` de la [página de
-versiones](https://codeberg.org/ehundu/ehundu/releases) y úsalo con PHP:
+versiones](https://github.com/ehundu/ehundu/releases) y úsalo con PHP:
 
     php ehundu.phar compilar mi-sitio
 

@@ -47,7 +47,8 @@
         "bin/ehundu"
     ],
     "scripts": {
-        "pruebas": "phpunit"
+        "pruebas": "phpunit",
+        "phar": "@php -d phar.readonly=0 herramientas/construir-phar.php"
     },
     "config": {
         "platform": {

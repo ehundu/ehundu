@@ -40,12 +40,23 @@ Ese es el rasgo que lo distingue y el criterio para decidir qué entra.
                   la compilación incremental y el despliegue
     marca/        el logotipo de Ehundu en SVG: símbolo, horizontal y vertical,
                   en color y en negativo
+    herramientas/ lo que sirve para desarrollar el motor, no para usarlo:
+                  construir-phar.php
+    paquete/      el ehundu.phar construido (no se versiona)
 
 Las clases de prueba llevan el sufijo `Prueba` y los métodos el atributo
 `#[Test]`, para que se llamen en español (`fallaSiLaCarpetaNoExiste`). Las
 pruebas se ejecutan con `composer pruebas`. Las de FTP necesitan la extensión
 `ftp`; si no está activa, se saltan (en Windows:
 `php -d extension=ftp vendor/bin/phpunit`).
+
+`composer phar` construye `paquete/ehundu.phar`: el motor, `recursos/` y las
+dependencias de producción en un solo fichero, que se usa con
+`php ehundu.phar compilar`. `PharPrueba` lo construye y comprueba que compila
+igual que la biblioteca; necesita Composer y se salta si no lo encuentra. Lo
+que haya en `recursos/` o lo que el motor lea con una ruta relativa a su
+código tiene que funcionar también dentro del paquete (rutas `phar://`: nada
+de `realpath` ni `glob` sobre ellas).
 
 El trabajo va en la rama `desarrollo`. `main` solo recibe versiones
 publicadas, la primera en la 0.1: no hagas commits en `main`.

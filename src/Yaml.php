@@ -23,10 +23,13 @@ final class Yaml
     /**
      * @param string $fichero      ruta relativa a la raíz del proyecto, para los errores
      * @param int    $primeraLinea línea del fichero en la que empieza el texto
+     * @param bool   $secreto      el texto lleva secretos: si no es válido, el error dice el fichero, la
+     *                             línea y qué pasa, pero nunca enseña el texto ni arrastra el error de
+     *                             Symfony, que lo lleva dentro
      *
      * @throws ErrorDeProyecto si el YAML no es válido
      */
-    public static function leer(string $texto, string $fichero, int $primeraLinea = 1): mixed
+    public static function leer(string $texto, string $fichero, int $primeraLinea = 1, bool $secreto = false): mixed
     {
         try {
             return SymfonyYaml::parse($texto, self::OPCIONES);
@@ -34,10 +37,10 @@ final class Yaml
             $linea = $error->getParsedLine();
 
             throw new ErrorDeProyecto(
-                self::explicar($error),
+                self::explicar($error, $secreto),
                 $fichero,
                 $linea > 0 ? $linea + $primeraLinea - 1 : null,
-                $error,
+                $secreto ? null : $error,
             );
         }
     }
@@ -50,9 +53,9 @@ final class Yaml
      *
      * @throws ErrorDeProyecto si el YAML no es válido o no son campos
      */
-    public static function leerCampos(string $texto, string $fichero, int $primeraLinea = 1): array
+    public static function leerCampos(string $texto, string $fichero, int $primeraLinea = 1, bool $secreto = false): array
     {
-        $valor = self::leer($texto, $fichero, $primeraLinea);
+        $valor = self::leer($texto, $fichero, $primeraLinea, $secreto);
 
         if ($valor === null) {
             return [];
@@ -84,7 +87,12 @@ final class Yaml
         return $lineas;
     }
 
-    private static function explicar(ParseException $error): string
+    /**
+     * El error en español. Las pistas no copian nada del texto salvo el nombre
+     * de una clave; el mensaje de Symfony sí (una etiqueta, una referencia),
+     * así que nunca se reproduce.
+     */
+    private static function explicar(ParseException $error, bool $secreto): string
     {
         $mensaje = $error->getMessage();
         $pista = null;
@@ -97,9 +105,22 @@ final class Yaml
             $pista = 'la sangría lleva tabuladores; usa espacios';
         } elseif (str_contains($mensaje, 'Malformed inline YAML string')) {
             $pista = 'hay unas comillas o un corchete sin cerrar';
+        } elseif (str_contains($mensaje, 'Missing value for tag') || str_contains($mensaje, 'Tags support is not enabled')) {
+            $pista = 'un valor empieza por «!», que en YAML marca un tipo; pon el valor entre comillas';
+        } elseif (preg_match('/^Reference ".*" does not exist/', $mensaje) === 1) {
+            $pista = 'un valor empieza por «*», que en YAML es una referencia; pon el valor entre comillas';
+        } elseif (preg_match('/The reserved indicator "(.)" cannot start a plain scalar/', $mensaje, $partes) === 1) {
+            $pista = $secreto
+                ? 'un valor empieza por un carácter que YAML reserva; pon el valor entre comillas'
+                : "un valor empieza por «{$partes[1]}», que YAML reserva; pon el valor entre comillas";
         }
 
         $explicacion = $pista === null ? 'El YAML no es válido' : "El YAML no es válido: {$pista}";
+
+        if ($secreto) {
+            return "{$explicacion}. La línea no se enseña porque lleva secretos.";
+        }
+
         $cerca = trim($error->getSnippet());
 
         return $cerca === '' ? "{$explicacion}." : "{$explicacion}. Cerca de «{$cerca}».";

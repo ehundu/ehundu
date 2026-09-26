@@ -94,9 +94,16 @@ La sección `despliegue` dice adónde publica `ehundu desplegar` (ver
 Los secretos van en `.secretos.yml`, con la misma forma y solo con ellos:
 
     despliegue:
-      clave: la-contraseña        # en s3, la clave secreta
-      clavePrivada: ~/.ssh/id_ed25519   # sftp, en lugar de clave
-      frase: la-de-la-clave-privada     # si la tiene
+      clave: 'la-contraseña'                   # en s3, la clave secreta
+      clavePrivada: '~/.ssh/id_ed25519'        # sftp, en lugar de clave
+      frase: 'la-de-la-clave-privada'          # si la tiene
+
+Los secretos van entre comillas simples, y una comilla simple dentro se
+escribe doble (`'l''arte'`). Sin comillas, YAML lee algunas contraseñas de
+otra forma sin avisar: lo que va detrás de ` #` es un comentario y se pierde,
+`1e3` es el número 1000, y una que empieza por `!`, `*`, `@` o `%` ni
+siquiera se lee. Si `.secretos.yml` no es YAML válido, el error dice el
+fichero, la línea y qué pasa, pero nunca enseña la línea.
 
 Un secreto en `sitio.yml` detiene el despliegue: ese fichero se comparte y se
 versiona. `.secretos.yml` no se versiona nunca ni se publica. Un programa que
@@ -803,6 +810,8 @@ Si al añadirlas hay que romper el contrato, el contrato estaba mal.
     `sitio.yml` detiene el despliegue, y no hay variables de entorno (§2).
 60. **Cerrada.** Nada después de desplegar en la v1: ni avisos a otros
     servicios ni vaciado de cachés de una CDN (`despliegue.md`).
+61. **Cerrada.** Los secretos se escriben entre comillas simples, y los
+    errores de `.secretos.yml` no enseñan su contenido (§2).
 
 ---
 

@@ -250,7 +250,7 @@ final readonly class Configuracion
             return [];
         }
 
-        $despliegue = Yaml::leerCampos($texto, self::SECRETOS)['despliegue'] ?? [];
+        $despliegue = Yaml::leerCampos($texto, self::SECRETOS, secreto: true)['despliegue'] ?? [];
 
         if (!is_array($despliegue)) {
             throw new ErrorDeProyecto('«despliegue» tiene que ser una serie de campos «nombre: valor»', self::SECRETOS);
@@ -270,7 +270,11 @@ final readonly class Configuracion
             }
 
             if (!is_scalar($valor) || is_bool($valor)) {
-                throw new ErrorDeProyecto("«{$clave}» tiene que ser un texto", self::SECRETOS, self::linea($texto, (string) $clave));
+                throw new ErrorDeProyecto(
+                    "«{$clave}» tiene que ser un texto; escribe el valor entre comillas simples",
+                    self::SECRETOS,
+                    self::linea($texto, (string) $clave),
+                );
             }
 
             $secretos[(string) $clave] = (string) $valor;

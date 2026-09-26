@@ -109,6 +109,47 @@ final class ConfiguracionPrueba extends TestCase
     }
 
     #[Test]
+    public function unSecretoMalEscritoNoSaleEnElError(): void
+    {
+        $this->sitio("  destino: ftp\n  servidor: ftp.ejemplo.com\n  usuario: esquina");
+
+        foreach (["clave: !Secreto#123", "clave: *Secreto#123", "clave: @Secreto#123", "clave: 'Secreto#123"] as $linea) {
+            $this->crearFichero('.secretos.yml', "despliegue:\n  {$linea}\n");
+
+            try {
+                $this->leer();
+                self::fail("Se esperaba un error con «{$linea}»");
+            } catch (ErrorDeProyecto $error) {
+                // Con «*», Symfony sitúa el error en la línea 1; la línea no es lo que se prueba aquí.
+                self::assertMatchesRegularExpression('/^\.secretos\.yml:\d: El YAML no es válido/', $error->getMessage());
+                self::assertStringEndsWith('. La línea no se enseña porque lleva secretos.', $error->getMessage());
+                self::assertStringNotContainsString('Secreto', $error->getMessage());
+                self::assertNull($error->getPrevious(), 'El error de Symfony lleva la línea dentro');
+            }
+        }
+    }
+
+    #[Test]
+    public function unSecretoQueNoEsTextoPideComillas(): void
+    {
+        $this->sitio("  destino: ftp\n  servidor: ftp.ejemplo.com\n  usuario: esquina");
+        $this->crearFichero('.secretos.yml', "despliegue:\n  clave: true\n");
+
+        $this->expectExceptionMessage('.secretos.yml:2: «clave» tiene que ser un texto; escribe el valor entre comillas simples');
+
+        $this->leer();
+    }
+
+    #[Test]
+    public function unSecretoEntreComillasSeLeeTalCual(): void
+    {
+        $this->sitio("  destino: ftp\n  servidor: ftp.ejemplo.com\n  usuario: esquina");
+        $this->crearFichero('.secretos.yml', "despliegue:\n  clave: '!a #b ''c'' 1e3'\n");
+
+        self::assertSame("!a #b 'c' 1e3", $this->leer()->clave);
+    }
+
+    #[Test]
     public function conClavePrivadaNoHaceFaltaContrasena(): void
     {
         $this->sitio("  destino: sftp\n  servidor: sftp.ejemplo.com\n  usuario: esquina");

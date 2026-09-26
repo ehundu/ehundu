@@ -48,6 +48,36 @@ final class YamlPrueba extends TestCase
     }
 
     #[Test]
+    public function explicaLosValoresQueEmpiezanPorUnCaracterReservado(): void
+    {
+        self::assertSame(
+            'a.yml:1: El YAML no es válido: un valor empieza por «@», que YAML reserva; pon el valor entre comillas. Cerca de «titulo: @hola».',
+            $this->error(fn () => Yaml::leerCampos('titulo: @hola', 'a.yml'))->getMessage(),
+        );
+        self::assertStringContainsString(
+            'un valor empieza por «!», que en YAML marca un tipo; pon el valor entre comillas',
+            $this->error(fn () => Yaml::leerCampos('titulo: !hola', 'a.yml'))->getMessage(),
+        );
+        self::assertStringContainsString(
+            'un valor empieza por «*», que en YAML es una referencia; pon el valor entre comillas',
+            $this->error(fn () => Yaml::leerCampos('titulo: *hola', 'a.yml'))->getMessage(),
+        );
+    }
+
+    #[Test]
+    public function unTextoConSecretosNoSaleEnElError(): void
+    {
+        $error = $this->error(fn () => Yaml::leerCampos("despliegue:\n  clave: @Secreto", '.secretos.yml', secreto: true));
+
+        self::assertSame(
+            '.secretos.yml:2: El YAML no es válido: un valor empieza por un carácter que YAML reserva; '
+            . 'pon el valor entre comillas. La línea no se enseña porque lleva secretos.',
+            $error->getMessage(),
+        );
+        self::assertNull($error->getPrevious());
+    }
+
+    #[Test]
     public function situaElErrorEnLaLineaDelFicheroYNoEnLaDelTexto(): void
     {
         $error = $this->error(fn () => Yaml::leerCampos("a: 1\na: 2", 'contenido/a.md', 2));

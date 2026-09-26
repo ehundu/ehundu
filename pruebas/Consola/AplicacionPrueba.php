@@ -217,6 +217,24 @@ final class AplicacionPrueba extends TestCase
     }
 
     #[Test]
+    public function losAvisosDelDespliegueSalenAunqueLuegoFalle(): void
+    {
+        // Un campo de más avisa; que el destino esté dentro del proyecto detiene el despliegue.
+        $this->crearFichero('sitio.yml', "nombre: Prueba\nurl: https://ejemplo.com\ndespliegue:\n  destino: carpeta\n  ruta: dentro\n  cubo: x\n");
+        $this->crearPlantillaMinima();
+        $this->crearFichero('contenido/index.md', 'Hola');
+
+        $codigo = $this->aplicacion()->ejecutar(['desplegar', $this->carpetaTemporal()]);
+
+        self::assertSame(Aplicacion::FALLO, $codigo);
+        self::assertStringStartsWith(
+            "Aviso: sitio.yml:6: «cubo» no se usa con el destino carpeta; se ignora\n"
+                . 'Error: sitio.yml: La carpeta de despliegue no puede estar dentro del proyecto: dentro.',
+            $this->leer($this->errores),
+        );
+    }
+
+    #[Test]
     public function unErrorDeDespliegueSaleComoError(): void
     {
         $this->crearSitioMinimo();

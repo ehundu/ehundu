@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ehundu\Despliegue;
 
+use Ehundu\Aviso;
 use Ehundu\Avisos;
 use Ehundu\Compilador;
 use Ehundu\CompiladorEnProceso;
@@ -45,6 +46,8 @@ final class Desplegador
      *                                                         según se va haciendo
      * @param (\Closure(Informe): void)|null        $alCompilar se llama con el informe de la compilación,
      *                                                         antes de conectar con el destino
+     * @param (\Closure(Aviso): void)|null          $alAvisar  se llama con cada aviso del despliegue según
+     *                                                         sale, para que se vea aunque luego falle
      *
      * @throws ErrorDeProyecto si no se puede compilar o desplegar
      */
@@ -55,9 +58,14 @@ final class Desplegador
         #[\SensitiveParameter] array $secretos = [],
         ?\Closure $alAvanzar = null,
         ?\Closure $alCompilar = null,
+        ?\Closure $alAvisar = null,
     ): InformeDeDespliegue {
         $inicio = hrtime(true);
         $avisos = new Avisos();
+
+        if ($alAvisar !== null) {
+            $avisos->escuchar($alAvisar);
+        }
 
         // La configuración se lee antes de compilar: si está mal, no hay nada que esperar.
         $configuracion = Configuracion::leer($proyecto, $secretos, $avisos);

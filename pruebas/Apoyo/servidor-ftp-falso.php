@@ -10,13 +10,16 @@ declare(strict_types=1);
  *
  * Con un tercer número, corta la conexión de control en mitad de cada
  * subida número N, sin contestar, como un servidor que se cae: para probar
- * que el cliente vuelve a conectar.
+ * que el cliente vuelve a conectar. Con un cuarto, en cada subida número N
+ * guarda solo la mitad y contesta 426, como vsftpd cuando una subida le llega
+ * mal, pero sin cortar.
  *
- * Uso: php servidor-ftp-falso.php <carpeta> <clave> [cortar-cada]
+ * Uso: php servidor-ftp-falso.php <carpeta> <clave> [cortar-cada] [fallar-cada]
  */
 
 [, $raiz, $clave] = $argv;
 $cortarCada = (int) ($argv[3] ?? 0);
+$fallarCada = (int) ($argv[4] ?? 0);
 $subidas = 0;
 
 $servidor = stream_socket_server('tcp://127.0.0.1:0', $codigo, $mensaje);
@@ -31,13 +34,13 @@ echo puerto($servidor), "\n";
 // Si en medio minuto no llega nadie, se acaba: una prueba que se corta no
 // deja el servidor huérfano.
 while (($control = @stream_socket_accept($servidor, 30)) !== false) {
-    atender($control, $raiz, $clave, $cortarCada, $subidas);
+    atender($control, $raiz, $clave, $cortarCada, $fallarCada, $subidas);
 }
 
 /**
  * @param resource $control
  */
-function atender($control, string $raiz, string $clave, int $cortarCada, int &$subidas): void
+function atender($control, string $raiz, string $clave, int $cortarCada, int $fallarCada, int &$subidas): void
 {
     $responder = function (string $linea) use ($control): void {
         fwrite($control, "{$linea}\r\n");
@@ -101,7 +104,10 @@ function atender($control, string $raiz, string $clave, int $cortarCada, int &$s
                     return;
                 }
 
-                if (!is_dir(dirname($ruta))) {
+                if ($fallarCada > 0 && $subidas % $fallarCada === 0) {
+                    file_put_contents($ruta, substr((string) $contenido, 0, intdiv(strlen((string) $contenido), 2)));
+                    $responder('426 Failure reading network stream.');
+                } elseif (!is_dir(dirname($ruta))) {
                     $responder('553 No existe la carpeta');
                 } else {
                     file_put_contents($ruta, $contenido);

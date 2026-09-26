@@ -56,10 +56,13 @@ proyecto, y no puede estar dentro de él. Se crea si no existe.
 
 **FTP.** Con la extensión `ftp` de PHP, que viene con PHP pero puede estar
 desactivada (en Windows se activa en `php.ini` con `extension=ftp`). Usa una
-sola conexión y el modo pasivo. Si la conexión se corta a mitad, algo que en
-los alojamientos compartidos pasa de vez en cuando, vuelve a conectar y
-repite lo que estaba haciendo, hasta dos veces, y lo deja dicho en un aviso;
-si el servidor contesta que no, eso sí es un error y no se repite. Por defecto va cifrado (FTPS explícito);
+sola conexión y el modo pasivo. Si algo falla, lo repite, hasta dos veces, y
+lo deja dicho en un aviso: si la conexión se ha cortado, vuelve a conectar;
+si sigue abierta, el servidor ha contestado que no, y eso puede ser pasajero
+(vsftpd contesta «Failure reading network stream» cuando una subida le llega
+mal, y deja el fichero a medias), así que lo repite una vez y, si vuelve a
+decir que no, es un error. Un fichero que se queda a medias no entra en el
+manifiesto, así que el siguiente despliegue lo vuelve a subir. Por defecto va cifrado (FTPS explícito);
 `cifrado: no` lo desactiva, pero entonces la contraseña viaja a la vista. La
 extensión cifra pero no comprueba el certificado del servidor: protege de
 quien escucha, no de quien se haga pasar por el servidor. Para eso está SFTP.

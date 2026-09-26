@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ehundu\Consola;
 
+use Ehundu\Aviso;
 use Ehundu\Compilador;
 use Ehundu\Despliegue\Desplegador;
 use Ehundu\ErrorDeProyecto;
@@ -161,13 +162,36 @@ final class Aplicacion
 
     private function desplegar(Proyecto $proyecto, bool $simular, bool $todo): int
     {
-        $informe = $this->desplegador->desplegar(
-            $proyecto,
-            $simular,
-            $todo,
-            alAvanzar: fn (string $accion, string $ruta) => $this->escribir($this->salida, sprintf("  %-9s %s\n", $accion, $ruta)),
-            alCompilar: $this->informar(...),
-        );
+        $inicio = hrtime(true);
+        $hechos = 0;
+
+        try {
+            $informe = $this->desplegador->desplegar(
+                $proyecto,
+                $simular,
+                $todo,
+                alAvanzar: function (string $accion, string $ruta) use (&$hechos): void {
+                    $hechos++;
+                    $this->escribir($this->salida, sprintf("  %-9s %s\n", $accion, $ruta));
+                },
+                alCompilar: $this->informar(...),
+                // Los avisos salen según pasan, para que se vean aunque el despliegue falle.
+                alAvisar: fn (Aviso $aviso) => $this->escribir($this->errores, "Aviso: {$aviso}\n"),
+            );
+        } catch (ErrorDeProyecto $error) {
+            $this->escribir($this->errores, "Error: {$error->getMessage()}\n");
+
+            if ($hechos > 0) {
+                $this->escribir($this->errores, sprintf(
+                    "Se detiene tras %d %s en %s s. Lo que ya está anotado en el destino no se vuelve a subir.\n",
+                    $hechos,
+                    $hechos === 1 ? 'fichero' : 'ficheros',
+                    number_format((hrtime(true) - $inicio) / 1e9, 1, ',', '.'),
+                ));
+            }
+
+            return self::FALLO;
+        }
 
         if ($simular) {
             foreach ($informe->subidos as $ruta) {
@@ -177,10 +201,6 @@ final class Aplicacion
             foreach ($informe->borrados as $ruta) {
                 $this->escribir($this->salida, "  borraría  {$ruta}\n");
             }
-        }
-
-        foreach ($informe->avisos as $aviso) {
-            $this->escribir($this->errores, "Aviso: {$aviso}\n");
         }
 
         $this->escribir($this->salida, $informe->resumen() . "\n");

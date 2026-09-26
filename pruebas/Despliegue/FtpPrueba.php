@@ -51,11 +51,12 @@ final class FtpPrueba extends TestCase
 
     /**
      * @param int $cortarCada si no es cero, el servidor corta la conexión en cada subida número N
+     * @param int $fallarCada si no es cero, el servidor guarda la mitad y contesta 426 en cada subida número N
      */
-    private function arrancar(int $cortarCada = 0): void
+    private function arrancar(int $cortarCada = 0, int $fallarCada = 0): void
     {
         $this->proceso = proc_open(
-            [PHP_BINARY, dirname(__DIR__) . '/Apoyo/servidor-ftp-falso.php', $this->servidor, self::CLAVE, (string) $cortarCada],
+            [PHP_BINARY, dirname(__DIR__) . '/Apoyo/servidor-ftp-falso.php', $this->servidor, self::CLAVE, (string) $cortarCada, (string) $fallarCada],
             [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
             $tuberias,
         ) ?: null;
@@ -161,7 +162,7 @@ final class FtpPrueba extends TestCase
     }
 
     #[Test]
-    public function siElServidorDiceQueNoNoSeReintenta(): void
+    public function siElServidorDiceQueNoDosVecesEsUnError(): void
     {
         // Un fichero donde haría falta una carpeta: el servidor no puede guardar.
         file_put_contents("{$this->servidor}/www/ocupado", 'x');
@@ -177,7 +178,36 @@ final class FtpPrueba extends TestCase
             self::assertSame('No se puede subir ocupado/a.css (el servidor dice: No existe la carpeta)', $error->getMessage());
         }
 
-        self::assertSame([], $avisos->todos());
+        self::assertSame(
+            ['Falló al subir ocupado/a.css (el servidor dice: No existe la carpeta); se ha vuelto a intentar'],
+            array_map('strval', $avisos->todos()),
+        );
+    }
+
+    #[Test]
+    public function siUnaSubidaLlegaMalSeRepiteYQuedaEntera(): void
+    {
+        $this->pararServidor();
+        $this->arrancar(fallarCada: 2);
+        $avisos = new Avisos();
+        $ftp = new Ftp($this->configuracion(), $avisos, esperas: [0, 0]);
+        $local = $this->carpetaTemporal() . '/local.css';
+        file_put_contents($local, 'body{margin:0;padding:0}');
+
+        foreach (['a.css', 'b.css', 'c.css'] as $ruta) {
+            $ftp->subir($ruta, $local);
+        }
+
+        $ftp->cerrar();
+
+        foreach (['a.css', 'b.css', 'c.css'] as $ruta) {
+            self::assertSame('body{margin:0;padding:0}', file_get_contents("{$this->servidor}/www/{$ruta}"));
+        }
+
+        self::assertSame([
+            'Falló al subir b.css (el servidor dice: Failure reading network stream.); se ha vuelto a intentar',
+            'Falló al subir c.css (el servidor dice: Failure reading network stream.); se ha vuelto a intentar',
+        ], array_map('strval', $avisos->todos()));
     }
 
     private function configuracion(string $clave = self::CLAVE): Configuracion

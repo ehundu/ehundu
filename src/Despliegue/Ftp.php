@@ -15,10 +15,14 @@ use Ehundu\Proyecto;
  * contraseña a la vista.
  *
  * Si una operación falla, se pregunta al servidor si la conexión sigue viva.
- * Si lo está, el servidor ha dicho que no y es un error. Si se ha cortado, se
- * vuelve a conectar y se repite la operación, hasta dos veces; cada vez queda
- * un aviso. En los alojamientos compartidos las conexiones se cortan de vez
- * en cuando, y un despliegue no debería depender de eso.
+ * Si se ha cortado, se vuelve a conectar y se repite. Si sigue viva, el
+ * servidor ha dicho que no; puede ser algo pasajero (una subida que le llegó
+ * mal, que vsftpd cuenta con «Failure reading network stream»), así que se
+ * repite una vez, y si vuelve a decir que no, es un error. En total, hasta
+ * dos repeticiones, y cada una deja un aviso. En los alojamientos compartidos
+ * estas cosas pasan de vez en cuando, y un despliegue no debería depender de
+ * ellas. La extensión no da el código de la respuesta, que diría si el fallo
+ * es pasajero (4xx) o no (5xx); por eso se repite una vez sin saberlo.
  *
  * La extensión cifra pero no comprueba el certificado del servidor: protege
  * de quien escucha, no de quien se haga pasar por el servidor. Para eso está
@@ -140,13 +144,14 @@ final class Ftp implements Destino
     }
 
     /**
-     * Hace una operación y, si falla porque se ha cortado la conexión, vuelve
-     * a conectar y la repite.
+     * Hace una operación y, si falla, la repite como se explica arriba.
      *
      * @param \Closure(): (array{hecho: mixed}|false) $operacion
      */
     private function intentar(string $que, \Closure $operacion): mixed
     {
+        $repetida = false;
+
         for ($intento = 0; ; $intento++) {
             error_clear_last();
             $resultado = $operacion();
@@ -156,12 +161,21 @@ final class Ftp implements Destino
             }
 
             $motivo = self::motivo();
+            $viva = $this->viva();
 
-            if ($intento >= count($this->esperas) || $this->viva()) {
+            if ($intento >= count($this->esperas) || ($viva && $repetida)) {
                 throw new ErrorDeProyecto("No se puede {$que}{$motivo}");
             }
 
             sleep($this->esperas[$intento]);
+
+            if ($viva) {
+                $repetida = true;
+                $this->avisos->registrar("Falló al {$que}{$motivo}; se ha vuelto a intentar");
+
+                continue;
+            }
+
             @ftp_close($this->conexion);
 
             try {

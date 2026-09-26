@@ -64,7 +64,7 @@ final class Desplegador
         $compilacion = $this->compilador->compilar($proyecto);
         $alCompilar !== null && $alCompilar($compilacion);
         $ficheros = self::ficheros($proyecto);
-        $destino = $this->abrir($configuracion, $proyecto);
+        $destino = $this->abrir($configuracion, $proyecto, $avisos);
 
         try {
             $anterior = self::manifiesto($destino, $todo, $avisos);
@@ -203,7 +203,7 @@ final class Desplegador
         }
     }
 
-    private function abrir(Configuracion $configuracion, Proyecto $proyecto): Destino
+    private function abrir(Configuracion $configuracion, Proyecto $proyecto, Avisos $avisos): Destino
     {
         if ($this->abrir !== null) {
             return ($this->abrir)($configuracion, $proyecto);
@@ -211,7 +211,7 @@ final class Desplegador
 
         return match ($configuracion->destino) {
             'carpeta' => new Carpeta($configuracion->ruta, $proyecto),
-            'ftp' => new Ftp($configuracion),
+            'ftp' => new Ftp($configuracion, $avisos),
             'sftp' => new Sftp($configuracion, $proyecto),
             's3' => new S3($configuracion),
         };

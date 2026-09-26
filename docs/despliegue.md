@@ -56,7 +56,10 @@ proyecto, y no puede estar dentro de él. Se crea si no existe.
 
 **FTP.** Con la extensión `ftp` de PHP, que viene con PHP pero puede estar
 desactivada (en Windows se activa en `php.ini` con `extension=ftp`). Usa una
-sola conexión y el modo pasivo. Por defecto va cifrado (FTPS explícito);
+sola conexión y el modo pasivo. Si la conexión se corta a mitad, algo que en
+los alojamientos compartidos pasa de vez en cuando, vuelve a conectar y
+repite lo que estaba haciendo, hasta dos veces, y lo deja dicho en un aviso;
+si el servidor contesta que no, eso sí es un error y no se repite. Por defecto va cifrado (FTPS explícito);
 `cifrado: no` lo desactiva, pero entonces la contraseña viaja a la vista. La
 extensión cifra pero no comprueba el certificado del servidor: protege de
 quien escucha, no de quien se haga pasar por el servidor. Para eso está SFTP.

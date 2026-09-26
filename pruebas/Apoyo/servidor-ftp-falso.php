@@ -8,10 +8,16 @@ declare(strict_types=1);
  * puerto en el que escucha y atiende conexiones, de una en una, hasta que lo
  * paran o hasta que pasa medio minuto sin conexiones.
  *
- * Uso: php servidor-ftp-falso.php <carpeta> <clave>
+ * Con un tercer número, corta la conexión de control en mitad de cada
+ * subida número N, sin contestar, como un servidor que se cae: para probar
+ * que el cliente vuelve a conectar.
+ *
+ * Uso: php servidor-ftp-falso.php <carpeta> <clave> [cortar-cada]
  */
 
 [, $raiz, $clave] = $argv;
+$cortarCada = (int) ($argv[3] ?? 0);
+$subidas = 0;
 
 $servidor = stream_socket_server('tcp://127.0.0.1:0', $codigo, $mensaje);
 
@@ -25,13 +31,13 @@ echo puerto($servidor), "\n";
 // Si en medio minuto no llega nadie, se acaba: una prueba que se corta no
 // deja el servidor huérfano.
 while (($control = @stream_socket_accept($servidor, 30)) !== false) {
-    atender($control, $raiz, $clave);
+    atender($control, $raiz, $clave, $cortarCada, $subidas);
 }
 
 /**
  * @param resource $control
  */
-function atender($control, string $raiz, string $clave): void
+function atender($control, string $raiz, string $clave, int $cortarCada, int &$subidas): void
 {
     $responder = function (string $linea) use ($control): void {
         fwrite($control, "{$linea}\r\n");
@@ -65,6 +71,9 @@ function atender($control, string $raiz, string $clave): void
             case 'SYST':
                 $responder('215 UNIX Type: L8');
                 break;
+            case 'NOOP':
+                $responder('200 Aquí sigo');
+                break;
             case 'TYPE':
                 $responder('200 Tipo cambiado');
                 break;
@@ -84,6 +93,13 @@ function atender($control, string $raiz, string $clave): void
                 $responder('150 Adelante');
                 $contenido = stream_get_contents($conexion);
                 fclose($conexion);
+                $subidas++;
+
+                if ($cortarCada > 0 && $subidas % $cortarCada === 0) {
+                    fclose($control);
+
+                    return;
+                }
 
                 if (!is_dir(dirname($ruta))) {
                     $responder('553 No existe la carpeta');

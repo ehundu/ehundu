@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ehundu\Pruebas\Despliegue;
 
+use Ehundu\Avisos;
 use Ehundu\CompiladorEnProceso;
 use Ehundu\Despliegue\Configuracion;
 use Ehundu\Despliegue\Desplegador;
@@ -45,9 +46,16 @@ final class FtpPrueba extends TestCase
 
         $this->servidor = $this->carpetaTemporal() . '/servidor';
         mkdir($this->servidor . '/www', 0777, true);
+        $this->arrancar();
+    }
 
+    /**
+     * @param int $cortarCada si no es cero, el servidor corta la conexión en cada subida número N
+     */
+    private function arrancar(int $cortarCada = 0): void
+    {
         $this->proceso = proc_open(
-            [PHP_BINARY, dirname(__DIR__) . '/Apoyo/servidor-ftp-falso.php', $this->servidor, self::CLAVE],
+            [PHP_BINARY, dirname(__DIR__) . '/Apoyo/servidor-ftp-falso.php', $this->servidor, self::CLAVE, (string) $cortarCada],
             [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
             $tuberias,
         ) ?: null;
@@ -125,6 +133,51 @@ final class FtpPrueba extends TestCase
 
         self::assertSame(['blog/uno/index.html'], $informe->borrados);
         self::assertDirectoryDoesNotExist("{$this->servidor}/www/blog");
+    }
+
+    #[Test]
+    public function siSeCortaLaConexionVuelveAConectarYSigue(): void
+    {
+        $this->pararServidor();
+        $this->arrancar(cortarCada: 2);
+        $avisos = new Avisos();
+        $ftp = new Ftp($this->configuracion(), $avisos, esperas: [0, 0]);
+        $local = $this->carpetaTemporal() . '/local.css';
+        file_put_contents($local, 'a{}');
+
+        foreach (['a.css', 'css/b.css', 'css/c.css'] as $ruta) {
+            $ftp->subir($ruta, $local);
+        }
+
+        $ftp->cerrar();
+
+        foreach (['a.css', 'css/b.css', 'css/c.css'] as $ruta) {
+            self::assertFileExists("{$this->servidor}/www/{$ruta}");
+        }
+
+        self::assertCount(2, $avisos->todos());
+        self::assertStringStartsWith('Se cortó la conexión con 127.0.0.1 al subir css/b.css', (string) $avisos->todos()[0]);
+        self::assertStringEndsWith('; se ha vuelto a conectar', (string) $avisos->todos()[0]);
+    }
+
+    #[Test]
+    public function siElServidorDiceQueNoNoSeReintenta(): void
+    {
+        // Un fichero donde haría falta una carpeta: el servidor no puede guardar.
+        file_put_contents("{$this->servidor}/www/ocupado", 'x');
+        $avisos = new Avisos();
+        $ftp = new Ftp($this->configuracion(), $avisos, esperas: [0, 0]);
+        $local = $this->carpetaTemporal() . '/local.css';
+        file_put_contents($local, 'a{}');
+
+        try {
+            $ftp->subir('ocupado/a.css', $local);
+            self::fail('Tenía que fallar');
+        } catch (ErrorDeProyecto $error) {
+            self::assertSame('No se puede subir ocupado/a.css (el servidor dice: No existe la carpeta)', $error->getMessage());
+        }
+
+        self::assertSame([], $avisos->todos());
     }
 
     private function configuracion(string $clave = self::CLAVE): Configuracion

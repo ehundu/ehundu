@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ehundu\Despliegue;
 
+use Ehundu\Avisos;
 use Ehundu\ErrorDeProyecto;
 use Ehundu\Proyecto;
 
@@ -12,6 +13,12 @@ use Ehundu\Proyecto;
  * el despliegue, en modo pasivo. Por defecto, cifrada (FTPS explícito, con
  * `AUTH TLS`); sin cifrar solo con `cifrado: no`, porque FTP a secas manda la
  * contraseña a la vista.
+ *
+ * Si una operación falla, se pregunta al servidor si la conexión sigue viva.
+ * Si lo está, el servidor ha dicho que no y es un error. Si se ha cortado, se
+ * vuelve a conectar y se repite la operación, hasta dos veces; cada vez queda
+ * un aviso. En los alojamientos compartidos las conexiones se cortan de vez
+ * en cuando, y un despliegue no debería depender de eso.
  *
  * La extensión cifra pero no comprueba el certificado del servidor: protege
  * de quien escucha, no de quien se haga pasar por el servidor. Para eso está
@@ -28,10 +35,15 @@ final class Ftp implements Destino
     private array $carpetas = [];
 
     /**
+     * @param list<int> $esperas segundos antes de cada reconexión
+     *
      * @throws ErrorDeProyecto si falta la extensión o no se puede entrar en el servidor
      */
-    public function __construct(Configuracion $configuracion)
-    {
+    public function __construct(
+        private readonly Configuracion $configuracion,
+        private readonly Avisos $avisos = new Avisos(),
+        private readonly array $esperas = [1, 5],
+    ) {
         if (!extension_loaded('ftp')) {
             throw new ErrorDeProyecto(
                 'Para desplegar por FTP hace falta la extensión ftp de PHP, que viene con PHP pero puede estar desactivada. '
@@ -39,112 +51,78 @@ final class Ftp implements Destino
             );
         }
 
-        $servidor = (string) $configuracion->servidor;
-        $puerto = $configuracion->puerto ?? 21;
-        error_clear_last();
-        $conexion = $configuracion->cifrado
-            ? @ftp_ssl_connect($servidor, $puerto, self::ESPERA)
-            : @ftp_connect($servidor, $puerto, self::ESPERA);
-
-        if ($conexion === false) {
-            throw new ErrorDeProyecto("No se puede conectar con {$servidor}:{$puerto}" . self::motivo(), Proyecto::SITIO);
-        }
-
-        error_clear_last();
-
-        if (!@ftp_login($conexion, (string) $configuracion->usuario, (string) $configuracion->clave)) {
-            $motivo = self::motivo();
-            @ftp_close($conexion);
-
-            throw new ErrorDeProyecto(
-                "No se puede entrar en {$servidor} como {$configuracion->usuario}{$motivo}"
-                    . ($configuracion->cifrado ? '. Si el servidor no admite FTPS, se puede desactivar con «cifrado: no», pero la contraseña viajaría a la vista' : ''),
-                Proyecto::SITIO,
-            );
-        }
-
-        // Muchos servidores detrás de un router anuncian para el modo pasivo
-        // una dirección interna; se usa siempre la del propio servidor.
-        ftp_set_option($conexion, FTP_USEPASVADDRESS, false);
-        ftp_pasv($conexion, true);
-
-        $this->conexion = $conexion;
+        $this->conexion = $this->conectar();
         $this->base = rtrim(str_replace('\\', '/', $configuracion->ruta), '/');
     }
 
     public function leer(string $ruta): ?string
     {
         $remota = $this->remota($ruta);
-        $temporal = fopen('php://temp', 'r+');
 
-        if ($temporal === false) {
-            throw new ErrorDeProyecto("No se puede leer {$ruta} del servidor");
-        }
+        return $this->intentar("leer {$ruta} del servidor", function () use ($remota) {
+            $temporal = fopen('php://temp', 'r+');
 
-        try {
-            error_clear_last();
+            try {
+                if ($temporal !== false && @ftp_fget($this->conexion, $temporal, $remota, FTP_BINARY)) {
+                    rewind($temporal);
 
-            if (@ftp_fget($this->conexion, $temporal, $remota, FTP_BINARY)) {
-                rewind($temporal);
-
-                return (string) stream_get_contents($temporal);
+                    return ['hecho' => (string) stream_get_contents($temporal)];
+                }
+            } finally {
+                is_resource($temporal) && fclose($temporal);
             }
 
-            if ($this->existe($remota)) {
-                throw new ErrorDeProyecto("No se puede leer {$ruta} del servidor" . self::motivo());
-            }
-
-            return null;
-        } finally {
-            fclose($temporal);
-        }
+            // Con la conexión viva, que no se pueda leer porque no existe no es un error.
+            return $this->viva() && !$this->existe($remota) ? ['hecho' => null] : false;
+        });
     }
 
     public function subir(string $ruta, string $origen): void
     {
         $remota = $this->remota($ruta);
-        $this->prepararCarpeta(Rutas::carpeta($remota));
 
-        error_clear_last();
+        $this->intentar("subir {$ruta}", function () use ($remota, $origen) {
+            $this->prepararCarpeta(Rutas::carpeta($remota));
 
-        if (!@ftp_put($this->conexion, $remota, $origen, FTP_BINARY)) {
-            throw new ErrorDeProyecto("No se puede subir {$ruta}" . self::motivo());
-        }
+            return @ftp_put($this->conexion, $remota, $origen, FTP_BINARY) ? ['hecho' => null] : false;
+        });
     }
 
     public function escribir(string $ruta, string $contenido): void
     {
         $remota = $this->remota($ruta);
-        $this->prepararCarpeta(Rutas::carpeta($remota));
-        $temporal = fopen('php://temp', 'r+');
 
-        if ($temporal === false) {
-            throw new ErrorDeProyecto("No se puede subir {$ruta}");
-        }
+        $this->intentar("subir {$ruta}", function () use ($remota, $contenido) {
+            $this->prepararCarpeta(Rutas::carpeta($remota));
+            $temporal = fopen('php://temp', 'r+');
 
-        try {
-            fwrite($temporal, $contenido);
-            rewind($temporal);
-
-            error_clear_last();
-
-            if (!@ftp_fput($this->conexion, $remota, $temporal, FTP_BINARY)) {
-                throw new ErrorDeProyecto("No se puede subir {$ruta}" . self::motivo());
+            if ($temporal === false) {
+                return false;
             }
-        } finally {
-            fclose($temporal);
-        }
+
+            try {
+                fwrite($temporal, $contenido);
+                rewind($temporal);
+
+                return @ftp_fput($this->conexion, $remota, $temporal, FTP_BINARY) ? ['hecho' => null] : false;
+            } finally {
+                fclose($temporal);
+            }
+        });
     }
 
     public function borrar(string $ruta): void
     {
         $remota = $this->remota($ruta);
 
-        error_clear_last();
+        $this->intentar("borrar {$ruta} del servidor", function () use ($remota) {
+            if (@ftp_delete($this->conexion, $remota)) {
+                return ['hecho' => null];
+            }
 
-        if (!@ftp_delete($this->conexion, $remota) && $this->existe($remota)) {
-            throw new ErrorDeProyecto("No se puede borrar {$ruta} del servidor" . self::motivo());
-        }
+            // Si ya no existe, está hecho.
+            return $this->viva() && !$this->existe($remota) ? ['hecho' => null] : false;
+        });
     }
 
     public function quitarCarpeta(string $ruta): void
@@ -159,6 +137,88 @@ final class Ftp implements Destino
     public function cerrar(): void
     {
         @ftp_close($this->conexion);
+    }
+
+    /**
+     * Hace una operación y, si falla porque se ha cortado la conexión, vuelve
+     * a conectar y la repite.
+     *
+     * @param \Closure(): (array{hecho: mixed}|false) $operacion
+     */
+    private function intentar(string $que, \Closure $operacion): mixed
+    {
+        for ($intento = 0; ; $intento++) {
+            error_clear_last();
+            $resultado = $operacion();
+
+            if ($resultado !== false) {
+                return $resultado['hecho'];
+            }
+
+            $motivo = self::motivo();
+
+            if ($intento >= count($this->esperas) || $this->viva()) {
+                throw new ErrorDeProyecto("No se puede {$que}{$motivo}");
+            }
+
+            sleep($this->esperas[$intento]);
+            @ftp_close($this->conexion);
+
+            try {
+                $this->conexion = $this->conectar();
+            } catch (ErrorDeProyecto $error) {
+                throw new ErrorDeProyecto("Se ha cortado la conexión al {$que}{$motivo}, y no se puede volver a conectar: {$error->descripcion}", anterior: $error);
+            }
+
+            // Lo que se creó antes sigue allí, pero se vuelve a comprobar.
+            $this->carpetas = [];
+            $this->avisos->registrar("Se cortó la conexión con {$this->configuracion->servidor} al {$que}{$motivo}; se ha vuelto a conectar");
+        }
+    }
+
+    /**
+     * Si la conexión sigue abierta: el servidor contesta a NOOP, sea lo que
+     * sea lo que diga.
+     */
+    private function viva(): bool
+    {
+        $respuesta = @ftp_raw($this->conexion, 'NOOP');
+
+        return is_array($respuesta) && $respuesta !== [] && preg_match('/^\d{3}/', (string) $respuesta[0]) === 1;
+    }
+
+    private function conectar(): \FTP\Connection
+    {
+        $servidor = (string) $this->configuracion->servidor;
+        $puerto = $this->configuracion->puerto ?? 21;
+        error_clear_last();
+        $conexion = $this->configuracion->cifrado
+            ? @ftp_ssl_connect($servidor, $puerto, self::ESPERA)
+            : @ftp_connect($servidor, $puerto, self::ESPERA);
+
+        if ($conexion === false) {
+            throw new ErrorDeProyecto("No se puede conectar con {$servidor}:{$puerto}" . self::motivo(), Proyecto::SITIO);
+        }
+
+        error_clear_last();
+
+        if (!@ftp_login($conexion, (string) $this->configuracion->usuario, (string) $this->configuracion->clave)) {
+            $motivo = self::motivo();
+            @ftp_close($conexion);
+
+            throw new ErrorDeProyecto(
+                "No se puede entrar en {$servidor} como {$this->configuracion->usuario}{$motivo}"
+                    . ($this->configuracion->cifrado ? '. Si el servidor no admite FTPS, se puede desactivar con «cifrado: no», pero la contraseña viajaría a la vista' : ''),
+                Proyecto::SITIO,
+            );
+        }
+
+        // Muchos servidores detrás de un router anuncian para el modo pasivo
+        // una dirección interna; se usa siempre la del propio servidor.
+        ftp_set_option($conexion, FTP_USEPASVADDRESS, false);
+        ftp_pasv($conexion, true);
+
+        return $conexion;
     }
 
     private function remota(string $ruta): string

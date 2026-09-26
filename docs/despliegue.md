@@ -63,9 +63,11 @@ si sigue abierta, el servidor ha contestado que no, y eso puede ser pasajero
 mal, y deja el fichero a medias), así que lo repite una vez y, si vuelve a
 decir que no, es un error. Un fichero que se queda a medias no entra en el
 manifiesto, así que el siguiente despliegue lo vuelve a subir. Por defecto va cifrado (FTPS explícito);
-`cifrado: no` lo desactiva, pero entonces la contraseña viaja a la vista. La
-extensión cifra pero no comprueba el certificado del servidor: protege de
-quien escucha, no de quien se haga pasar por el servidor. Para eso está SFTP.
+`cifrado: no` lo desactiva, pero entonces la contraseña viaja a la vista. El
+cifrado necesita además la extensión `openssl`, que traen casi todas las
+instalaciones de PHP. La extensión cifra pero no comprueba el certificado del
+servidor: protege de quien escucha, no de quien se haga pasar por el
+servidor. Para eso está SFTP.
 
 **SFTP.** Con phpseclib, que es PHP puro. Se entra con contraseña (`clave`) o
 con una clave privada (`clavePrivada`, y `frase` si la lleva). Antes de mandar
@@ -76,7 +78,7 @@ con quien administra el servidor y se anote; si no coincide, se detiene.
 
 **S3.** Cualquier servicio compatible: AWS, Scaleway, Cloudflare R2,
 Backblaze, Hetzner. Las peticiones se firman en el propio motor, sin el SDK
-de Amazon, y van por HTTPS con lo que trae PHP. El cubo va en el nombre del
+de Amazon, y van por HTTPS con lo que trae PHP (la extensión `openssl`). El cubo va en el nombre del
 servidor (`cubo.s3.fr-par.scw.cloud`), salvo si lleva puntos o el servidor es
 local, que va en la ruta. Cada fichero sube con su tipo MIME y con su MD5,
 para que el servicio compruebe que le ha llegado entero. Que el cubo sirva un

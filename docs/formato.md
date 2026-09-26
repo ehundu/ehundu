@@ -459,6 +459,11 @@ automáticos: una dirección escrita tal cual (`https://ejemplo.com`,
 `www.ejemplo.com`) se convierte en enlace. Se admite HTML escrito a mano.
 Las etiquetas vacías salen como en HTML5, sin barra final: `<img …>`, `<br>`.
 
+También los bloques de código sangrados de CommonMark: un párrafo que empieza
+con cuatro espacios, o un tabulador, tras una línea en blanco, es código.
+Eleventy los desactiva, así que al migrar desde él se quita la sangría que
+no quería decir código.
+
 **Cerrado:** el Markdown NO pasa por Twig. En su lugar hay atajos, con un
 vocabulario cerrado (§8.1).
 
@@ -867,6 +872,9 @@ un sitio de la v1 no debe usarlo como campo propio.
     cómo quitar la extensión. Valen también en `_datos.yml` (§4).
 67. **Cerrada.** `donde` compara los textos exactos (§6.2).
 68. **Cerrada.** `componentes` queda reservado para el catálogo de la v2 (§13).
+69. **Cerrada.** El Markdown sigue CommonMark también en los bloques de código
+    sangrados, aunque Eleventy los desactive; al migrar se quita la sangría
+    accidental (§8).
 
 ---
 

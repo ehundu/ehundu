@@ -35,6 +35,15 @@ final class ConversorPrueba extends TestCase
     }
 
     #[Test]
+    public function laSangriaHaceUnBloqueDeCodigoComoEnCommonMark(): void
+    {
+        self::assertSame(
+            "<p>Texto.</p>\n<pre><code>sangrado\n</code></pre>\n<pre><code class=\"language-php\">cercado\n</code></pre>\n",
+            $this->convertir("Texto.\n\n    sangrado\n\n```php\ncercado\n```\n"),
+        );
+    }
+
+    #[Test]
     public function admiteTablasNotasAlPieTachadoYEnlacesAutomaticos(): void
     {
         $html = $this->convertir("| a | b |\n|---|---|\n| 1 | 2 |\n\n~~Antes~~ Ver www.ejemplo.com y la nota[^1].\n\n[^1]: La nota.\n");

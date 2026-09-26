@@ -31,10 +31,15 @@ final readonly class Pagina
     /**
      * Si la página está publicada en ese momento: no es un borrador y su
      * fecha de `publicar`, si la tiene, ya ha llegado. Vale también para los
-     * fragmentos, que se publican aunque no generen fichero.
+     * fragmentos, que se publican aunque no generen fichero. Con borradores
+     * (la previsualización con `--borradores`), todo cuenta como publicado.
      */
-    public function estaPublicada(\DateTimeImmutable $ahora): bool
+    public function estaPublicada(\DateTimeImmutable $ahora, bool $conBorradores = false): bool
     {
+        if ($conBorradores) {
+            return true;
+        }
+
         if (($this->campos['borrador'] ?? false) === true) {
             return false;
         }

@@ -36,7 +36,7 @@ Ese es el rasgo que lo distingue y el criterio para decidir qué entra.
     pruebas/      pruebas unitarias, espacio de nombres Ehundu\Pruebas\
     bin/ehundu    la orden de consola
     recursos/     plantillas que trae el motor (los atajos incluidos)
-    docs/         documentación del formato
+    docs/         documentación: el formato (formato.md) y la previsualización
 
 Las clases de prueba llevan el sufijo `Prueba` y los métodos el atributo
 `#[Test]`, para que se llamen en español (`fallaSiLaCarpetaNoExiste`). Las

@@ -22,4 +22,25 @@ final readonly class Informe
         public int $ficheros = 0,
     ) {
     }
+
+    /**
+     * «Compilado: 57 páginas y 154 ficheros en 0,80 s, 2 avisos.»
+     */
+    public function resumen(): string
+    {
+        $paginas = $this->paginas === 1 ? '1 página' : "{$this->paginas} páginas";
+        $paginas .= match ($this->ficheros) {
+            0 => '',
+            1 => ' y 1 fichero',
+            default => " y {$this->ficheros} ficheros",
+        };
+        $segundos = number_format($this->segundos, 2, ',', '.');
+        $avisos = match (count($this->avisos)) {
+            0 => '',
+            1 => ', 1 aviso',
+            default => ', ' . count($this->avisos) . ' avisos',
+        };
+
+        return "Compilado: {$paginas} en {$segundos} s{$avisos}.";
+    }
 }

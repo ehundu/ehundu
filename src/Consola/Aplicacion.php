@@ -6,7 +6,7 @@ namespace Ehundu\Consola;
 
 use Ehundu\Compilador;
 use Ehundu\ErrorDeProyecto;
-use Ehundu\Informe;
+use Ehundu\Previsualizacion\Servidor;
 use Ehundu\Proyecto;
 
 /**
@@ -24,19 +24,38 @@ final class Aplicacion
         Uso:
           ehundu compilar [carpeta]   Compila el proyecto de esa carpeta (por
                                       defecto, la actual) en su carpeta salida/.
+          ehundu servir [carpeta]     Previsualiza el proyecto en el navegador y
+                                      lo recompila cuando cambia algo. No
+                                      escribe en salida/.
+                --puerto=8000         El puerto en el que escucha.
+                --borradores          Enseña también los borradores y las
+                                      páginas que aún no se publican.
           ehundu --ayuda              Muestra esta ayuda.
 
         TXT;
 
+    /** @var \Closure(Proyecto, int, bool): int */
+    private \Closure $servir;
+
     /**
-     * @param resource $salida  donde se escribe el resultado
-     * @param resource $errores donde se escriben errores y avisos
+     * @param resource                              $salida  donde se escribe el resultado
+     * @param resource                              $errores donde se escriben errores y avisos
+     * @param (\Closure(Proyecto, int, bool): int)|null $servir  arranca la previsualización con el
+     *                                                           proyecto, el puerto y si lleva borradores
      */
     public function __construct(
         private readonly Compilador $compilador,
         private $salida,
         private $errores,
+        ?\Closure $servir = null,
     ) {
+        $this->servir = $servir ?? fn (Proyecto $proyecto, int $puerto, bool $conBorradores) => (new Servidor(
+            $proyecto,
+            $puerto,
+            $conBorradores,
+            $this->salida,
+            $this->errores,
+        ))->servir();
     }
 
     /**
@@ -60,66 +79,62 @@ final class Aplicacion
             return self::EXITO;
         }
 
-        if ($orden !== 'compilar') {
+        if ($orden !== 'compilar' && $orden !== 'servir') {
             $this->escribir($this->errores, "Orden desconocida: {$orden}\n\n" . self::AYUDA);
 
             return self::USO_INCORRECTO;
         }
 
-        $resto = array_slice($argumentos, 1);
+        $carpetas = [];
+        $puerto = Servidor::PUERTO_POR_DEFECTO;
+        $conBorradores = false;
 
-        foreach ($resto as $argumento) {
-            if (str_starts_with($argumento, '-')) {
-                $this->escribir($this->errores, "Opción desconocida: {$argumento}\n");
+        foreach (array_slice($argumentos, 1) as $argumento) {
+            if ($orden === 'servir' && preg_match('/^--puerto=(\d{1,5})$/', $argumento, $partes) === 1 && (int) $partes[1] >= 1 && (int) $partes[1] <= 65535) {
+                $puerto = (int) $partes[1];
+            } elseif ($orden === 'servir' && $argumento === '--borradores') {
+                $conBorradores = true;
+            } elseif (str_starts_with($argumento, '-')) {
+                $this->escribir($this->errores, str_starts_with($argumento, '--puerto')
+                    ? "El puerto tiene que ser un número entre 1 y 65535: {$argumento}\n"
+                    : "Opción desconocida: {$argumento}\n");
 
                 return self::USO_INCORRECTO;
+            } else {
+                $carpetas[] = $argumento;
             }
         }
 
-        if (count($resto) > 1) {
-            $this->escribir($this->errores, "«compilar» admite una sola carpeta; sobra: {$resto[1]}\n");
+        if (count($carpetas) > 1) {
+            $this->escribir($this->errores, "«{$orden}» admite una sola carpeta; sobra: {$carpetas[1]}\n");
 
             return self::USO_INCORRECTO;
         }
 
-        return $this->compilar($resto[0] ?? (getcwd() ?: '.'));
-    }
+        $ruta = $carpetas[0] ?? (getcwd() ?: '.');
 
-    private function compilar(string $ruta): int
-    {
         try {
-            $informe = $this->compilador->compilar(Proyecto::abrir($ruta));
+            return $orden === 'compilar'
+                ? $this->compilar(Proyecto::abrir($ruta))
+                : ($this->servir)(Proyecto::abrir($ruta), $puerto, $conBorradores);
         } catch (ErrorDeProyecto $error) {
             $this->escribir($this->errores, "Error: {$error->getMessage()}\n");
 
             return self::FALLO;
         }
+    }
+
+    private function compilar(Proyecto $proyecto): int
+    {
+        $informe = $this->compilador->compilar($proyecto);
 
         foreach ($informe->avisos as $aviso) {
             $this->escribir($this->errores, "Aviso: {$aviso}\n");
         }
 
-        $this->escribir($this->salida, $this->resumen($informe));
+        $this->escribir($this->salida, $informe->resumen() . "\n");
 
         return self::EXITO;
-    }
-
-    private function resumen(Informe $informe): string
-    {
-        $paginas = $informe->paginas === 1 ? '1 página' : "{$informe->paginas} páginas";
-        $paginas .= match ($informe->ficheros) {
-            0 => '',
-            1 => ' y 1 fichero',
-            default => " y {$informe->ficheros} ficheros",
-        };
-        $segundos = number_format($informe->segundos, 2, ',', '.');
-        $avisos = match (count($informe->avisos)) {
-            0 => '',
-            1 => ', 1 aviso',
-            default => ', ' . count($informe->avisos) . ' avisos',
-        };
-
-        return "Compilado: {$paginas} en {$segundos} s{$avisos}.\n";
     }
 
     /**

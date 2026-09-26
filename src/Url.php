@@ -81,13 +81,13 @@ final class Url
      *
      * @throws ErrorDeProyecto si dos páginas que se publican van al mismo fichero
      */
-    public static function comprobarColisiones(array $paginas, \DateTimeImmutable $ahora): void
+    public static function comprobarColisiones(array $paginas, \DateTimeImmutable $ahora, bool $conBorradores = false): void
     {
         /** @var array<string, Pagina> $porFichero */
         $porFichero = [];
 
         foreach ($paginas as $pagina) {
-            if ($pagina->url === false || !$pagina->estaPublicada($ahora)) {
+            if ($pagina->url === false || !$pagina->estaPublicada($ahora, $conBorradores)) {
                 continue;
             }
 

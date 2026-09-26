@@ -22,14 +22,15 @@ final class Colecciones
 
     /**
      * @param list<Pagina> $paginas
+     * @param bool         $conBorradores si los borradores y las páginas futuras cuentan como publicados
      */
-    public function __construct(array $paginas, \DateTimeImmutable $ahora)
+    public function __construct(array $paginas, \DateTimeImmutable $ahora, bool $conBorradores = false)
     {
         usort($paginas, fn (Pagina $a, Pagina $b): int => Coleccion::comparar($a->campos['fecha'] ?? null, $b->campos['fecha'] ?? null)
             ?: strcmp($a->ruta, $b->ruta) <=> 0);
 
         foreach ($paginas as $pagina) {
-            if (!$pagina->estaPublicada($ahora) || ($pagina->campos['listada'] ?? true) === false) {
+            if (!$pagina->estaPublicada($ahora, $conBorradores) || ($pagina->campos['listada'] ?? true) === false) {
                 continue;
             }
 

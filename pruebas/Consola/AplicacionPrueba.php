@@ -77,6 +77,43 @@ final class AplicacionPrueba extends TestCase
     }
 
     #[Test]
+    public function servirArrancaLaPrevisualizacionConSusOpciones(): void
+    {
+        $this->crearSitioMinimo();
+        $llamadas = [];
+        $aplicacion = new Aplicacion(new CompiladorEnProceso(), $this->salida, $this->errores, function (Proyecto $proyecto, int $puerto, bool $conBorradores) use (&$llamadas): int {
+            $llamadas[] = [$proyecto->raiz, $puerto, $conBorradores];
+
+            return Aplicacion::EXITO;
+        });
+
+        self::assertSame(Aplicacion::EXITO, $aplicacion->ejecutar(['servir', $this->carpetaTemporal()]));
+        self::assertSame(Aplicacion::EXITO, $aplicacion->ejecutar(['servir', '--puerto=8123', '--borradores', $this->carpetaTemporal()]));
+        self::assertSame([
+            [$this->carpetaTemporal(), 8000, false],
+            [$this->carpetaTemporal(), 8123, true],
+        ], $llamadas);
+    }
+
+    #[Test]
+    public function servirRechazaUnPuertoQueNoVale(): void
+    {
+        $codigo = $this->aplicacion()->ejecutar(['servir', '--puerto=70000']);
+
+        self::assertSame(Aplicacion::USO_INCORRECTO, $codigo);
+        self::assertSame("El puerto tiene que ser un número entre 1 y 65535: --puerto=70000\n", $this->leer($this->errores));
+    }
+
+    #[Test]
+    public function lasOpcionesDeServirNoValenParaCompilar(): void
+    {
+        $codigo = $this->aplicacion()->ejecutar(['compilar', '--borradores']);
+
+        self::assertSame(Aplicacion::USO_INCORRECTO, $codigo);
+        self::assertSame("Opción desconocida: --borradores\n", $this->leer($this->errores));
+    }
+
+    #[Test]
     public function compilaLaCarpetaIndicada(): void
     {
         $this->crearSitioMinimo();

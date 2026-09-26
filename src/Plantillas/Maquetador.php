@@ -8,12 +8,15 @@ use Ehundu\Avisos;
 use Ehundu\Colecciones;
 use Ehundu\ErrorDeProyecto;
 use Ehundu\Lectura;
-use Ehundu\Markdown;
+use Ehundu\Markdown\Conversor;
+use Ehundu\Markdown\ResolutorDeAtajos;
 use Ehundu\Pagina;
 use Ehundu\Proyecto;
 use Twig\Environment;
 use Twig\Error\Error;
 use Twig\Extension\CoreExtension;
+use Twig\Loader\ChainLoader;
+use Twig\Loader\FilesystemLoader;
 
 /**
  * Construye el HTML de cada página (formato §7): convierte su cuerpo, de
@@ -29,7 +32,8 @@ final class Maquetador
 
     private Environment $twig;
     private ExtensionTwig $extension;
-    private Markdown $markdown;
+    private Conversor $markdown;
+    private Atajos $atajos;
 
     /** @var array<string, string> cuerpos ya convertidos, por ruta */
     private array $cuerpos = [];
@@ -41,12 +45,16 @@ final class Maquetador
         Proyecto $proyecto,
         private readonly Lectura $lectura,
         Colecciones $colecciones,
-        Avisos $avisos,
+        private readonly Avisos $avisos,
     ) {
         $zona = $lectura->sitio->zonaHoraria;
 
-        $this->markdown = new Markdown();
-        $this->twig = new Environment(new CargadorDePlantillas($proyecto), [
+        // Las plantillas de los atajos que trae Ehundu, como @ehundu/imagen.twig.
+        $incluidas = new FilesystemLoader();
+        $incluidas->addPath(dirname(__DIR__, 2) . '/recursos/atajos', 'ehundu');
+
+        $this->markdown = new Conversor($lectura->sitio->url);
+        $this->twig = new Environment(new ChainLoader([new CargadorDePlantillas($proyecto), $incluidas]), [
             'autoescape' => 'html',
             'strict_variables' => false,
             'cache' => false,
@@ -55,6 +63,8 @@ final class Maquetador
 
         $this->extension = new ExtensionTwig($colecciones, $this->cuerpo(...), $proyecto, $avisos, $zona);
         $this->twig->addExtension($this->extension);
+
+        $this->atajos = new Atajos($proyecto, $this->twig, $lectura, $this->extension, $avisos);
     }
 
     /**
@@ -112,13 +122,49 @@ final class Maquetador
 
         try {
             $html = $pagina->formato === 'md'
-                ? $this->markdown->convertir($pagina->cuerpo)
+                ? $this->cuerpoMarkdown($pagina)
                 : $this->cuerpoTwig($pagina);
         } finally {
             array_pop($this->enCurso);
         }
 
         return $this->cuerpos[$pagina->ruta] = $html;
+    }
+
+    private function cuerpoMarkdown(Pagina $pagina): string
+    {
+        $fichero = Proyecto::CONTENIDO . "/{$pagina->ruta}";
+
+        $resolutor = new class($this->atajos, $pagina, $fichero) implements ResolutorDeAtajos {
+            public function __construct(
+                private readonly Atajos $atajos,
+                private readonly Pagina $pagina,
+                private readonly string $fichero,
+            ) {
+            }
+
+            public function nombres(): array
+            {
+                return $this->atajos->nombres();
+            }
+
+            public function atajo(string $nombre, array $atributos, ?string $contenido, ?int $linea): string
+            {
+                return $this->atajos->renderizar($this->pagina, $nombre, $atributos, $contenido, null, $this->fichero, $linea);
+            }
+
+            public function figura(string $src, string $alt, string $pie, ?string $enlace, ?int $linea): string
+            {
+                return $this->atajos->renderizar($this->pagina, 'imagen', [], null, [
+                    'src' => $src,
+                    'alt' => $alt,
+                    'pie' => $pie === '' ? null : new \Twig\Markup($pie, 'UTF-8'),
+                    'enlace' => $enlace,
+                ], $this->fichero, $linea);
+            }
+        };
+
+        return $this->markdown->convertir($pagina->cuerpo, $resolutor, $this->avisos, $fichero, $pagina->lineaCuerpo);
     }
 
     private function cuerpoTwig(Pagina $pagina): string

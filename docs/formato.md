@@ -381,15 +381,27 @@ del filtro `date` de Twig, que por sí solo usaría la de la máquina.
 
 ## 8. Markdown
 
-CommonMark, más tablas, notas al pie y enlaces automáticos. Dos añadidos forman
-parte del contrato:
-
-- Una imagen sola en su párrafo se convierte en `<figure>`, con el texto
-  alternativo repetido como `<figcaption>`.
-- Los enlaces externos reciben `target="_blank"` y `rel="noopener"`.
+CommonMark, más tablas, notas al pie, tachado (`~~texto~~`) y enlaces
+automáticos: una dirección escrita tal cual (`https://ejemplo.com`,
+`www.ejemplo.com`) se convierte en enlace. Se admite HTML escrito a mano.
+Las etiquetas vacías salen como en HTML5, sin barra final: `<img …>`, `<br>`.
 
 **Cerrado:** el Markdown NO pasa por Twig. En su lugar hay atajos, con un
-vocabulario cerrado.
+vocabulario cerrado (§8.1).
+
+Dos añadidos forman parte del contrato:
+
+- **Figuras.** Una imagen sola en su párrafo, enlazada o no, es una figura, y
+  se construye igual que el atajo `imagen` (§8.2). Su texto alternativo da a
+  la vez el `alt` de la imagen, en texto plano, y el pie, con su Markdown
+  convertido: `![El **escaparate** en otoño](/img/escaparate.jpg)` lleva
+  `alt="El escaparate en otoño"` y el pie `El <strong>escaparate</strong> en
+  otoño`. Un sitio que quiera otro marcado para sus figuras (una clase, un
+  `loading="lazy"`) lo da con su propia plantilla `imagen`.
+- **Enlaces externos.** Un enlace escrito en Markdown a otro dominio recibe
+  `target="_blank"` y `rel="noopener"`. El dominio del sitio es el de `url`
+  en `sitio.yml`, con y sin `www.`. El HTML escrito a mano y los enlaces de
+  las plantillas no se tocan.
 
 ### 8.1 Atajos
 
@@ -405,23 +417,72 @@ Y con contenido, cuando lo envuelve:
 
 Reglas:
 
-- Solo se reconocen los nombres registrados. Si el nombre no está registrado,
-  el texto se deja tal cual y se avisa por consola; nunca se rompe el build.
-- Los atributos son siempre cadenas con nombre. No hay expresiones, ni
+- Solo se reconocen los nombres registrados: los que trae el motor y los que
+  define el sitio. Un nombre que no está registrado se deja como texto; si
+  lleva atributos, o es un cierre sin su apertura, además se avisa. Nunca se
+  rompe el build. Un `[algo]` sin atributos es texto normal, y `[imagen](…)`
+  sigue siendo un enlace de Markdown.
+- Los atributos son siempre cadenas con nombre, entre comillas dobles o
+  simples: `nombre="valor"` o `nombre='valor'`. No hay expresiones, ni
   variables, ni condicionales, ni acceso a colecciones: eso es lógica y la
   lógica vive en las plantillas.
-- Cada atajo se implementa como una plantilla Twig en `parciales/atajos/`, con
-  el nombre del atajo. Recibe los atributos y, si lo tiene, el contenido ya
-  convertido a HTML.
-- Se resuelven después de convertir el Markdown, sobre el HTML, para que el
-  marcado que generan no lo reinterprete el convertidor.
+- Un atajo simple puede ir en medio del texto. Si va solo en su párrafo y lo
+  que produce es un bloque (una figura, un `div`, un vídeo…), sustituye al
+  párrafo entero, porque un bloque no cabe dentro de un `<p>`. Si produce
+  texto, como `dato`, se queda dentro del párrafo.
+- Un atajo que envuelve contenido lleva la apertura y el cierre cada uno en
+  su línea. Lo que hay entre ellos es Markdown y llega convertido a HTML. Si
+  falta el cierre, se avisa y el atajo se cierra al final del texto.
+- Los atajos se reconocen al convertir el Markdown, así que uno escrito dentro
+  de código, o empezado con `\[`, se queda como texto. Su HTML se inserta
+  después, sin que el convertidor lo toque.
 - Los atajos son cosa de quien desarrolla el sitio: un editor puede ofrecer
   botones para insertar los que el sitio declare, sin que quien escribe el
   contenido tenga que poner atributos a mano.
 
-Atajos incluidos en el motor: `imagen` (figura con pie y texto alternativo),
-`video` (incrustación con relación de aspecto) y `archivo` (enlace a un
-documento con su tamaño). El resto los define cada sitio.
+Cada atajo es una plantilla de Twig. Los del sitio están en
+`parciales/atajos/`, con el nombre del atajo: `parciales/atajos/aviso.twig`.
+El nombre solo lleva minúsculas sin tildes, números y guiones. La plantilla
+recibe:
+
+- sus atributos, como variables: `{{ tipo }}`;
+- `contenido`, el HTML de lo que envuelve, si envuelve algo;
+- `sitio`, `datos` y `pagina`, igual que cualquier plantilla (§7.2).
+
+Por eso `sitio`, `datos`, `pagina` y `contenido` no se pueden usar como
+nombres de atributo: se avisa y se ignoran.
+
+### 8.2 Atajos incluidos en el motor
+
+Un sitio puede sustituir cualquiera de ellos con su propia plantilla del mismo
+nombre en `parciales/atajos/`, que recibe las mismas variables.
+
+- **`imagen`**: `[imagen fichero="img/escaparate.jpg" alt="…" pie="…"]`, con
+  `fichero` dentro de `publico/`. Da `<figure>` con la imagen y, si hay pie,
+  `<figcaption>`. Sin `pie`, el pie es el `alt`; con `pie=""`, no hay pie.
+  `enlace` hace la imagen enlazada. La plantilla recibe `src`, `alt`, `pie`
+  (ya en HTML) y `enlace`. Se avisa si falta `alt` o si el fichero no existe;
+  sin `fichero` no se inserta nada.
+- **`video`**: `[video url="https://www.youtube.com/watch?v=…" titulo="…"]`
+  admite YouTube, que se inserta desde `youtube-nocookie.com` para no poner
+  cookies hasta que se reproduce, y Vimeo, con `dnt=1`. Con
+  `fichero="video/visita.mp4"` inserta un vídeo de `publico/`. La proporción es
+  16:9 salvo que se indique otra con `proporcion="4:3"`, y se aplica con
+  `aspect-ratio`. `titulo` es el nombre accesible del vídeo (`Vídeo` si
+  falta). Con otra dirección, se avisa y no se inserta nada. La plantilla
+  recibe `insercion` (la dirección para el `iframe`) o `src` (la del fichero),
+  `proporcion` y `titulo`.
+- **`archivo`**: `[archivo fichero="docs/tarifas.pdf" texto="Tarifas 2025"]`
+  da `<a href="/docs/tarifas.pdf">Tarifas 2025</a> (PDF, 1,2 MB)`, con el
+  tipo y el peso leídos del fichero de `publico/` al compilar (en KB por
+  debajo de 1 MB). Sin `texto`, el nombre del fichero. Si el fichero no
+  existe, se avisa y el enlace sale sin peso. La plantilla recibe `href`,
+  `texto`, `tipo` y `peso`.
+- **`dato`**: `[dato clave="cliente.nombre"]` escribe un valor de `datos/`,
+  escapado. Es lo que necesitan los textos legales, que repiten el nombre, la
+  razón social o la dirección del titular. Con `siFalta="…"` se escribe ese
+  texto si el dato no existe o está vacío; sin él, se avisa y no se escribe
+  nada. La plantilla recibe `valor`.
 
 ---
 
@@ -574,6 +635,18 @@ Si al añadirlas hay que romper el contrato, el contrato estaba mal.
     una página se necesita a sí misma, error (§7.2).
 32. **Cerrada.** Si falta la plantilla de una página, el build se detiene
     (§7.1).
+33. **Cerrada.** Una imagen sola en su párrafo se construye como el atajo
+    `imagen`, con el `alt` en texto plano y el pie en HTML (§8).
+34. **Cerrada.** Los atajos se reconocen al convertir el Markdown y su HTML se
+    inserta después (§8.1).
+35. **Cerrada.** Las plantillas de atajos reciben los atributos como
+    variables, `contenido`, `sitio`, `datos` y `pagina` (§8.1).
+36. **Cerrada.** Cuarto atajo incluido, `dato`; y atributos y resultado de
+    `imagen`, `video` y `archivo` (§8.2).
+37. **Cerrada.** Enlaces externos: otro dominio que el del sitio, con o sin
+    `www.`, solo en Markdown (§8).
+38. **Cerrada.** El Markdown admite tachado y enlaces automáticos (§8).
+39. **Cerrada.** Etiquetas vacías de HTML5, sin barra final (§8).
 
 ---
 

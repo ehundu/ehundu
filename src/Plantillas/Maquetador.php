@@ -34,8 +34,9 @@ final class Maquetador
     private ExtensionTwig $extension;
     private Conversor $markdown;
     private Atajos $atajos;
+    private Recursos $recursos;
 
-    /** @var array<string, string> cuerpos ya convertidos, por ruta */
+    /** @var array<string, array{html: string, recursos: array{css: list<string>, js: list<string>}}> cuerpos ya convertidos, por ruta */
     private array $cuerpos = [];
 
     /** @var list<string> rutas de las páginas cuyo cuerpo se está convirtiendo */
@@ -61,7 +62,8 @@ final class Maquetador
         ]);
         $this->twig->getExtension(CoreExtension::class)->setTimezone($zona);
 
-        $this->extension = new ExtensionTwig($colecciones, $this->cuerpo(...), $proyecto, $avisos, $zona);
+        $this->recursos = new Recursos($proyecto, $avisos);
+        $this->extension = new ExtensionTwig($colecciones, $this->cuerpo(...), $proyecto, $avisos, $zona, $this->recursos);
         $this->twig->addExtension($this->extension);
 
         $this->atajos = new Atajos($proyecto, $this->twig, $lectura, $this->extension, $avisos);
@@ -69,11 +71,36 @@ final class Maquetador
 
     /**
      * La página entera: su cuerpo dentro de su plantilla, o el cuerpo solo
-     * si lleva `plantilla: false`.
+     * si lleva `plantilla: false`, con su CSS y su JS en las marcas de
+     * `css()` y `js()`. Los ficheros del front matter van detrás de los que
+     * declaran las plantillas, para que puedan sobrescribirlos.
      *
      * @throws ErrorDeProyecto si falta la plantilla o hay un error en ella
      */
     public function maquetar(Pagina $pagina): string
+    {
+        $this->recursos->abrir();
+
+        try {
+            $html = $this->maquetarSinRecursos($pagina);
+        } finally {
+            $declarados = $this->recursos->cerrar();
+        }
+
+        foreach (['css', 'js'] as $tipo) {
+            foreach ($pagina->campos[$tipo] ?? [] as $ruta) {
+                $ruta = ltrim($ruta, '/');
+
+                if (!in_array($ruta, $declarados[$tipo], true)) {
+                    $declarados[$tipo][] = $ruta;
+                }
+            }
+        }
+
+        return $this->recursos->insertar($html, $declarados);
+    }
+
+    private function maquetarSinRecursos(Pagina $pagina): string
     {
         $plantilla = $pagina->campos['plantilla'] ?? self::PLANTILLA_POR_DEFECTO;
 
@@ -101,7 +128,9 @@ final class Maquetador
     public function cuerpo(Pagina $pagina): string
     {
         if (isset($this->cuerpos[$pagina->ruta])) {
-            return $this->cuerpos[$pagina->ruta];
+            $this->recursos->repetir($this->cuerpos[$pagina->ruta]['recursos']);
+
+            return $this->cuerpos[$pagina->ruta]['html'];
         }
 
         $posicion = array_search($pagina->ruta, $this->enCurso, true);
@@ -119,16 +148,20 @@ final class Maquetador
         }
 
         $this->enCurso[] = $pagina->ruta;
+        $this->recursos->abrir();
 
         try {
             $html = $pagina->formato === 'md'
                 ? $this->cuerpoMarkdown($pagina)
                 : $this->cuerpoTwig($pagina);
         } finally {
+            $recursos = $this->recursos->cerrar();
             array_pop($this->enCurso);
         }
 
-        return $this->cuerpos[$pagina->ruta] = $html;
+        $this->cuerpos[$pagina->ruta] = ['html' => $html, 'recursos' => $recursos];
+
+        return $html;
     }
 
     private function cuerpoMarkdown(Pagina $pagina): string

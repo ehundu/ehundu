@@ -7,7 +7,7 @@ namespace Ehundu;
 /**
  * Los `_datos.yml` de `contenido/` y sus subcarpetas (formato §3). Cada
  * carpeta hereda lo de sus antecesoras; gana lo más cercano, salvo
- * `etiquetas`, que se suman.
+ * `etiquetas`, `css` y `js`, que se suman.
  *
  * Cada `_datos.yml` se lee una sola vez, la primera vez que se necesita.
  *
@@ -16,6 +16,9 @@ namespace Ehundu;
 final class Cascada
 {
     public const string FICHERO = '_datos.yml';
+
+    /** Campos que se suman a lo largo de la cascada en lugar de sustituirse. */
+    public const array SUMADOS = ['etiquetas', 'css', 'js'];
 
     /** @var array<string, array<array-key, mixed>> campos ya combinados, por carpeta */
     private array $porCarpeta = [];
@@ -48,7 +51,7 @@ final class Cascada
 
     /**
      * Pone un nivel de campos encima de otro: gana el de encima, salvo
-     * `etiquetas`, que se suman sin repetir. Listas y mapas se sustituyen
+     * `etiquetas`, `css` y `js`, que se suman sin repetir. Listas y mapas se sustituyen
      * enteros.
      *
      * @param array<array-key, mixed> $base
@@ -60,11 +63,13 @@ final class Cascada
     {
         $combinados = array_replace($base, $encima);
 
-        if (array_key_exists('etiquetas', $base) || array_key_exists('etiquetas', $encima)) {
-            $combinados['etiquetas'] = array_values(array_unique([
-                ...($base['etiquetas'] ?? []),
-                ...($encima['etiquetas'] ?? []),
-            ]));
+        foreach (self::SUMADOS as $campo) {
+            if (array_key_exists($campo, $base) || array_key_exists($campo, $encima)) {
+                $combinados[$campo] = array_values(array_unique([
+                    ...($base[$campo] ?? []),
+                    ...($encima[$campo] ?? []),
+                ]));
+            }
         }
 
         return $combinados;

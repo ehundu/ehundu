@@ -107,6 +107,11 @@ final class Aplicacion
     private function resumen(Informe $informe): string
     {
         $paginas = $informe->paginas === 1 ? '1 página' : "{$informe->paginas} páginas";
+        $paginas .= match ($informe->ficheros) {
+            0 => '',
+            1 => ' y 1 fichero',
+            default => " y {$informe->ficheros} ficheros",
+        };
         $segundos = number_format($informe->segundos, 2, ',', '.');
         $avisos = match (count($informe->avisos)) {
             0 => '',

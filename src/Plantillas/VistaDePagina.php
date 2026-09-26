@@ -16,11 +16,12 @@ use Twig\Markup;
  */
 final class VistaDePagina implements \ArrayAccess
 {
-    private ?Markup $contenido = null;
-
     /**
-     * @param \Closure(Pagina): string|null $renderizar da el cuerpo ya convertido a HTML;
-     *                                                 se llama la primera vez que se pide
+     * @param \Closure(Pagina): string|null $renderizar da el cuerpo ya convertido a HTML. Se
+     *                                                 llama cada vez que se pide: quien lo da
+     *                                                 guarda el cuerpo convertido, y así puede
+     *                                                 volver a declarar su CSS y su JS en la
+     *                                                 página que lo reutiliza
      */
     public function __construct(
         private readonly Pagina $pagina,
@@ -64,10 +65,6 @@ final class VistaDePagina implements \ArrayAccess
 
     private function contenido(): ?Markup
     {
-        if ($this->contenido === null && $this->renderizar !== null) {
-            $this->contenido = new Markup(($this->renderizar)($this->pagina), 'UTF-8');
-        }
-
-        return $this->contenido;
+        return $this->renderizar === null ? null : new Markup(($this->renderizar)($this->pagina), 'UTF-8');
     }
 }

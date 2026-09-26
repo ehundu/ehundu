@@ -38,13 +38,25 @@ final class CascadaPrueba extends TestCase
     }
 
     #[Test]
+    public function losCssYLosJsTambienSeSuman(): void
+    {
+        self::assertSame(
+            ['css' => ['css/comun.css', 'css/blog.css'], 'js' => ['js/menu.js', 'js/galeria.js']],
+            Cascada::combinar(
+                ['css' => ['css/comun.css'], 'js' => ['js/menu.js']],
+                ['css' => ['css/blog.css', 'css/comun.css'], 'js' => ['js/galeria.js']],
+            ),
+        );
+    }
+
+    #[Test]
     public function lasListasYLosMapasSeSustituyenEnteros(): void
     {
         self::assertSame(
-            ['css' => ['b.css'], 'autor' => ['nombre' => 'Luis']],
+            ['galeria' => ['b.jpg'], 'autor' => ['nombre' => 'Luis']],
             Cascada::combinar(
-                ['css' => ['a.css'], 'autor' => ['nombre' => 'Ana', 'cargo' => 'Edición']],
-                ['css' => ['b.css'], 'autor' => ['nombre' => 'Luis']],
+                ['galeria' => ['a.jpg'], 'autor' => ['nombre' => 'Ana', 'cargo' => 'Edición']],
+                ['galeria' => ['b.jpg'], 'autor' => ['nombre' => 'Luis']],
             ),
         );
     }

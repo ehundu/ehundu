@@ -22,4 +22,20 @@ final readonly class Sitio
         public array $campos,
     ) {
     }
+
+    /**
+     * La dirección completa de una URL del sitio: `/blog/` da
+     * `https://www.ejemplo.com/blog/`. Lo que no puede ir tal cual en una
+     * dirección (espacios, tildes) se codifica.
+     */
+    public function absoluta(string $url): string
+    {
+        $codificada = preg_replace_callback(
+            "~[^A-Za-z0-9\\-._\\~/!$&'()*+,;=:@%]~",
+            fn (array $caracter) => rawurlencode($caracter[0]),
+            $url,
+        );
+
+        return $this->url . $codificada;
+    }
 }

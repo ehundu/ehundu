@@ -24,11 +24,13 @@ final class Lector
         $cascada = new Cascada($proyecto, $avisos, $sitio->zonaHoraria);
 
         $paginas = [];
-        foreach ($this->rutasDePaginas($proyecto, $avisos) as $ruta) {
+        [$rutas, $ficheros] = $this->recorrerContenido($proyecto, $avisos);
+
+        foreach ($rutas as $ruta) {
             $paginas[] = $this->leerPagina($proyecto, $ruta, $cascada, $sitio->zonaHoraria, $avisos);
         }
 
-        return new Lectura($sitio, $datos, $paginas, $avisos->todos());
+        return new Lectura($sitio, $datos, $paginas, $avisos->todos(), $ficheros);
     }
 
     private function leerSitio(Proyecto $proyecto): Sitio
@@ -123,20 +125,23 @@ final class Lector
     }
 
     /**
-     * Las rutas de las páginas de `contenido/`, relativas a esa carpeta y en
-     * orden, para que el resultado no dependa del sistema de ficheros.
+     * Las páginas de `contenido/` y los demás ficheros, que se copian tal cual
+     * salvo los que empiezan por `_` (formato §4). Rutas relativas a esa
+     * carpeta y en orden, para que el resultado no dependa del sistema de
+     * ficheros.
      *
-     * @return list<string>
+     * @return array{0: list<string>, 1: list<string>} páginas y ficheros
      */
-    private function rutasDePaginas(Proyecto $proyecto, Avisos $avisos): array
+    private function recorrerContenido(Proyecto $proyecto, Avisos $avisos): array
     {
         if (!is_dir($proyecto->ruta(Proyecto::CONTENIDO))) {
             $avisos->registrar('No hay carpeta contenido/: no se genera ninguna página');
 
-            return [];
+            return [[], []];
         }
 
         $rutas = [];
+        $ficheros = [];
         $pendientes = [''];
 
         while ($pendientes !== []) {
@@ -156,13 +161,16 @@ final class Lector
                     } else {
                         $rutas[] = $ruta;
                     }
+                } elseif (!str_starts_with($nombre, '_')) {
+                    $ficheros[] = $ruta;
                 }
             }
         }
 
         sort($rutas, SORT_STRING);
+        sort($ficheros, SORT_STRING);
 
-        return $rutas;
+        return [$rutas, $ficheros];
     }
 
     private function leerPagina(Proyecto $proyecto, string $ruta, Cascada $cascada, \DateTimeZone $zona, Avisos $avisos): Pagina

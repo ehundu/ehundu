@@ -31,6 +31,7 @@ final class Campos
     private const array TEXTOS = ['titulo', 'subtitulo', 'descripcion', 'imagen', 'imagenAlt', 'icono'];
     private const array FECHAS = ['fecha', 'publicar'];
     private const array SI_NO = ['borrador', 'listada'];
+    private const array LISTAS = ['etiquetas', 'css', 'js'];
 
     /**
      * @param array<array-key, mixed> $campos       los campos tal como salen del YAML
@@ -111,7 +112,7 @@ final class Campos
             in_array($nombre, self::FECHAS, true) => self::fecha($valor, $original, $zona),
             in_array($nombre, self::SI_NO, true) => self::siNo($valor),
             $nombre === 'orden' => self::numero($valor),
-            $nombre === 'etiquetas' => self::etiquetas($valor),
+            in_array($nombre, self::LISTAS, true) => self::listaDeTextos($valor),
             $nombre === 'plantilla' => self::plantilla($valor),
             $nombre === 'url' => self::url($valor),
             default => $valor,
@@ -192,7 +193,7 @@ final class Campos
      *
      * @return list<string>
      */
-    private static function etiquetas(mixed $valor): array
+    private static function listaDeTextos(mixed $valor): array
     {
         if (!is_array($valor)) {
             $valor = [$valor];

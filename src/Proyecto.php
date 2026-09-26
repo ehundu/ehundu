@@ -135,6 +135,61 @@ final readonly class Proyecto
         }
     }
 
+    /**
+     * Copia un fichero del proyecto a `salida/`, con las carpetas que hagan
+     * falta.
+     *
+     * @param string $origen  ruta relativa a la raíz del proyecto
+     * @param string $destino ruta relativa a `salida/`, sin tramos `..`
+     *
+     * @throws ErrorDeProyecto si no se puede copiar
+     */
+    public function copiarASalida(string $origen, string $destino): void
+    {
+        if (preg_match('#(^|/)\.\.?(/|$)|\\\\#', $destino) === 1 || str_starts_with($destino, '/')) {
+            throw new ErrorDeProyecto("No se escribe fuera de salida/: {$destino}");
+        }
+
+        $completa = $this->ruta(self::SALIDA, $destino);
+        $carpeta = dirname($completa);
+
+        if (!is_dir($carpeta) && !@mkdir($carpeta, 0777, true) && !is_dir($carpeta)) {
+            throw new ErrorDeProyecto('No se puede crear la carpeta', self::SALIDA . '/' . dirname($destino));
+        }
+
+        if (!@copy($this->ruta($origen), $completa)) {
+            throw new ErrorDeProyecto('No se puede copiar a ' . self::SALIDA . "/{$destino}", $origen);
+        }
+    }
+
+    /**
+     * Todos los ficheros de una carpeta del proyecto y sus subcarpetas,
+     * también los que empiezan por punto, en orden.
+     *
+     * @return list<string> rutas relativas a esa carpeta
+     */
+    public function ficherosDe(string $carpeta): array
+    {
+        $raiz = $this->ruta($carpeta);
+
+        if (!is_dir($raiz)) {
+            return [];
+        }
+
+        $ficheros = [];
+        $recorrido = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($raiz, \FilesystemIterator::SKIP_DOTS));
+
+        foreach ($recorrido as $fichero) {
+            if ($fichero->isFile()) {
+                $ficheros[] = substr(str_replace('\\', '/', $fichero->getPathname()), strlen($raiz) + 1);
+            }
+        }
+
+        sort($ficheros, SORT_STRING);
+
+        return $ficheros;
+    }
+
     private static function borrar(string $ruta): void
     {
         if (is_link($ruta) || !is_dir($ruta)) {

@@ -72,6 +72,8 @@ ellos no se pueden generar ni el sitemap ni el feed.
 sitio, con su nombre estándar (`Europe/Madrid`, `America/Mexico_City`). Si
 falta, es UTC. Una zona que no existe detiene el build.
 
+La sección `feed` pide un `feed.xml` y dice de qué colección sale (§10.2).
+
 Destinos admitidos en la v1: `carpeta`, `ftp`, `sftp`, `s3`.
 
 `.secretos.yml` tiene la misma forma, solo con las claves sensibles. El motor
@@ -104,10 +106,11 @@ Ejemplo, `contenido/blog/_datos.yml`:
 
 Con eso, un artículo nuevo solo necesita título y cuerpo.
 
-La única excepción a "gana el más cercano" es `etiquetas`: las de cada nivel se
-suman a las heredadas, sin repetir y de lo más general a lo más concreto. Un
-artículo que declara `etiquetas: [novela, recomendaciones]` sigue estando en la
-colección `blog` que le pone su carpeta. Los demás campos, listas y mapas
+Las excepciones a "gana el más cercano" son `etiquetas`, `css` y `js`: los de
+cada nivel se suman a los heredados, sin repetir y de lo más general a lo más
+concreto. Un artículo que declara `etiquetas: [novela, recomendaciones]` sigue
+estando en la colección `blog` que le pone su carpeta, y el CSS que añade una
+sección se suma al de todo el sitio. Los demás campos, listas y mapas
 incluidos, se sustituyen enteros; no se mezclan por dentro.
 
 ---
@@ -115,8 +118,10 @@ incluidos, se sustituyen enteros; no se mezclan por dentro.
 ## 4. Ficheros de contenido
 
 Extensiones reconocidas: `.md` (Markdown) y `.twig` (plantilla). Cualquier otra
-cosa dentro de `contenido/` se copia tal cual. Lo que empieza por punto
-(`.gitkeep`, `.git/`) se ignora.
+cosa dentro de `contenido/` se copia tal cual a `salida/`, con su misma ruta
+(`contenido/blog/foto.jpg` → `blog/foto.jpg`), salvo los ficheros que empiezan
+por guion bajo, como `_datos.yml`. Lo que empieza por punto (`.gitkeep`,
+`.git/`) se ignora.
 
 El front matter va entre `---`, en YAML. Si no es YAML válido, el build se
 detiene con un error que indica fichero y línea: seguir sin esa página haría
@@ -134,6 +139,8 @@ Campos reservados:
 | `plantilla`   | texto   | Nombre del layout, sin extensión. `false`: sin layout.    |
 | `etiquetas`   | lista   | Colecciones a las que pertenece.                          |
 | `listada`     | sí/no   | Si es `no`, se publica pero no entra en colecciones ni en el sitemap. |
+| `css`         | lista   | Ficheros CSS de `publico/` que necesita la página (§9).   |
+| `js`          | lista   | Ficheros JavaScript de `publico/` que necesita (§9).      |
 | `imagen`      | texto   | Imagen principal, relativa a `publico/`.                  |
 | `imagenAlt`   | texto   | Texto alternativo de esa imagen.                          |
 | `icono`       | texto   | SVG, relativo a `publico/`.                               |
@@ -159,8 +166,9 @@ Detalles de los tipos:
   publica a las 00:00 del 1 de octubre en esa zona.
 - **texto** admite un número, que se toma como texto (`titulo: 2024`).
 - **número** admite un número entre comillas (`orden: "2"`).
-- **`etiquetas`** admite un texto suelto, que cuenta como una lista de un
-  elemento: `etiquetas: servicio` es lo mismo que `etiquetas: [servicio]`.
+- **`etiquetas`**, **`css`** y **`js`** admiten un texto suelto, que cuenta
+  como una lista de un elemento: `etiquetas: servicio` es lo mismo que
+  `etiquetas: [servicio]`.
 - **`plantilla`** vacía (`plantilla: ""`) es lo mismo que `plantilla: false`.
 
 Se aceptan como alias los nombres ingleses habituales en Eleventy y Lume
@@ -486,36 +494,99 @@ nombre en `parciales/atajos/`, que recibe las mismas variables.
 
 ---
 
-## 9. Assets y CSS
+## 9. Ficheros, CSS y JavaScript
 
-`publico/` se copia tal cual a la raíz de la salida. Sin pipeline: el CSS y el
-JS llegan ya escritos y, si hace falta, minificados fuera del motor.
-
-Para el CSS por página se admite en el front matter:
-
-    css: [estilos/home.css]
-
-El layout lo incrusta con `{{ css() }}`, concatenando los ficheros comunes más
-los de la página. Es el equivalente del plugin de bundle de Eleventy.
+`publico/` se copia tal cual a la raíz de la salida, incluidos los ficheros
+que empiezan por punto, como un `.htaccess`. Sin pipeline: el CSS y el JS
+llegan ya escritos y, si hace falta, minificados fuera del motor.
 
 Las imágenes no se procesan durante el build. Si hacen falta varios tamaños,
 los genera otra herramienta (por ejemplo, un editor al subir la imagen) y deja
 los ficheros en `publico/`.
 
+### 9.1 CSS y JavaScript de cada página
+
+El CSS y el JavaScript de una página se incrustan en ella, reunidos en un
+`<style>` y un `<script>`. Es el equivalente del plugin de bundle de
+Eleventy: cada plantilla declara lo que necesita donde lo usa, y todo se
+escribe en un solo sitio.
+
+- `{{ css('css/cabecera.css') }}`, en cualquier plantilla, parcial o atajo,
+  declara uno o varios ficheros de `publico/` que necesita la página. No
+  escribe nada donde está.
+- `{{ css() }}`, sin argumentos, marca dónde va todo el CSS de la página:
+  `<style>{{ css() }}</style>` en el layout base. Se rellena cuando la página
+  está terminada, así que cuentan también los parciales que van después, como
+  el pie.
+- El campo `css` del front matter añade los ficheros de la página. Se suma a
+  lo largo de la cascada (§3): un `_datos.yml` puede añadir el CSS de una
+  sección entera.
+
+Cada fichero sale una sola vez por página, en el orden en que se declara al
+construirla, de arriba abajo; los del campo `css` van al final, para que
+puedan sobrescribir a los demás. Se insertan tal cual. Un fichero que no
+existe, o que no es un `.css` de dentro de `publico/`, se avisa y se salta. Si
+una página declara CSS y ninguna plantilla escribe `{{ css() }}`, se avisa.
+
+El JavaScript funciona igual, con `js('…')`, `<script>{{ js() }}</script>` y
+el campo `js`.
+
+    {# plantillas/base.twig #}
+    <head>
+      {{ css('css/reset.css', 'css/estilos.css') }}
+      <style>{{ css() }}</style>
+    </head>
+    <body>
+      {% include 'parciales/cabecera.twig' %}  {# declara css/cabecera.css #}
+      {% block cuerpo %}{% endblock %}
+      <script>{{ js() }}</script>
+    </body>
+
 ---
 
 ## 10. Salida
 
-El motor genera, además de las páginas, `sitemap.xml`, `feed.xml` y `404.html`
-si existe una página con esa URL. Nada más: los añadidos van como ficheros
-normales dentro de `contenido/`.
+En `salida/` van las páginas, lo que se copia de `publico/` y de
+`contenido/`, y dos ficheros que genera el motor: `sitemap.xml` y, si el
+sitio lo pide, `feed.xml`. Nada más: los añadidos van como ficheros normales
+dentro de `contenido/` o de `publico/`. Una página con `url: /404.html` se
+escribe como `404.html`, igual que cualquier otra.
 
-El sitemap lleva todas las páginas con URL salvo las de `listada: no`.
+Si dos cosas van al mismo fichero de salida (dos páginas, una página y un
+fichero, un fichero de `publico/` y otro de `contenido/`), el build se detiene
+con un error que nombra las dos. Las mayúsculas no cuentan.
+
+Si el proyecto tiene su propio `/sitemap.xml` o `/feed.xml`, como página o
+como fichero, gana el del proyecto y el motor no genera el suyo.
 
 Una compilación completa vacía `salida/` antes de escribir, para que no queden
 restos de compilaciones anteriores que luego se desplegarían. Solo borra lo que
-hay dentro de `salida/`, y solo después de haber construido todas las páginas
-sin errores: si una plantilla falla, `salida/` se queda como estaba.
+hay dentro de `salida/`, y solo después de haber construido todo sin errores:
+si una plantilla falla, `salida/` se queda como estaba.
+
+### 10.1 `sitemap.xml`
+
+Lleva las páginas HTML de la colección `todo` (las publicadas, con URL y sin
+`listada: no`; §6), en su orden, salvo `/404.html`. Una página es HTML si su
+URL acaba en `/` o en `.html`: `robots.txt` o un XML no entran. Cada una lleva
+su dirección completa, la `url` del sitio más la de la página, y `<lastmod>`
+con su fecha en la zona horaria del sitio, solo si la tiene.
+
+### 10.2 `feed.xml`
+
+Se genera en formato Atom si `sitio.yml` tiene una sección `feed`:
+
+    feed:
+      coleccion: blog     # de dónde salen las entradas; obligatorio
+      limite: 20          # cuántas, las más recientes; 20 si no se indica
+      titulo: Novedades   # el nombre del sitio si no se indica
+
+Cada entrada lleva el título, la dirección completa, la fecha, la
+`descripcion` como resumen si la tiene, y el contenido completo, con los
+enlaces y las imágenes que empiezan por `/` pasados a direcciones completas,
+porque un lector de feeds no sabe de qué sitio vienen. Una página de la
+colección sin fecha no entra, y se avisa: Atom exige una fecha en cada
+entrada.
 
 ---
 
@@ -647,6 +718,18 @@ Si al añadirlas hay que romper el contrato, el contrato estaba mal.
     `www.`, solo en Markdown (§8).
 38. **Cerrada.** El Markdown admite tachado y enlaces automáticos (§8).
 39. **Cerrada.** Etiquetas vacías de HTML5, sin barra final (§8).
+40. **Cerrada.** El CSS y el JS se declaran donde se usan, con `css('…')` y
+    `js('…')`, y se escriben donde marcan `css()` y `js()` (§9.1).
+41. **Cerrada.** Los campos `css` y `js` se suman en la cascada, como
+    `etiquetas` (§3, §9.1).
+42. **Cerrada.** `publico/` se copia entero, también lo que empieza por punto;
+    de `contenido/` se copia lo que no es página ni empieza por `_` (§4, §9).
+43. **Cerrada.** Dos cosas que van al mismo fichero de salida detienen el
+    build (§10).
+44. **Cerrada.** Qué lleva el sitemap, y que un sitemap o feed del proyecto
+    gana al del motor (§10, §10.1).
+45. **Cerrada.** Feed Atom solo si `sitio.yml` tiene la sección `feed`, con la
+    colección de la que sale (§2, §10.2).
 
 ---
 

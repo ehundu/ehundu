@@ -16,8 +16,8 @@ use Twig\TwigFilter;
 use Twig\TwigFunction;
 
 /**
- * Lo que Ehundu añade a Twig (formato §5.2, §6 y §7): las funciones
- * `coleccion()`, `svg()` y `activo()`, y los filtros `slug`, `fecha`, `orden`,
+ * Lo que Ehundu añade a Twig (formato §5.2, §6, §7 y §9): las funciones
+ * `coleccion()`, `svg()`, `activo()`, `css()` y `js()`, y los filtros `slug`, `fecha`, `orden`,
  * `limite`, `invertir`, `sin`, `donde`, `anterior` y `siguiente`.
  *
  * Las plantillas trabajan con vistas de página; los filtros de colección
@@ -43,6 +43,7 @@ final class ExtensionTwig extends AbstractExtension
         private readonly ?Proyecto $proyecto = null,
         private readonly Avisos $avisos = new Avisos(),
         private readonly \DateTimeZone $zona = new \DateTimeZone('UTC'),
+        private readonly ?Recursos $recursos = null,
     ) {
     }
 
@@ -54,6 +55,8 @@ final class ExtensionTwig extends AbstractExtension
             )),
             new TwigFunction('svg', $this->svg(...), ['is_safe' => ['html']]),
             new TwigFunction('activo', $this->activo(...), ['needs_context' => true]),
+            new TwigFunction('css', fn (string ...$rutas) => $this->recurso('css', $rutas), ['is_safe' => ['html']]),
+            new TwigFunction('js', fn (string ...$rutas) => $this->recurso('js', $rutas), ['is_safe' => ['html']]),
         ];
     }
 
@@ -151,6 +154,26 @@ final class ExtensionTwig extends AbstractExtension
         }
 
         return $url !== '/' && str_starts_with($actual, str_ends_with($url, '/') ? $url : "{$url}/");
+    }
+
+    /**
+     * `css('a.css')` declara ficheros y no escribe nada; `css()` marca dónde
+     * irá todo el CSS de la página. Igual con `js`.
+     *
+     * @param 'css'|'js'    $tipo
+     * @param list<string> $rutas
+     */
+    private function recurso(string $tipo, array $rutas): string
+    {
+        if ($rutas === []) {
+            return $tipo === 'css' ? Recursos::MARCA_CSS : Recursos::MARCA_JS;
+        }
+
+        foreach ($rutas as $ruta) {
+            $this->recursos?->declarar($tipo, $ruta);
+        }
+
+        return '';
     }
 
     /**

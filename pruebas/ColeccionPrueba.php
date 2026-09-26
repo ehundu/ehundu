@@ -63,11 +63,11 @@ final class ColeccionPrueba extends TestCase
     #[Test]
     public function losTextosSeOrdenanComoEnElDiccionario(): void
     {
-        $titulos = ['zamora', 'Ávila', 'ñandú', 'Nube', 'oso', 'burgos'];
+        $titulos = ['zamora', "A\u{0301}vila", "n\u{0303}andú", 'Nube', 'oso', 'burgos'];
         $paginas = array_map(fn (string $titulo) => $this->pagina($titulo, ['titulo' => $titulo]), $titulos);
 
         self::assertSame(
-            ['Ávila', 'burgos', 'Nube', 'ñandú', 'oso', 'zamora'],
+            ["A\u{0301}vila", 'burgos', 'Nube', "n\u{0303}andú", 'oso', 'zamora'],
             $this->rutas(Coleccion::orden($paginas, 'titulo')),
         );
     }

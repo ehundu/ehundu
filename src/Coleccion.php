@@ -195,7 +195,7 @@ final class Coleccion
             default => (string) $valor,
         };
 
-        return Slug::sinTildes(str_replace('ñ', 'n{', mb_strtolower($texto, 'UTF-8')));
+        return Slug::sinTildes(str_replace(['ñ', "ñ"], 'n{', mb_strtolower($texto, 'UTF-8')));
     }
 
     private static function iguales(mixed $actual, mixed $buscado): bool

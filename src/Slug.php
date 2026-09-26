@@ -61,10 +61,14 @@ final class Slug
     /**
      * Quita tildes, diéresis y demás marcas de un texto ya en minúsculas, y
      * deshace las ligaduras: «ñandú» da «nandu» y «straße», «strasse».
+     *
+     * Vale también para letras descompuestas (una «a» seguida del acento
+     * como carácter aparte), que llegan a menudo al pegar texto copiado en
+     * un Mac: las marcas que quedan sueltas se quitan.
      */
     public static function sinTildes(string $minusculas): string
     {
-        return strtr($minusculas, self::tabla());
+        return (string) preg_replace('/\p{Mn}+/u', '', strtr($minusculas, self::tabla()));
     }
 
     /**

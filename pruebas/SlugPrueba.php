@@ -30,6 +30,7 @@ final class SlugPrueba extends TestCase
         yield 'guiones en los extremos' => ['  --Espacios--  ', 'espacios'];
         yield 'ligaduras' => ['Straße, Façade, œuvre', 'strasse-facade-oeuvre'];
         yield 'otro alfabeto' => ['Ελληνικά', ''];
+        yield 'letras descompuestas' => ["lo ma\u{0301}s querido, cin\u{0303}a, pingu\u{0308}ino", 'lo-mas-querido-cina-pinguino'];
     }
 
     #[Test]

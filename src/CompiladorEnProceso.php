@@ -6,10 +6,10 @@ namespace Ehundu;
 
 /**
  * La implementación por defecto: construye el proyecto entero dentro del
- * proceso que la llama y lo escribe en `salida/`.
+ * proceso que la llama y deja `salida/` sincronizada con lo construido.
  *
- * Solo si la construcción sale bien vacía `salida/` y escribe; un error no
- * deja `salida/` a medias.
+ * Solo si la construcción sale bien se toca `salida/`; un error la deja como
+ * estaba.
  */
 final class CompiladorEnProceso implements Compilador
 {
@@ -27,15 +27,7 @@ final class CompiladorEnProceso implements Compilador
         $inicio = hrtime(true);
         $construccion = (new Constructor())->construir($proyecto, $this->ahora);
 
-        $proyecto->vaciarSalida();
-
-        foreach ($construccion->escritos as $fichero => $contenido) {
-            $proyecto->escribirEnSalida($fichero, $contenido);
-        }
-
-        foreach ($construccion->copias as $destino => $origen) {
-            $proyecto->copiarASalida($origen, $destino);
-        }
+        $proyecto->sincronizarSalida($construccion->escritos, $construccion->copias);
 
         return new Informe(
             paginas: $construccion->paginas,

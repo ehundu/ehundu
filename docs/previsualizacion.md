@@ -1,6 +1,6 @@
 # Previsualización
 
-    ehundu servir [carpeta] [--puerto=8000] [--borradores]
+    ehundu servir [carpeta] [--puerto=8000] [--borradores] [--completo]
 
 Sirve el proyecto en `http://127.0.0.1:8000/` y lo vuelve a compilar cada vez
 que cambia algo. El navegador se recarga solo. Es la forma de trabajar día a
@@ -12,8 +12,14 @@ día con las plantillas.
   desde ahí, así que una sesión de trabajo a medias nunca deja en `salida/`
   algo que luego se despliegue. Para publicar hay que usar `ehundu compilar`.
 - **Vigila el proyecto.** Cada medio segundo mira si ha cambiado algún
-  fichero, salvo `salida/` y lo que empieza por punto, y si es así vuelve a
-  compilar entero.
+  fichero, salvo `salida/` y lo que empieza por punto. Compara el tamaño, la
+  fecha y, en los ficheros de menos de un mega, el contenido, así que nota
+  también dos cambios seguidos del mismo tamaño.
+- **Rehace solo lo que cambia.** Cuando cambia algo, vuelve a construir solo
+  las páginas a las que afecta, con el mismo resultado que una compilación
+  completa; la terminal dice cuántas ha rehecho. Si cambian `sitio.yml` o
+  `datos/`, rehace todo. Con `--completo` rehace todo en cada cambio. Los
+  detalles están en `compilacion.md`.
 - **Recarga el navegador.** En cada página HTML que sirve añade un script que
   pregunta cada segundo a `/__ehundu/estado` si hay una compilación nueva y,
   si la hay, recarga. El script solo va en lo que sirve la previsualización,

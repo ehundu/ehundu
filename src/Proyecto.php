@@ -160,6 +160,85 @@ final readonly class Proyecto
         if (!@copy($this->ruta($origen), $completa)) {
             throw new ErrorDeProyecto('No se puede copiar a ' . self::SALIDA . "/{$destino}", $origen);
         }
+
+        // La copia conserva la fecha del original: así la próxima vez se sabe,
+        // sin leerla, que no ha cambiado.
+        @touch($completa, (int) filemtime($this->ruta($origen)));
+    }
+
+    /**
+     * Deja `salida/` exactamente con estos ficheros: escribe los que han
+     * cambiado, copia los que no están o son distintos, y borra lo que sobra.
+     * Lo que ya está igual no se toca, así que conserva su fecha y un
+     * despliegue que compare por fecha y tamaño no lo vuelve a subir.
+     *
+     * @param array<string, string> $escritos contenido de cada fichero, por ruta en `salida/`
+     * @param array<string, string> $copias   origen de cada copia (relativo a la raíz), por ruta en `salida/`
+     *
+     * @return int cuántos ficheros se han escrito, copiado o borrado
+     *
+     * @throws ErrorDeProyecto si `salida/` es un enlace o algo no se puede escribir
+     */
+    public function sincronizarSalida(array $escritos, array $copias): int
+    {
+        $salida = $this->ruta(self::SALIDA);
+
+        if (is_link($salida)) {
+            throw new ErrorDeProyecto('salida/ es un enlace a otra carpeta; el motor no la toca');
+        }
+
+        if (!is_dir($salida) && !@mkdir($salida, 0777, true) && !is_dir($salida)) {
+            throw new ErrorDeProyecto('No se puede crear la carpeta salida/');
+        }
+
+        $cambios = 0;
+        $queda = array_fill_keys([...array_keys($escritos), ...array_keys($copias)], true);
+
+        // Primero lo que sobra, por si un fichero pasa a ser carpeta o al revés.
+        foreach (array_reverse($this->ficherosDe(self::SALIDA)) as $fichero) {
+            if (!isset($queda[$fichero])) {
+                self::borrar("{$salida}/{$fichero}");
+                $cambios++;
+            }
+        }
+
+        self::quitarCarpetasVacias($salida);
+
+        foreach ($escritos as $fichero => $contenido) {
+            $completa = "{$salida}/{$fichero}";
+
+            if (!is_file($completa) || filesize($completa) !== strlen($contenido) || file_get_contents($completa) !== $contenido) {
+                $this->escribirEnSalida($fichero, $contenido);
+                $cambios++;
+            }
+        }
+
+        foreach ($copias as $destino => $origen) {
+            $completa = "{$salida}/{$destino}";
+            $original = $this->ruta($origen);
+
+            if (!is_file($completa) || filesize($completa) !== filesize($original) || filemtime($completa) !== filemtime($original)) {
+                $this->copiarASalida($origen, $destino);
+                $cambios++;
+            }
+        }
+
+        return $cambios;
+    }
+
+    private static function quitarCarpetasVacias(string $carpeta): void
+    {
+        foreach (scandir($carpeta) ?: [] as $nombre) {
+            $ruta = "{$carpeta}/{$nombre}";
+
+            if ($nombre !== '.' && $nombre !== '..' && is_dir($ruta) && !is_link($ruta)) {
+                self::quitarCarpetasVacias($ruta);
+
+                if ((scandir($ruta) ?: []) === ['.', '..']) {
+                    @rmdir($ruta);
+                }
+            }
+        }
     }
 
     /**

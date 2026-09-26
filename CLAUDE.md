@@ -36,7 +36,8 @@ Ese es el rasgo que lo distingue y el criterio para decidir qué entra.
     pruebas/      pruebas unitarias, espacio de nombres Ehundu\Pruebas\
     bin/ehundu    la orden de consola
     recursos/     plantillas que trae el motor (los atajos incluidos)
-    docs/         documentación: el formato (formato.md) y la previsualización
+    docs/         documentación: el formato (formato.md), la previsualización
+                  y la compilación incremental
 
 Las clases de prueba llevan el sufijo `Prueba` y los métodos el atributo
 `#[Test]`, para que se llamen en español (`fallaSiLaCarpetaNoExiste`). Las
@@ -73,8 +74,13 @@ documentación son inventados.
 8. **La orden de consola es una envoltura fina** sobre una API de biblioteca.
    Un programa que incruste el motor llamará a esa misma API desde un proceso
    web, así que el motor no puede depender de nada propio de la consola.
-9. **La compilación es una interfaz.** Diseña el build de forma que más
-   adelante pueda ser incremental y pueda hacerse por lotes sin rediseñar.
+9. **La compilación es una interfaz.** La previsualización ya compila de
+   forma incremental y tiene que dar siempre lo mismo que una compilación
+   completa (ver `docs/compilacion.md`). Cualquier cosa nueva que una
+   plantilla, un atajo o el Markdown puedan leer (un fichero, una colección,
+   otra página) tiene que anotarse en el registro de la página, y las pruebas
+   de equivalencia tienen que cubrirla. Los lotes llegarán con el panel: no
+   mezcles decidir qué se rehace con rehacerlo.
 10. **Errores claros y en español**, con fichero y línea cuando se pueda. Un
     valor que no vale en un campo reservado avisa; no rompe el build salvo
     que sea imprescindible (§4 del formato).

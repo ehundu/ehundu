@@ -22,7 +22,14 @@ final class CargadorDePlantillas implements LoaderInterface
 
     private FilesystemLoader $ficheros;
 
-    public function __construct(Proyecto $proyecto)
+    /** @var array<string, string> claves de caché ya calculadas; el cargador vive una sola compilación */
+    private array $claves = [];
+
+    /**
+     * @param (\Closure(string): void)|null $alUsar se llama con el nombre de cada plantilla que se
+     *                                           usa o se busca, exista o no
+     */
+    public function __construct(Proyecto $proyecto, private readonly ?\Closure $alUsar = null)
     {
         $this->ficheros = new FilesystemLoader([$proyecto->raiz], $proyecto->raiz);
     }
@@ -44,9 +51,18 @@ final class CargadorDePlantillas implements LoaderInterface
     public function getCacheKey(string $name): string
     {
         $this->comprobar($name);
-        $ruta = (string) $this->ficheros->getSourceContext($name)->getPath();
 
-        return $ruta . ':' . hash_file('xxh128', $ruta);
+        // Twig la pide cada vez que se usa la plantilla, aunque ya la tenga compilada.
+        if ($this->alUsar !== null) {
+            ($this->alUsar)($name);
+        }
+
+        if (!isset($this->claves[$name])) {
+            $ruta = (string) $this->ficheros->getSourceContext($name)->getPath();
+            $this->claves[$name] = $ruta . ':' . hash_file('xxh128', $ruta);
+        }
+
+        return $this->claves[$name];
     }
 
     public function isFresh(string $name, int $time): bool
@@ -58,7 +74,16 @@ final class CargadorDePlantillas implements LoaderInterface
 
     public function exists(string $name): bool
     {
-        return self::permitido($name) && $this->ficheros->exists($name);
+        if (!self::permitido($name)) {
+            return false;
+        }
+
+        // Que se haya buscado también cuenta: si luego aparece, cambia el resultado.
+        if ($this->alUsar !== null) {
+            ($this->alUsar)($name);
+        }
+
+        return $this->ficheros->exists($name);
     }
 
     private function comprobar(string $nombre): void

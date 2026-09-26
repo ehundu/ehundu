@@ -562,10 +562,15 @@ con un error que nombra las dos. Las mayúsculas no cuentan.
 Si el proyecto tiene su propio `/sitemap.xml` o `/feed.xml`, como página o
 como fichero, gana el del proyecto y el motor no genera el suyo.
 
-Una compilación completa vacía `salida/` antes de escribir, para que no queden
-restos de compilaciones anteriores que luego se desplegarían. Solo borra lo que
-hay dentro de `salida/`, y solo después de haber construido todo sin errores:
-si una plantilla falla, `salida/` se queda como estaba.
+Una compilación completa deja `salida/` igual que el sitio construido: borra
+lo que sobra de compilaciones anteriores, para que no se despliegue, y escribe
+o copia solo lo que ha cambiado, para que lo que no cambia conserve su fecha.
+Solo toca lo que hay dentro de `salida/`, y solo después de haber construido
+todo sin errores: si una plantilla falla, `salida/` se queda como estaba.
+
+La previsualización compila de forma incremental: rehace solo las páginas a
+las que afecta cada cambio. El resultado es siempre el mismo que el de una
+compilación completa; cómo se consigue está en `docs/compilacion.md`.
 
 ### 10.1 `sitemap.xml`
 
@@ -697,8 +702,8 @@ Si al añadirlas hay que romper el contrato, el contrato estaba mal.
     proyecto, y Twig solo lee `plantillas/` y `parciales/` (§7.1).
 26. **Cerrada.** Las plantillas no llevan front matter; se anidan con
     `extends` (§7.1).
-27. **Cerrada.** Una compilación completa vacía `salida/` antes de escribir
-    (§10).
+27. **Cerrada; la sustituye la 47.** Una compilación completa vacía
+    `salida/` antes de escribir (§10).
 28. **Cerrada.** `svg()` inserta el fichero tal cual, sin declaración XML ni
     `DOCTYPE` (§7.3).
 29. **Cerrada.** `activo()` es cierto también en las páginas de dentro de esa
@@ -735,6 +740,20 @@ Si al añadirlas hay que romper el contrato, el contrato estaba mal.
     colección de la que sale (§2, §10.2).
 46. **Cerrada.** Las plantillas y los datos de otros generadores que haya en
     `contenido/` no se copian, y se avisa (§4).
+47. **Cerrada.** Una compilación completa sincroniza `salida/` en lugar de
+    vaciarla: borra lo que sobra y escribe o copia solo lo que cambia (§10).
+48. **Cerrada.** La previsualización compila de forma incremental, con el
+    mismo resultado que una compilación completa; `--completo` rehace todo en
+    cada cambio. `compilar` es siempre completa (§10, `compilacion.md`).
+49. **Cerrada.** Qué se rehace se decide con lo que usó cada página y cada
+    cuerpo la vez anterior. Si cambian `sitio.yml` o `datos/`, o si la
+    compilación anterior falló, se rehace todo (`compilacion.md`).
+50. **Cerrada.** Lo que se recuerda de una compilación a otra vive en memoria
+    y no se guarda en disco; son datos simples, que el panel podrá guardar
+    donde le convenga (`compilacion.md`).
+51. **Cerrada.** Compilar por lotes queda para cuando llegue el panel; la
+    compilación ya separa decidir qué se rehace de rehacerlo
+    (`compilacion.md`).
 
 ---
 

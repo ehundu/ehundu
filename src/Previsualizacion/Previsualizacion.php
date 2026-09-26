@@ -55,10 +55,14 @@ final class Previsualizacion
     private ?\Throwable $error = null;
     private int $version = 0;
 
+    /**
+     * @param Constructor $constructor incremental salvo que se pida lo contrario, para que
+     *                                 cada cambio rehaga solo lo que le afecta
+     */
     public function __construct(
         private readonly Proyecto $proyecto,
         private readonly bool $conBorradores = false,
-        private readonly Constructor $constructor = new Constructor(),
+        private readonly Constructor $constructor = new Constructor(incremental: true),
     ) {
     }
 
@@ -86,6 +90,7 @@ final class Previsualizacion
             $this->construccion->avisos,
             (hrtime(true) - $inicio) / 1e9,
             count($this->construccion->copias),
+            $this->construccion->rehechas,
         );
     }
 

@@ -109,6 +109,44 @@ final class ProyectoPrueba extends TestCase
     }
 
     #[Test]
+    public function sincronizarSalidaSoloTocaLoQueCambia(): void
+    {
+        $this->crearFichero('publico/img/logo.png', 'png');
+        $this->crearFichero('publico/css/estilos.css', 'body {}');
+        $proyecto = Proyecto::abrir($this->carpetaTemporal());
+        $escritos = ['index.html' => 'Inicio', 'blog/uno/index.html' => 'Uno'];
+        $copias = ['img/logo.png' => 'publico/img/logo.png', 'css/estilos.css' => 'publico/css/estilos.css'];
+
+        self::assertSame(4, $proyecto->sincronizarSalida($escritos, $copias));
+        self::assertSame(filemtime($this->carpetaTemporal() . '/publico/img/logo.png'), filemtime($this->carpetaTemporal() . '/salida/img/logo.png'));
+
+        // Nada cambia: no se toca nada.
+        touch($this->carpetaTemporal() . '/salida/index.html', 1_000_000_000);
+        self::assertSame(0, $proyecto->sincronizarSalida($escritos, $copias));
+        self::assertSame(1_000_000_000, filemtime($this->carpetaTemporal() . '/salida/index.html'));
+
+        // Cambia una página, sobra otra y sobra una copia.
+        $this->crearFichero('salida/viejo/index.html', 'resto');
+        self::assertSame(4, $proyecto->sincronizarSalida(['index.html' => 'Inicio nuevo'], ['img/logo.png' => 'publico/img/logo.png']));
+        self::assertSame('Inicio nuevo', $this->leerFichero('salida/index.html'));
+        self::assertDirectoryDoesNotExist($this->carpetaTemporal() . '/salida/blog');
+        self::assertDirectoryDoesNotExist($this->carpetaTemporal() . '/salida/viejo');
+        self::assertDirectoryDoesNotExist($this->carpetaTemporal() . '/salida/css');
+        self::assertFileExists($this->carpetaTemporal() . '/salida/img/logo.png');
+    }
+
+    #[Test]
+    public function sincronizarSalidaCambiaUnFicheroPorUnaCarpeta(): void
+    {
+        $proyecto = Proyecto::abrir($this->carpetaTemporal());
+        $proyecto->sincronizarSalida(['blog' => 'fichero'], []);
+
+        $proyecto->sincronizarSalida(['blog/index.html' => 'carpeta'], []);
+
+        self::assertSame('carpeta', $this->leerFichero('salida/blog/index.html'));
+    }
+
+    #[Test]
     public function escribeEnSalidaConSusCarpetas(): void
     {
         Proyecto::abrir($this->carpetaTemporal())->escribirEnSalida('blog/uno/index.html', '<p>Uno</p>');

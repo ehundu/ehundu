@@ -43,16 +43,18 @@ final class ExtensionTwig extends AbstractExtension
         private readonly ?Proyecto $proyecto = null,
         private readonly Avisos $avisos = new Avisos(),
         private readonly \DateTimeZone $zona = new \DateTimeZone('UTC'),
-        private readonly ?Recursos $recursos = null,
+        private readonly ?Registros $registros = null,
     ) {
     }
 
     public function getFunctions(): array
     {
         return [
-            new TwigFunction('coleccion', fn (string $nombre, ?string $idioma = null) => $this->vistas(
-                $this->colecciones->coleccion($nombre, $idioma),
-            )),
+            new TwigFunction('coleccion', function (string $nombre, ?string $idioma = null): array {
+                $this->registros?->anotar('colecciones', $nombre);
+
+                return $this->vistas($this->colecciones->coleccion($nombre, $idioma));
+            }),
             new TwigFunction('svg', $this->svg(...), ['is_safe' => ['html']]),
             new TwigFunction('activo', $this->activo(...), ['needs_context' => true]),
             new TwigFunction('css', fn (string ...$rutas) => $this->recurso('css', $rutas), ['is_safe' => ['html']]),
@@ -106,6 +108,7 @@ final class ExtensionTwig extends AbstractExtension
     public function svg(string $ruta): string
     {
         $relativa = ltrim($ruta, '/');
+        $this->registros?->anotar('publico', $relativa);
         $fichero = Proyecto::PUBLICO . "/{$relativa}";
 
         if ($this->proyecto === null) {
@@ -170,7 +173,7 @@ final class ExtensionTwig extends AbstractExtension
         }
 
         foreach ($rutas as $ruta) {
-            $this->recursos?->declarar($tipo, $ruta);
+            $this->registros?->declarar($tipo, ltrim($ruta, '/'));
         }
 
         return '';

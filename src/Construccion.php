@@ -17,12 +17,16 @@ final readonly class Construccion
      *                                        relativo a la raíz del proyecto, por ruta en `salida/`
      * @param int                   $paginas  cuántos de los escritos son páginas
      * @param list<Aviso>           $avisos
+     * @param int|null              $rehechas cuántas de las páginas se han construido de nuevo; las
+     *                                        demás se han aprovechado de la construcción anterior.
+     *                                        Null si no se sabe: todas
      */
     public function __construct(
         public array $escritos,
         public array $copias,
         public int $paginas,
         public array $avisos,
+        public ?int $rehechas = null,
     ) {
     }
 }

@@ -4,24 +4,29 @@ declare(strict_types=1);
 
 namespace Ehundu\Previsualizacion;
 
+use Ehundu\Huellas;
 use Ehundu\Proyecto;
 
 /**
  * Vigila los ficheros de un proyecto y dice si algo ha cambiado desde la
  * última vez que se preguntó. No mira `salida/` ni lo que empieza por punto.
  *
- * Compara la fecha de modificación y el tamaño de cada fichero: no necesita
- * extensiones ni procesos aparte, y en un proyecto de unos cientos de
- * ficheros tarda unos milisegundos.
+ * Compara la huella de cada fichero (ver `Huellas`): no necesita extensiones
+ * ni procesos aparte, y en un proyecto de unos cientos de ficheros tarda
+ * unos milisegundos.
  */
 final class Vigilante
 {
-    private string $firma;
+    private Huellas $huellas;
+
+    /** @var array<string, string> */
+    private array $anteriores;
 
     public function __construct(
         private readonly Proyecto $proyecto,
     ) {
-        $this->firma = $this->firmar();
+        $this->huellas = new Huellas($proyecto);
+        $this->anteriores = $this->tomar();
     }
 
     /**
@@ -29,43 +34,27 @@ final class Vigilante
      */
     public function haCambiado(): bool
     {
-        $firma = $this->firmar();
+        $huellas = $this->tomar();
 
-        if ($firma === $this->firma) {
+        if ($huellas === $this->anteriores) {
             return false;
         }
 
-        $this->firma = $firma;
+        $this->anteriores = $huellas;
 
         return true;
     }
 
-    private function firmar(): string
+    /**
+     * @return array<string, string>
+     */
+    private function tomar(): array
     {
-        clearstatcache();
+        $entradas = array_filter(
+            scandir($this->proyecto->raiz) ?: [],
+            fn (string $nombre) => !str_starts_with($nombre, '.') && $nombre !== Proyecto::SALIDA,
+        );
 
-        $raiz = $this->proyecto->raiz;
-        $filtro = function (\SplFileInfo $fichero) use ($raiz): bool {
-            if (str_starts_with($fichero->getFilename(), '.')) {
-                return false;
-            }
-
-            return str_replace('\\', '/', $fichero->getPathname()) !== $raiz . '/' . Proyecto::SALIDA;
-        };
-
-        $recorrido = new \RecursiveIteratorIterator(new \RecursiveCallbackFilterIterator(
-            new \RecursiveDirectoryIterator($raiz, \FilesystemIterator::SKIP_DOTS),
-            $filtro,
-        ));
-
-        $partes = [];
-
-        foreach ($recorrido as $fichero) {
-            $partes[] = $fichero->getPathname() . '|' . $fichero->getMTime() . '|' . $fichero->getSize();
-        }
-
-        sort($partes);
-
-        return hash('xxh128', implode("\n", $partes));
+        return $this->huellas->tomar(array_values($entradas));
     }
 }

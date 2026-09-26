@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ehundu\Previsualizacion;
 
+use Ehundu\Constructor;
 use Ehundu\ErrorDeProyecto;
 use Ehundu\Informe;
 use Ehundu\Proyecto;
@@ -31,8 +32,9 @@ final class Servidor
     ];
 
     /**
-     * @param resource $salida  donde se escribe lo que va bien
-     * @param resource $errores donde se escriben los errores y los avisos
+     * @param resource $salida   donde se escribe lo que va bien
+     * @param resource $errores  donde se escriben los errores y los avisos
+     * @param bool     $completo si se rehace todo el sitio en cada cambio
      */
     public function __construct(
         private readonly Proyecto $proyecto,
@@ -40,6 +42,7 @@ final class Servidor
         private readonly bool $conBorradores,
         private $salida,
         private $errores,
+        private readonly bool $completo = false,
     ) {
     }
 
@@ -76,7 +79,7 @@ final class Servidor
             ));
         }
 
-        $previsualizacion = new Previsualizacion($this->proyecto, $this->conBorradores);
+        $previsualizacion = new Previsualizacion($this->proyecto, $this->conBorradores, new Constructor(incremental: !$this->completo));
         $vigilante = new Vigilante($this->proyecto);
 
         $this->informar($previsualizacion->reconstruir());

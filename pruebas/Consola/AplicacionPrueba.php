@@ -81,17 +81,19 @@ final class AplicacionPrueba extends TestCase
     {
         $this->crearSitioMinimo();
         $llamadas = [];
-        $aplicacion = new Aplicacion(new CompiladorEnProceso(), $this->salida, $this->errores, function (Proyecto $proyecto, int $puerto, bool $conBorradores) use (&$llamadas): int {
-            $llamadas[] = [$proyecto->raiz, $puerto, $conBorradores];
+        $aplicacion = new Aplicacion(new CompiladorEnProceso(), $this->salida, $this->errores, function (Proyecto $proyecto, int $puerto, bool $conBorradores, bool $completo) use (&$llamadas): int {
+            $llamadas[] = [$proyecto->raiz, $puerto, $conBorradores, $completo];
 
             return Aplicacion::EXITO;
         });
 
         self::assertSame(Aplicacion::EXITO, $aplicacion->ejecutar(['servir', $this->carpetaTemporal()]));
         self::assertSame(Aplicacion::EXITO, $aplicacion->ejecutar(['servir', '--puerto=8123', '--borradores', $this->carpetaTemporal()]));
+        self::assertSame(Aplicacion::EXITO, $aplicacion->ejecutar(['servir', '--completo', $this->carpetaTemporal()]));
         self::assertSame([
-            [$this->carpetaTemporal(), 8000, false],
-            [$this->carpetaTemporal(), 8123, true],
+            [$this->carpetaTemporal(), 8000, false, false],
+            [$this->carpetaTemporal(), 8123, true, false],
+            [$this->carpetaTemporal(), 8000, false, true],
         ], $llamadas);
     }
 

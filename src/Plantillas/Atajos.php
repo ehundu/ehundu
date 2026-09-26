@@ -39,6 +39,7 @@ final class Atajos
         private readonly Lectura $lectura,
         private readonly ExtensionTwig $extension,
         private readonly Avisos $avisos,
+        private readonly ?Registros $registros = null,
     ) {
         foreach (glob($proyecto->ruta(self::CARPETA, '*.twig')) ?: [] as $fichero) {
             $nombre = basename($fichero, '.twig');
@@ -116,6 +117,17 @@ final class Atajos
     }
 
     /**
+     * Si existe un fichero de `publico/`. Queda anotado en el registro de la
+     * página: si aparece, desaparece o cambia, la página se rehace.
+     */
+    private function existe(string $fichero): bool
+    {
+        $this->registros?->anotar('publico', $fichero);
+
+        return is_file($this->proyecto->ruta(Proyecto::PUBLICO, $fichero));
+    }
+
+    /**
      * @param array<string, string>   $atributos
      * @param \Closure(string): void  $aviso
      *
@@ -131,7 +143,7 @@ final class Atajos
             return null;
         }
 
-        if (!is_file($this->proyecto->ruta(Proyecto::PUBLICO, $fichero))) {
+        if (!$this->existe($fichero)) {
             $aviso("no existe publico/{$fichero}");
         }
 
@@ -196,7 +208,7 @@ final class Atajos
             return null;
         }
 
-        if (!is_file($this->proyecto->ruta(Proyecto::PUBLICO, $fichero))) {
+        if (!$this->existe($fichero)) {
             $aviso("no existe publico/{$fichero}");
         }
 
@@ -219,11 +231,10 @@ final class Atajos
             return null;
         }
 
-        $ruta = $this->proyecto->ruta(Proyecto::PUBLICO, $fichero);
         $peso = null;
 
-        if (is_file($ruta)) {
-            $peso = self::peso((int) filesize($ruta));
+        if ($this->existe($fichero)) {
+            $peso = self::peso((int) filesize($this->proyecto->ruta(Proyecto::PUBLICO, $fichero)));
         } else {
             $aviso("no existe publico/{$fichero}; el enlace sale sin tamaño");
         }

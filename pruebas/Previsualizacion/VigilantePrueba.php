@@ -35,6 +35,21 @@ final class VigilantePrueba extends TestCase
     }
 
     #[Test]
+    public function detectaUnCambioQueNoCambiaNiElTamanoNiLaFecha(): void
+    {
+        $this->crearSitioMinimo();
+        $this->crearFichero('contenido/index.md', 'Inicio A');
+        $fichero = $this->carpetaTemporal() . '/contenido/index.md';
+        $fecha = (int) filemtime($fichero);
+        $vigilante = new Vigilante(Proyecto::abrir($this->carpetaTemporal()));
+
+        $this->crearFichero('contenido/index.md', 'Inicio B');
+        touch($fichero, $fecha);
+
+        self::assertTrue($vigilante->haCambiado());
+    }
+
+    #[Test]
     public function noMiraSalidaNiLoOculto(): void
     {
         $this->crearSitioMinimo();

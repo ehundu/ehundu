@@ -10,12 +10,10 @@ use Ehundu\Proyecto;
 /**
  * El CSS y el JS de cada página (formato §9). Las plantillas, los parciales
  * y los atajos declaran los ficheros de `publico/` que necesitan con
- * `css('…')` y `js('…')`; el layout marca con `css()` y `js()` dónde van, y
- * al terminar la página se escriben allí, cada fichero una vez y en el orden
- * en que se declararon.
- *
- * Lo que se declara mientras se convierte el cuerpo de una página se guarda
- * con ese cuerpo, para repetirlo cuando otra página lo reutiliza.
+ * `css('…')` y `js('…')`, y las declaraciones se anotan en el registro de
+ * la página (ver `Registros`). El layout marca con `css()` y `js()` dónde van,
+ * y al terminar la página esta clase escribe allí el contenido de los
+ * ficheros, cada uno una vez y en el orden en que se declararon.
  *
  * @internal
  */
@@ -26,65 +24,21 @@ final class Recursos
 
     private const array MARCAS = ['css' => self::MARCA_CSS, 'js' => self::MARCA_JS];
 
-    /** @var list<array{css: array<string, true>, js: array<string, true>}> */
-    private array $pila = [];
-
-    /** @var array<string, string|null> contenidos ya leídos, por tipo y ruta */
+    /** @var array<string, string> contenidos ya leídos, por tipo y ruta */
     private array $leidos = [];
+
+    /**
+     * Por qué no se pudo leer un fichero, por tipo y ruta. El aviso se repite
+     * en cada página que lo declara para que quede en el registro de todas.
+     *
+     * @var array<string, string>
+     */
+    private array $fallidos = [];
 
     public function __construct(
         private readonly Proyecto $proyecto,
         private readonly Avisos $avisos,
     ) {
-    }
-
-    /**
-     * Empieza a recoger lo que se declare para una página o un cuerpo.
-     */
-    public function abrir(): void
-    {
-        $this->pila[] = ['css' => [], 'js' => []];
-    }
-
-    /**
-     * Termina de recoger y devuelve lo declarado desde `abrir()`.
-     *
-     * @return array{css: list<string>, js: list<string>}
-     */
-    public function cerrar(): array
-    {
-        $marco = array_pop($this->pila) ?? ['css' => [], 'js' => []];
-
-        return ['css' => array_keys($marco['css']), 'js' => array_keys($marco['js'])];
-    }
-
-    /**
-     * Declara un fichero para todo lo que se está recogiendo: la página y los
-     * cuerpos que se están convirtiendo dentro de ella.
-     *
-     * @param 'css'|'js' $tipo
-     */
-    public function declarar(string $tipo, string $ruta): void
-    {
-        $ruta = ltrim($ruta, '/');
-
-        foreach (array_keys($this->pila) as $posicion) {
-            $this->pila[$posicion][$tipo][$ruta] = true;
-        }
-    }
-
-    /**
-     * Vuelve a declarar lo que declaró un cuerpo que se reutiliza.
-     *
-     * @param array{css: list<string>, js: list<string>} $declarados
-     */
-    public function repetir(array $declarados): void
-    {
-        foreach ($declarados as $tipo => $rutas) {
-            foreach ($rutas as $ruta) {
-                $this->declarar($tipo, $ruta);
-            }
-        }
     }
 
     /**
@@ -114,24 +68,24 @@ final class Recursos
     {
         $clave = "{$tipo}:{$ruta}";
 
-        if (array_key_exists($clave, $this->leidos)) {
+        if (isset($this->leidos[$clave])) {
             return $this->leidos[$clave];
         }
 
         $fichero = Proyecto::PUBLICO . "/{$ruta}";
 
-        if (str_contains($ruta, '\\') || preg_match('#(^|/)\.\.?(/|$)#', $ruta) === 1 || !str_ends_with(strtolower($ruta), ".{$tipo}")) {
-            $this->avisos->registrar("{$tipo}('{$ruta}'): solo se incrustan ficheros .{$tipo} de dentro de publico/");
-
-            return $this->leidos[$clave] = null;
+        if (!isset($this->fallidos[$clave])) {
+            if (str_contains($ruta, '\\') || preg_match('#(^|/)\.\.?(/|$)#', $ruta) === 1 || !str_ends_with(strtolower($ruta), ".{$tipo}")) {
+                $this->fallidos[$clave] = "{$tipo}('{$ruta}'): solo se incrustan ficheros .{$tipo} de dentro de publico/";
+            } elseif (!is_file($this->proyecto->ruta($fichero))) {
+                $this->fallidos[$clave] = "{$tipo}('{$ruta}'): no existe {$fichero}";
+            } else {
+                return $this->leidos[$clave] = $this->proyecto->leerTexto($fichero);
+            }
         }
 
-        if (!is_file($this->proyecto->ruta($fichero))) {
-            $this->avisos->registrar("{$tipo}('{$ruta}'): no existe {$fichero}");
+        $this->avisos->registrar($this->fallidos[$clave]);
 
-            return $this->leidos[$clave] = null;
-        }
-
-        return $this->leidos[$clave] = $this->proyecto->leerTexto($fichero);
+        return null;
     }
 }

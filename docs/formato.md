@@ -58,9 +58,10 @@ documentación en español y en inglés, pero el formato es en español.
 
     despliegue:
       destino: sftp
-      servidor: ftp.ejemplo.com
+      servidor: sftp.ejemplo.com
       usuario: esquina
       ruta: /home/esquina/www
+      huella: SHA256:OgR5PWmWkjC9MJd/4ChYsOklVAXnzl8AMwJFqb0rAgY
       # la contraseña va en .secretos.yml, nunca aquí
 
 `sitio.yml` es obligatorio y tiene que llevar al menos `nombre` y `url`. `url`
@@ -74,11 +75,34 @@ falta, es UTC. Una zona que no existe detiene el build.
 
 La sección `feed` pide un `feed.xml` y dice de qué colección sale (§10.2).
 
-Destinos admitidos en la v1: `carpeta`, `ftp`, `sftp`, `s3`.
+La sección `despliegue` dice adónde publica `ehundu desplegar` (ver
+`despliegue.md`). Destinos admitidos en la v1: `carpeta`, `ftp`, `sftp` y
+`s3`. Sus campos:
 
-`.secretos.yml` tiene la misma forma, solo con las claves sensibles. El motor
-lo lee si existe; una herramienta de edición puede guardar esas claves por su
-cuenta, cifradas.
+| Campo      | Destinos        | Significado                                                  |
+|------------|-----------------|--------------------------------------------------------------|
+| `destino`  | todos           | `carpeta`, `ftp`, `sftp` o `s3`                              |
+| `ruta`     | todos           | la carpeta de destino; en `carpeta`, una ruta local fuera del proyecto, relativa a él si no es absoluta; en `s3`, la carpeta dentro del cubo |
+| `servidor` | ftp, sftp, s3   | el servidor; en `s3`, la dirección del servicio (`s3.fr-par.scw.cloud`) |
+| `puerto`   | ftp, sftp       | si no es el de siempre (21 y 22)                             |
+| `usuario`  | ftp, sftp, s3   | el usuario; en `s3`, el identificador de la clave de acceso  |
+| `huella`   | sftp            | la huella de la clave del servidor, como la da `ssh-keygen -l` |
+| `cifrado`  | ftp             | `no` para FTP sin cifrar; por defecto, FTPS                  |
+| `region`   | s3              | la región del cubo (`fr-par`)                                |
+| `cubo`     | s3              | el nombre del cubo                                           |
+
+Los secretos van en `.secretos.yml`, con la misma forma y solo con ellos:
+
+    despliegue:
+      clave: la-contraseña        # en s3, la clave secreta
+      clavePrivada: ~/.ssh/id_ed25519   # sftp, en lugar de clave
+      frase: la-de-la-clave-privada     # si la tiene
+
+Un secreto en `sitio.yml` detiene el despliegue: ese fichero se comparte y se
+versiona. `.secretos.yml` no se versiona nunca ni se publica. Un programa que
+incruste el motor puede darle los secretos directamente, sin fichero; los
+suyos ganan. Un campo que no corresponde al destino, o que no existe, avisa y
+se ignora.
 
 ---
 
@@ -572,6 +596,10 @@ La previsualización compila de forma incremental: rehace solo las páginas a
 las que afecta cada cambio. El resultado es siempre el mismo que el de una
 compilación completa; cómo se consigue está en `docs/compilacion.md`.
 
+`ehundu desplegar` compila y publica `salida/` en el destino de `sitio.yml`
+(§2): sube lo nuevo o cambiado y borra solo lo que subió Ehundu y ya no se
+genera. Los detalles están en `docs/despliegue.md`.
+
 ### 10.1 `sitemap.xml`
 
 Lleva las páginas HTML de la colección `todo` (las publicadas, con URL y sin
@@ -749,11 +777,32 @@ Si al añadirlas hay que romper el contrato, el contrato estaba mal.
     cuerpo la vez anterior. Si cambian `sitio.yml` o `datos/`, o si la
     compilación anterior falló, se rehace todo (`compilacion.md`).
 50. **Cerrada.** Lo que se recuerda de una compilación a otra vive en memoria
-    y no se guarda en disco; son datos simples, que el panel podrá guardar
-    donde le convenga (`compilacion.md`).
-51. **Cerrada.** Compilar por lotes queda para cuando llegue el panel; la
-    compilación ya separa decidir qué se rehace de rehacerlo
-    (`compilacion.md`).
+    y no se guarda en disco; son datos simples, que un programa que incruste
+    el motor podrá guardar donde le convenga (`compilacion.md`).
+51. **Cerrada.** Compilar por lotes queda para más adelante; la compilación
+    ya separa decidir qué se rehace de rehacerlo (`compilacion.md`).
+52. **Cerrada.** `ehundu desplegar` compila entero y, si no hay errores,
+    publica en el destino de `sitio.yml`; `--simular` dice qué haría sin
+    tocar el destino y `--todo` lo sube todo (`despliegue.md`).
+53. **Cerrada.** Lo que hay en el destino se sabe por un manifiesto que vive
+    allí mismo, `.ehundu.json`, con el MD5 y el tamaño de cada fichero que
+    subió Ehundu. Se guarda durante el despliegue, así que uno cortado sigue
+    donde se quedó; sin él, se sube todo (`despliegue.md`).
+54. **Cerrada.** Solo se borra lo que subió Ehundu y ya no se genera; lo
+    demás que haya en el destino no se toca nunca (`despliegue.md`).
+55. **Cerrada.** Se suben primero los ficheros, después las páginas y al final
+    el sitemap y el feed; los borrados van después (`despliegue.md`).
+56. **Cerrada.** FTP con la extensión `ftp` de PHP, cifrado (FTPS) salvo
+    `cifrado: no` (§2, `despliegue.md`).
+57. **Cerrada.** SFTP con phpseclib, que es PHP puro; la huella del servidor
+    es obligatoria y se comprueba antes de mandar la clave (§2,
+    `despliegue.md`).
+58. **Cerrada.** S3 con la firma de AWS hecha en el motor, sin SDK; cada
+    fichero con su tipo MIME y su MD5 (§2, `despliegue.md`).
+59. **Cerrada.** Campos de `despliegue` y de `.secretos.yml`; un secreto en
+    `sitio.yml` detiene el despliegue, y no hay variables de entorno (§2).
+60. **Cerrada.** Nada después de desplegar en la v1: ni avisos a otros
+    servicios ni vaciado de cachés de una CDN (`despliegue.md`).
 
 ---
 

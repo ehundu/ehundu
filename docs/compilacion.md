@@ -75,7 +75,7 @@ una secuencia de cambios al azar, con una semilla fija. Tras cada cambio
 comparan la compilación incremental con una completa, fichero a fichero,
 aviso a aviso, y también cuando la compilación falla.
 
-## Para el panel
+## Para quien incruste el motor
 
 Lo que se recuerda entre compilaciones son datos simples (`Memoria`), sin
 recursos ni conexiones, así que se pueden serializar y guardar fuera del
@@ -84,5 +84,4 @@ previsualización hace una compilación completa.
 
 Compilar decide primero qué se aprovecha (`Plan`) y después rehace el resto.
 Esa separación es la que permitirá compilar por lotes desde un proceso web,
-repartiendo lo que hay que rehacer entre varias peticiones, cuando llegue el
-panel.
+repartiendo lo que hay que rehacer entre varias peticiones, cuando haga falta.

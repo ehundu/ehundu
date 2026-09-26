@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Ehundu\Consola;
 
 use Ehundu\Compilador;
+use Ehundu\Despliegue\Desplegador;
 use Ehundu\ErrorDeProyecto;
+use Ehundu\Informe;
 use Ehundu\Previsualizacion\Servidor;
 use Ehundu\Proyecto;
 
@@ -32,12 +34,21 @@ final class Aplicacion
                                       páginas que aún no se publican.
                 --completo            Rehace todo el sitio en cada cambio, en
                                       lugar de solo lo que le afecta.
+          ehundu desplegar [carpeta]  Compila el proyecto y, si no hay errores,
+                                      lo publica en el destino de sitio.yml:
+                                      sube lo nuevo o cambiado y borra lo que
+                                      subió Ehundu y ya no se genera.
+                --simular             Dice qué subiría y qué borraría, sin
+                                      tocar el destino.
+                --todo                Lo sube todo, aunque no haya cambiado.
           ehundu --ayuda              Muestra esta ayuda.
 
         TXT;
 
     /** @var \Closure(Proyecto, int, bool, bool): int */
     private \Closure $servir;
+
+    private Desplegador $desplegador;
 
     /**
      * @param resource                              $salida  donde se escribe el resultado
@@ -51,7 +62,9 @@ final class Aplicacion
         private $salida,
         private $errores,
         ?\Closure $servir = null,
+        ?Desplegador $desplegador = null,
     ) {
+        $this->desplegador = $desplegador ?? new Desplegador($compilador);
         $this->servir = $servir ?? fn (Proyecto $proyecto, int $puerto, bool $conBorradores, bool $completo) => (new Servidor(
             $proyecto,
             $puerto,
@@ -83,7 +96,7 @@ final class Aplicacion
             return self::EXITO;
         }
 
-        if ($orden !== 'compilar' && $orden !== 'servir') {
+        if (!in_array($orden, ['compilar', 'servir', 'desplegar'], true)) {
             $this->escribir($this->errores, "Orden desconocida: {$orden}\n\n" . self::AYUDA);
 
             return self::USO_INCORRECTO;
@@ -93,6 +106,8 @@ final class Aplicacion
         $puerto = Servidor::PUERTO_POR_DEFECTO;
         $conBorradores = false;
         $completo = false;
+        $simular = false;
+        $todo = false;
 
         foreach (array_slice($argumentos, 1) as $argumento) {
             if ($orden === 'servir' && preg_match('/^--puerto=(\d{1,5})$/', $argumento, $partes) === 1 && (int) $partes[1] >= 1 && (int) $partes[1] <= 65535) {
@@ -101,6 +116,10 @@ final class Aplicacion
                 $conBorradores = true;
             } elseif ($orden === 'servir' && $argumento === '--completo') {
                 $completo = true;
+            } elseif ($orden === 'desplegar' && $argumento === '--simular') {
+                $simular = true;
+            } elseif ($orden === 'desplegar' && $argumento === '--todo') {
+                $todo = true;
             } elseif (str_starts_with($argumento, '-')) {
                 $this->escribir($this->errores, str_starts_with($argumento, '--puerto')
                     ? "El puerto tiene que ser un número entre 1 y 65535: {$argumento}\n"
@@ -121,9 +140,11 @@ final class Aplicacion
         $ruta = $carpetas[0] ?? (getcwd() ?: '.');
 
         try {
-            return $orden === 'compilar'
-                ? $this->compilar(Proyecto::abrir($ruta))
-                : ($this->servir)(Proyecto::abrir($ruta), $puerto, $conBorradores, $completo);
+            return match ($orden) {
+                'compilar' => $this->compilar(Proyecto::abrir($ruta)),
+                'servir' => ($this->servir)(Proyecto::abrir($ruta), $puerto, $conBorradores, $completo),
+                'desplegar' => $this->desplegar(Proyecto::abrir($ruta), $simular, $todo),
+            };
         } catch (ErrorDeProyecto $error) {
             $this->escribir($this->errores, "Error: {$error->getMessage()}\n");
 
@@ -133,7 +154,30 @@ final class Aplicacion
 
     private function compilar(Proyecto $proyecto): int
     {
-        $informe = $this->compilador->compilar($proyecto);
+        $this->informar($this->compilador->compilar($proyecto));
+
+        return self::EXITO;
+    }
+
+    private function desplegar(Proyecto $proyecto, bool $simular, bool $todo): int
+    {
+        $informe = $this->desplegador->desplegar(
+            $proyecto,
+            $simular,
+            $todo,
+            alAvanzar: fn (string $accion, string $ruta) => $this->escribir($this->salida, sprintf("  %-9s %s\n", $accion, $ruta)),
+            alCompilar: $this->informar(...),
+        );
+
+        if ($simular) {
+            foreach ($informe->subidos as $ruta) {
+                $this->escribir($this->salida, "  subiría   {$ruta}\n");
+            }
+
+            foreach ($informe->borrados as $ruta) {
+                $this->escribir($this->salida, "  borraría  {$ruta}\n");
+            }
+        }
 
         foreach ($informe->avisos as $aviso) {
             $this->escribir($this->errores, "Aviso: {$aviso}\n");
@@ -142,6 +186,15 @@ final class Aplicacion
         $this->escribir($this->salida, $informe->resumen() . "\n");
 
         return self::EXITO;
+    }
+
+    private function informar(Informe $informe): void
+    {
+        foreach ($informe->avisos as $aviso) {
+            $this->escribir($this->errores, "Aviso: {$aviso}\n");
+        }
+
+        $this->escribir($this->salida, $informe->resumen() . "\n");
     }
 
     /**

@@ -176,6 +176,66 @@ final class AplicacionPrueba extends TestCase
         self::assertSame("Compilado: 1 página en 0,50 s, 2 avisos.\n", $this->leer($this->salida));
     }
 
+    #[Test]
+    public function despliegaYCuentaLoQueSube(): void
+    {
+        $publicado = $this->carpetaTemporal() . '-publicado';
+        $this->crearFichero('sitio.yml', "nombre: Prueba\nurl: https://ejemplo.com\ndespliegue:\n  destino: carpeta\n  ruta: {$publicado}\n");
+        $this->crearPlantillaMinima();
+        $this->crearFichero('contenido/index.md', 'Hola');
+
+        try {
+            $simulado = $this->aplicacion()->ejecutar(['desplegar', '--simular', $this->carpetaTemporal()]);
+            $simulacion = $this->leer($this->salida);
+            ftruncate($this->salida, 0);
+            rewind($this->salida);
+
+            $codigo = $this->aplicacion()->ejecutar(['desplegar', $this->carpetaTemporal()]);
+            $salida = $this->leer($this->salida);
+
+            self::assertSame(Aplicacion::EXITO, $simulado);
+            self::assertMatchesRegularExpression(
+                "/^Compilado: 1 página en \\d+,\\d\\d s\\.\n  subiría   index\\.html\n  subiría   sitemap\\.xml\n"
+                    . "Simulación en la carpeta .+: se subirían 2 ficheros \\(\\d+ B\\)\\. No se ha tocado nada\\.\n$/u",
+                $simulacion,
+            );
+
+            self::assertSame(Aplicacion::EXITO, $codigo);
+            self::assertMatchesRegularExpression(
+                "/^Compilado: 1 página en \\d+,\\d\\d s\\.\n  subido    index\\.html\n  subido    sitemap\\.xml\n"
+                    . "Desplegado en la carpeta .+: 2 ficheros \\(\\d+ B\\) subidos en \\d+,\\d\\d s\\.\n$/u",
+                $salida,
+            );
+            self::assertFileExists("{$publicado}/index.html");
+        } finally {
+            foreach (['index.html', 'sitemap.xml', '.ehundu.json'] as $fichero) {
+                @unlink("{$publicado}/{$fichero}");
+            }
+
+            @rmdir($publicado);
+        }
+    }
+
+    #[Test]
+    public function unErrorDeDespliegueSaleComoError(): void
+    {
+        $this->crearSitioMinimo();
+
+        $codigo = $this->aplicacion()->ejecutar(['desplegar', $this->carpetaTemporal()]);
+
+        self::assertSame(Aplicacion::FALLO, $codigo);
+        self::assertSame("Error: sitio.yml: Falta la sección «despliegue», que dice adónde se publica el sitio\n", $this->leer($this->errores));
+    }
+
+    #[Test]
+    public function lasOpcionesDeDesplegarSoloValenParaDesplegar(): void
+    {
+        $codigo = $this->aplicacion()->ejecutar(['compilar', '--simular']);
+
+        self::assertSame(Aplicacion::USO_INCORRECTO, $codigo);
+        self::assertSame("Opción desconocida: --simular\n", $this->leer($this->errores));
+    }
+
     private function aplicacion(?Compilador $compilador = null): Aplicacion
     {
         return new Aplicacion($compilador ?? new CompiladorEnProceso(), $this->salida, $this->errores);

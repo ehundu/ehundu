@@ -36,12 +36,14 @@ Ese es el rasgo que lo distingue y el criterio para decidir qué entra.
     pruebas/      pruebas unitarias, espacio de nombres Ehundu\Pruebas\
     bin/ehundu    la orden de consola
     recursos/     plantillas que trae el motor (los atajos incluidos)
-    docs/         documentación: el formato (formato.md), la previsualización
-                  y la compilación incremental
+    docs/         documentación: el formato (formato.md), la previsualización,
+                  la compilación incremental y el despliegue
 
 Las clases de prueba llevan el sufijo `Prueba` y los métodos el atributo
 `#[Test]`, para que se llamen en español (`fallaSiLaCarpetaNoExiste`). Las
-pruebas se ejecutan con `composer pruebas`.
+pruebas se ejecutan con `composer pruebas`. Las de FTP necesitan la extensión
+`ftp`; si no está activa, se saltan (en Windows:
+`php -d extension=ftp vendor/bin/phpunit`).
 
 El trabajo va en la rama `desarrollo`. `main` solo recibe versiones
 publicadas, la primera en la 0.1: no hagas commits en `main`.
@@ -79,8 +81,9 @@ documentación son inventados.
    completa (ver `docs/compilacion.md`). Cualquier cosa nueva que una
    plantilla, un atajo o el Markdown puedan leer (un fichero, una colección,
    otra página) tiene que anotarse en el registro de la página, y las pruebas
-   de equivalencia tienen que cubrirla. Los lotes llegarán con el panel: no
-   mezcles decidir qué se rehace con rehacerlo.
+   de equivalencia tienen que cubrirla. Los lotes llegarán más adelante: no
+   mezcles decidir qué se rehace con rehacerlo, ni al compilar ni al
+   desplegar.
 10. **Errores claros y en español**, con fichero y línea cuando se pueda. Un
     valor que no vale en un campo reservado avisa; no rompe el build salvo
     que sea imprescindible (§4 del formato).
@@ -92,8 +95,9 @@ parámetros, tokens de estilo, generación de imágenes, multiidioma (solo
 reservar lo que indica §15.5 del formato), paginación, procesadores sobre el
 HTML generado, pasos posteriores al build, búsqueda.
 
-El despliegue (carpeta, FTP, SFTP, S3) entra en el motor, pero después de que
-el build funcione.
+El despliegue (carpeta, FTP, SFTP, S3) está en el motor: ver
+`docs/despliegue.md`. Nada de APIs propias de un proveedor ni de pasos
+después de desplegar.
 
 ## Orden de trabajo de la v1
 

@@ -9,6 +9,7 @@ use Ehundu\Construccion;
 use Ehundu\ErrorDeProyecto;
 use Ehundu\Informe;
 use Ehundu\Proyecto;
+use Ehundu\TiposMime;
 
 /**
  * El sitio que sirve la previsualización: se construye en memoria, sin
@@ -23,33 +24,6 @@ use Ehundu\Proyecto;
 final class Previsualizacion
 {
     public const string ESTADO = '/__ehundu/estado';
-
-    private const array TIPOS = [
-        'html' => 'text/html; charset=utf-8',
-        'css' => 'text/css; charset=utf-8',
-        'js' => 'text/javascript; charset=utf-8',
-        'mjs' => 'text/javascript; charset=utf-8',
-        'json' => 'application/json; charset=utf-8',
-        'xml' => 'application/xml; charset=utf-8',
-        'txt' => 'text/plain; charset=utf-8',
-        'svg' => 'image/svg+xml',
-        'png' => 'image/png',
-        'jpg' => 'image/jpeg',
-        'jpeg' => 'image/jpeg',
-        'gif' => 'image/gif',
-        'webp' => 'image/webp',
-        'avif' => 'image/avif',
-        'ico' => 'image/x-icon',
-        'woff' => 'font/woff',
-        'woff2' => 'font/woff2',
-        'ttf' => 'font/ttf',
-        'otf' => 'font/otf',
-        'pdf' => 'application/pdf',
-        'mp4' => 'video/mp4',
-        'webm' => 'video/webm',
-        'mp3' => 'audio/mpeg',
-        'webmanifest' => 'application/manifest+json',
-    ];
 
     private ?Construccion $construccion = null;
     private ?\Throwable $error = null;
@@ -141,15 +115,15 @@ final class Previsualizacion
         }
 
         return $this->fichero('404.html', 404)
-            ?? new Respuesta(404, self::TIPOS['html'], $this->conRecarga(
+            ?? new Respuesta(404, TiposMime::HTML, $this->conRecarga(
                 '<!doctype html><meta charset="utf-8"><title>No existe</title><p>No existe ' . htmlspecialchars($ruta) . '</p>',
             ));
     }
 
     private function fichero(string $fichero, int $estado): ?Respuesta
     {
-        $tipo = self::TIPOS[strtolower(pathinfo($fichero, PATHINFO_EXTENSION))] ?? 'application/octet-stream';
-        $esHtml = $tipo === self::TIPOS['html'];
+        $tipo = TiposMime::de($fichero);
+        $esHtml = $tipo === TiposMime::HTML;
 
         if (isset($this->construccion->escritos[$fichero])) {
             $contenido = $this->construccion->escritos[$fichero];
@@ -192,7 +166,7 @@ final class Previsualizacion
             . htmlspecialchars($mensaje) . '</pre>'
             . '<p>La página se recargará sola cuando lo arregles.</p></main></body></html>';
 
-        return new Respuesta(500, self::TIPOS['html'], $this->conRecarga($html));
+        return new Respuesta(500, TiposMime::HTML, $this->conRecarga($html));
     }
 
     /**

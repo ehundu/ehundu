@@ -11,10 +11,10 @@ Ehundu es un generador de sitios estáticos escrito en PHP. Toma una carpeta con
 contenido en Markdown, datos en YAML y plantillas Twig, y produce un sitio web
 de HTML plano que se puede alojar en cualquier servidor.
 
-> **Estado: 0.1**, la primera versión utilizable. Compila sitios reales, los
-> previsualiza y los publica. Hasta la 1.0 el formato del proyecto todavía
-> puede cambiar; cada cambio queda anotado, con su motivo, en el registro de
-> decisiones de [`docs/formato.md`](docs/formato.md).
+> **Estado: 0.2.** Compila sitios reales, los previsualiza y los publica.
+> Hasta la 1.0 el formato del proyecto todavía puede cambiar; cada cambio
+> queda anotado, con su motivo, en el registro de decisiones de
+> [`docs/formato.md`](docs/formato.md).
 
 ## Por qué otro generador
 
@@ -233,10 +233,10 @@ Ehundu es software libre bajo licencia MIT. Consulta el fichero `LICENSE`.
 
 Ehundu is a static site generator written in PHP, designed to build sites both
 from the command line and from within a web process on ordinary shared PHP
-hosting. Version 0.1 is the first usable release: it builds Markdown and Twig
-sites, previews them with incremental rebuilds, and deploys them to a folder,
-FTP, SFTP or any S3-compatible storage. It needs PHP 8.4 or later and nothing
-else, and ships as a single `ehundu.phar` or as the Composer package
+hosting. The current version is 0.2: it builds Markdown and Twig sites,
+previews them with incremental rebuilds, and deploys them to a folder, FTP,
+SFTP or any S3-compatible storage. It needs PHP 8.4 or later and nothing else,
+and ships as a single `ehundu.phar` or as the Composer package
 `ehundu/ehundu`.
 
 Its project format is deliberately in Spanish (folder names, front matter

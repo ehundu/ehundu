@@ -998,8 +998,8 @@ El idioma de una página es el código que lleva antes de la extensión:
 en el idioma predeterminado, así que un sitio pasa a ser bilingüe sin renombrar
 nada: basta con añadir los ficheros del otro idioma. Escribir el código del
 predeterminado (`contacto.es.md`) es lo mismo; tener a la vez `contacto.md` y
-`contacto.es.md` detiene el build, porque serían dos veces la misma página en
-el mismo idioma.
+`contacto.es.md`, o `contacto.md` y `contacto.twig`, detiene el build, porque
+serían dos veces la misma página en el mismo idioma.
 
 Las traducciones de una página son los ficheros de la misma carpeta con el
 mismo nombre sin el código: `contacto.md` y `contacto.eu.md` son la misma

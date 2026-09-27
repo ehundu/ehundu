@@ -743,7 +743,7 @@ sitio, dónde están sus páginas, qué campos llevan y quién puede editarlos.
           "plural": "Libros",
           "carpeta": ["contenido/libros/*", "contenido/segunda-mano"],
           "fichero": "{{ autoria|slug }}-{{ titulo|slug }}",
-          "cuerpo": "markdown",
+          "cuerpo": { "tipo": "markdown", "titulo": "Reseña" },
           "campos": [
             { "nombre": "titulo", "titulo": "Título del libro", "tipo": "texto", "requerido": true },
             { "nombre": "autoria", "titulo": "Autor o autora", "tipo": "texto" },
@@ -794,7 +794,10 @@ renombrarlo rompería la dirección publicada. Una traducción toma el nombre de
 la página que traduce, con el código de su idioma (§15.2).
 
 `cuerpo` vale `markdown` o `ninguno`. Sin cuerpo, la página es pura ficha de
-campos, que es el caso de las páginas de aterrizaje.
+campos, que es el caso de las páginas de aterrizaje. Un cuerpo en Markdown se
+puede escribir también con la forma de un campo, para darle su rótulo y su
+ayuda: `{ "tipo": "markdown", "titulo": "Reseña" }`. `"markdown"` a secas es
+la forma corta, y el editor le pone un rótulo genérico.
 
 **Campos.** `nombre` es la clave del front matter, la que lee el motor;
 `titulo` es el rótulo que enseña el editor («Autor o autora»), y sin él se
@@ -1037,6 +1040,8 @@ un sitio de la v1 no debe usarlo como campo propio.
 86. **Cerrada.** Una página que crea un editor se llama según el patrón
     `fichero` del tipo, `{{ titulo|slug }}` si falta; el nombre se fija al
     crearla y no cambia después (§11).
+87. **Cerrada.** `cuerpo` admite también la forma de un campo, con su `titulo`
+    y su `ayuda`; `"markdown"` a secas es la forma corta (§11).
 
 ---
 

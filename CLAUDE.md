@@ -104,9 +104,11 @@ documentación son inventados.
 ## Fuera de la v1
 
 No implementes nada de esto aunque parezca fácil: catálogo de componentes con
-parámetros, tokens de estilo, generación de imágenes, multiidioma (solo
-reservar lo que indica §15.5 del formato), paginación, procesadores sobre el
-HTML generado, pasos posteriores al build, búsqueda.
+parámetros, tokens de estilo, generación de imágenes, paginación,
+procesadores sobre el HTML generado, pasos posteriores al build, búsqueda.
+
+El multiidioma entra en la 0.3, tal como lo define el §15 del formato
+(decisiones 72 a 81).
 
 El despliegue (carpeta, FTP, SFTP, S3) está en el motor: ver
 `docs/despliegue.md`. Nada de APIs propias de un proveedor ni de pasos

@@ -73,6 +73,12 @@ ellos no se pueden generar ni el sitemap ni el feed.
 sitio, con su nombre estándar (`Europe/Madrid`, `America/Mexico_City`). Si
 falta, es UTC. Una zona que no existe detiene el build.
 
+`idioma` es el código del idioma del sitio: dos o tres letras minúsculas, como
+`es`, `eu` o `en`. Lo usan `fecha()` (§7.3) y el feed, y las plantillas lo ven
+también en `pagina.idioma`. Si falta, es `es`; si no es un código así, se
+avisa y se usa `es`. Un sitio en varios idiomas los declara en `idiomas`
+(§15.1).
+
 La sección `feed` pide un `feed.xml` y dice de qué colección sale (§10.2).
 
 La sección `despliegue` dice adónde publica `ehundu desplegar` (ver
@@ -125,6 +131,10 @@ Si un `.yml` y un `.json` dan el mismo nombre, gana el `.yml` y se avisa. Las
 subcarpetas de `datos/` y los ficheros con otra extensión no se leen; también
 se avisa. Lo que empieza por punto (`.gitkeep`) se ignora sin aviso.
 
+En un sitio en varios idiomas, un fichero puede llevar el código de un idioma
+antes de la extensión (`menus.eu.yml`): en las páginas de ese idioma se mezcla
+con el común (§15.6).
+
 **Por carpeta.** Un `_datos.yml` dentro de cualquier carpeta de `contenido/`
 aplica a todo lo que cuelga de ella, incluidas las subcarpetas. Los valores más
 cercanos al fichero ganan, y el front matter de la página gana sobre todos.
@@ -144,6 +154,10 @@ estando en la colección `blog` que le pone su carpeta, y el CSS que añade una
 sección se suma al de todo el sitio. Los demás campos, listas y mapas
 incluidos, se sustituyen enteros; no se mezclan por dentro.
 
+En un sitio en varios idiomas, cada carpeta puede tener además un `_datos.yml`
+por idioma (`_datos.eu.yml`), y cada página, un `.yml` con sus campos comunes a
+todos los idiomas (§15.6, §15.7).
+
 ---
 
 ## 4. Ficheros de contenido
@@ -151,8 +165,9 @@ incluidos, se sustituyen enteros; no se mezclan por dentro.
 Extensiones reconocidas: `.md` (Markdown) y `.twig` (plantilla). Cualquier otra
 cosa dentro de `contenido/` se copia tal cual a `salida/`, con su misma ruta
 (`contenido/blog/foto.jpg` → `blog/foto.jpg`), salvo los ficheros que empiezan
-por guion bajo, como `_datos.yml`. Lo que empieza por punto (`.gitkeep`,
-`.git/`) se ignora. Las plantillas y los datos de otros generadores (`.njk`,
+por guion bajo, como `_datos.yml`, y el `.yml` que lleva el nombre de una
+página, que son sus campos comunes (§15.7). Lo que empieza por punto
+(`.gitkeep`, `.git/`) se ignora. Las plantillas y los datos de otros generadores (`.njk`,
 `.liquid`, `.vto`, `.webc`, `.11ty.js`, `.11tydata.js`, `.11tydata.json`) no
 se copian nunca, y se avisa: publicar el código de una plantilla no es lo que
 se quiere, y en una migración es fácil que alguno se quede atrás.
@@ -181,6 +196,9 @@ Campos reservados:
 | `orden`       | número  | Orden manual dentro de una colección.                     |
 | `borrador`    | sí/no   | Si es `sí`, no se publica.                                |
 | `publicar`    | fecha   | No se publica antes de esa fecha.                         |
+
+`idioma` también está reservado, pero no se escribe: sale del nombre del
+fichero (`contacto.eu.md`, §15.2).
 
 Cualquier otro campo se pasa a la plantilla sin tocarlo. El motor no valida
 campos desconocidos: eso es tarea del esquema (§11) y del editor. Un campo con
@@ -230,8 +248,8 @@ de las plantillas se eligen de nuevo al pasarlas a Twig.
 ## 5. URL
 
 Por defecto, la URL sale de la ruta dentro de `contenido/`, quitando la
-extensión y añadiendo barra final. Un `index` da la URL de su carpeta, en
-cualquier nivel:
+extensión (y el código de idioma, si lo hay: §15.2) y añadiendo barra final.
+Un `index` da la URL de su carpeta, en cualquier nivel:
 
     contenido/servicios/encuadernacion.md  →  /servicios/encuadernacion/
     contenido/blog/index.md                 →  /blog/
@@ -253,6 +271,10 @@ Una URL nunca escribe fuera de `salida/`. Si lleva tramos `.` o `..`, o
 caracteres que no caben en un nombre de fichero (`\ ? # : * " < > |`), se avisa
 y se usa la URL que sale de la ruta. Un `url` en blanco también deja la de la
 ruta.
+
+En un sitio en varios idiomas, las páginas que no son del predeterminado
+llevan delante el prefijo de su idioma, también cuando su URL se escribe en
+`url` (§15.3).
 
 ### 5.1 Patrones
 
@@ -311,6 +333,9 @@ fragmentos entran en las colecciones de sus etiquetas.
 Toda página con URL está además en la colección implícita `todo`. Por eso
 `todo` no se puede usar como etiqueta: si aparece, se avisa y se quita.
 
+En un sitio en varios idiomas, las colecciones están acotadas al idioma de la
+página que las consulta, y se puede pedir otro (§15.5).
+
 No entran en ninguna colección, tampoco en `todo`, los borradores, las páginas
 con `publicar` en el futuro y las de `listada: no`. Este último es el caso de
 los textos legales, la página de error o `robots.txt`: se publican, pero no
@@ -356,7 +381,8 @@ Los filtros aceptan también los alias ingleses de los campos (`date`,
 
 `orden` y `donde` ven cada página como la ven las plantillas (§7.2): los
 campos del front matter, con la cascada, y además `url`, la URL ya resuelta
-(vacía en un fragmento), y `ruta`, la del fichero dentro de `contenido/`.
+(vacía en un fragmento), `ruta`, la del fichero dentro de `contenido/`, e
+`idioma`, el código del idioma de la página (§15.8).
 `donde('url', '/contacto/')` encuentra la página aunque su URL salga de la
 ruta y no esté escrita en el front matter. `contenido` no cuenta: para
 filtrar u ordenar por él habría que convertir el cuerpo de todas las páginas
@@ -406,10 +432,12 @@ de cualquier otra página.
 
 ### 7.2 Variables
 
-- `sitio`: lo que hay en `sitio.yml` (sin la sección de despliegue).
-- `datos`: los ficheros de `datos/`.
+- `sitio`: lo que hay en `sitio.yml` (sin la sección de despliegue), más
+  `sitio.idiomas` (§15.8).
+- `datos`: los ficheros de `datos/`, con los del idioma de la página (§15.6).
 - `pagina`: el front matter de la página actual, más `pagina.url`,
-  `pagina.contenido` (el cuerpo ya convertido a HTML) y `pagina.ruta`.
+  `pagina.contenido` (el cuerpo ya convertido a HTML), `pagina.ruta`,
+  `pagina.idioma` y `pagina.traducciones` (§15.8).
 
 Las páginas que dan `coleccion()` y sus filtros tienen la misma forma:
 `articulo.titulo`, `articulo.url`. También `articulo.contenido`, que se
@@ -438,12 +466,14 @@ escribe, salvo `pagina.contenido` y lo que devuelve `svg()`.
   `publico/`, avisa y da `null`.
 - `activo(url)` dice si la página actual es esa URL o está dentro de ella:
   `activo('/blog/')` es cierto en `/blog/` y en `/blog/un-articulo/`. `/` solo
-  es activo en la portada. Para comparar exacto, `pagina.url == url`.
+  es activo en la portada, y la raíz de cada idioma (`/eu/`), en la suya
+  (§15.8). Para comparar exacto, `pagina.url == url`.
 - `slug` (§5.2).
 - `fecha(formato)` escribe una fecha con las mismas letras que el filtro
-  `date` de Twig, pero con los nombres de meses y días en español:
-  `pagina.fecha|fecha('d F Y')` da `18 marzo 2025`. Sin formato, da
-  `18 de marzo de 2025`. Una letra que tiene que salir tal cual se escapa
+  `date` de Twig, pero con los nombres de meses y días en el idioma de la
+  página (§15.9). En castellano, `pagina.fecha|fecha('d F Y')` da
+  `18 marzo 2025`, y sin formato, `18 de marzo de 2025`. Una letra que tiene
+  que salir tal cual se escapa
   con dos barras dentro de la plantilla, igual que con `date`:
   `fecha('j \\d\\e F')` da `18 de marzo`.
 
@@ -659,10 +689,11 @@ genera. Los detalles están en `docs/despliegue.md`.
 ### 10.1 `sitemap.xml`
 
 Lleva las páginas HTML de la colección `todo` (las publicadas, con URL y sin
-`listada: no`; §6), en su orden, salvo `/404.html`. Una página es HTML si su
-URL acaba en `/` o en `.html`: `robots.txt` o un XML no entran. Cada una lleva
-su dirección completa, la `url` del sitio más la de la página, y `<lastmod>`
-con su fecha en la zona horaria del sitio, solo si la tiene.
+`listada: no`; §6), en su orden, salvo `/404.html`; en un sitio en varios
+idiomas, las de todos ellos, sin la `404.html` de ninguno (§15.10). Una página
+es HTML si su URL acaba en `/` o en `.html`: `robots.txt` o un XML no entran.
+Cada una lleva su dirección completa, la `url` del sitio más la de la página, y
+`<lastmod>` con su fecha en la zona horaria del sitio, solo si la tiene.
 
 ### 10.2 `feed.xml`
 
@@ -679,6 +710,8 @@ enlaces y las imágenes que empiezan por `/` pasados a direcciones completas,
 porque un lector de feeds no sabe de qué sitio vienen. Una página de la
 colección sin fecha no entra, y se avisa: Atom exige una fecha en cada
 entrada.
+
+En un sitio en varios idiomas hay un feed por idioma (§15.10).
 
 ---
 
@@ -733,8 +766,9 @@ campos, que es el caso de las páginas de aterrizaje.
 ## 13. Fuera de la v1
 
 Catálogo de componentes con parámetros y consultas, tokens de estilo por sitio,
-generación de imágenes en varios tamaños, multiidioma, paginación de listados,
-procesadores sobre el HTML ya generado, pasos posteriores al build y búsqueda.
+generación de imágenes en varios tamaños, paginación de listados, procesadores
+sobre el HTML ya generado, pasos posteriores al build y búsqueda. El
+multiidioma estuvo aquí hasta la 0.3 (§15).
 
 Ninguna de estas cosas debería obligar a cambiar lo de arriba cuando llegue.
 Si al añadirlas hay que romper el contrato, el contrato estaba mal.
@@ -750,8 +784,9 @@ un sitio de la v1 no debe usarlo como campo propio.
 2. **Cerrada.** Campos del front matter en español, con los nombres ingleses
    aceptados como alias solo para facilitar la migración.
 3. **Cerrada.** El Markdown no pasa por Twig; hay atajos (§8.1).
-4. **Cerrada.** Multiidioma por fichero de idioma (§15). No entra en la v1,
-   pero el contrato reserva lo necesario.
+4. **Cerrada.** Multiidioma por fichero de idioma (§15). No entró en la
+   primera versión, pero el contrato reservó lo necesario; entra en la 0.3
+   (decisiones 72 a 81).
 5. **Cerrada.** `sitio.yml` es obligatorio, con `nombre` y `url` (§2).
 6. **Cerrada.** En la cascada, `etiquetas` se suman; el resto se sustituye
    (§3).
@@ -889,79 +924,127 @@ un sitio de la v1 no debe usarlo como campo propio.
     que es el mismo sitio con otra dirección (`despliegue.md`).
 71. **Cerrada.** `orden` y `donde` ven también `url` y `ruta`, con los mismos
     valores que las plantillas; `contenido`, no (§6.2).
+72. **Cerrada.** Los idiomas se declaran en `idiomas`, y el primero es el
+    predeterminado; sin `prefijo`, que es siempre `/codigo/`. Un sitio en un
+    solo idioma lo dice con `idioma`, que es `es` si falta (§2, §15.1).
+73. **Cerrada.** Un fichero sin código es del idioma predeterminado; con el
+    código del predeterminado es lo mismo, y los dos a la vez detienen el
+    build. Las traducciones se emparejan por carpeta y nombre (§15.2).
+74. **Cerrada.** El motor pone el prefijo del idioma a toda URL que no es del
+    predeterminado, también a la de `url` y a la de un patrón (§15.3).
+75. **Cerrada.** `idioma` es un campo reservado que sale del nombre del
+    fichero; las plantillas ven `pagina.idioma`, `pagina.traducciones` y
+    `sitio.idiomas`, y `orden` y `donde` ven `idioma` (§15.2, §15.8).
+76. **Cerrada.** Las colecciones se acotan al idioma de la página;
+    `coleccion(nombre, idioma)` pide otro, o `todos` (§15.5).
+77. **Cerrada.** Un fichero de datos por idioma se mezcla con el común por las
+    claves de primer nivel, y un `_datos.eu.yml`, encima del `_datos.yml` de
+    su carpeta (§15.6).
+78. **Cerrada.** Un `.yml` con el nombre de una página son sus campos comunes a
+    todos los idiomas, y no se copia a `salida/` (§4, §15.7).
+79. **Cerrada.** `fecha()` escribe en el idioma de la página; el motor trae
+    castellano, euskera e inglés, y con otro idioma avisa y usa los nombres
+    en inglés (§7.3, §15.9).
+80. **Cerrada.** Un solo sitemap con todos los idiomas; un feed por idioma, el
+    del predeterminado siempre y los demás si tienen entradas (§15.10).
+81. **Cerrada.** `activo()` trata la raíz de cada idioma como la portada, y se
+    avisa si esa raíz no es la URL de ninguna página (§7.3, §15.3).
 
 ---
 
-## 15. Multiidioma: las tres opciones
+## 15. Multiidioma
 
-No entra en la v1, pero condiciona el contrato, así que conviene decidirlo
-ahora. En los tres casos hay cosas comunes: el idioma por defecto va sin
-prefijo en la URL, los demás con prefijo (`/eu/...`), y cada página emite sus
-etiquetas `hreflang` apuntando a sus traducciones.
+Un sitio puede estar en varios idiomas. Cada página de cada idioma es su propio
+fichero, en el mismo árbol que las demás, y el idioma va en el nombre:
 
-### A. Carpeta por idioma
+    contenido/
+      index.md                 portada en castellano
+      index.eu.md              portada en euskera
+      instalaciones.md
+      instalaciones.eu.md      con url: /instalazioak/
+      blog/
+        un-articulo.md         solo en castellano
 
-    contenido/es/contacto.md
-    contenido/eu/kontaktua.md
+Un sitio en un solo idioma no escribe nada de esto y no cambia en nada.
 
-Cada idioma es un árbol completo e independiente.
+### 15.1 Idiomas en `sitio.yml`
 
-A favor: no exige nada nuevo al motor, porque la cascada de `_datos.yml` ya
-funciona por carpeta; permite estructura y slugs distintos por idioma, que es
-lo correcto para SEO; y una página que solo existe en un idioma no es un caso
-especial.
+    idiomas:
+      - codigo: es
+        nombre: Castellano
+      - codigo: eu
+        nombre: Euskara
 
-En contra: nada relaciona una página con su traducción, hay que declararlo a
-mano con un campo; un editor muestra dos árboles separados y es fácil publicar
-en uno y olvidar el otro; y lo que no se traduce (imágenes, enlaces, teléfonos)
-se duplica y acaba desincronizándose.
+El primero es el predeterminado: sus páginas van sin prefijo en la URL, y las
+de los demás, con el suyo (`/eu/`). `codigo` son dos o tres letras minúsculas,
+como en ISO 639 (`es`, `eu`, `en`), y es lo que va en el nombre de los
+ficheros, en el prefijo y en el `hreflang`. `nombre` es el nombre del idioma
+para el selector, escrito en ese idioma; si falta, se usa el código.
 
-### B. Fichero por idioma, mismo árbol
+Si `idiomas` no es una lista, si está vacía, si una entrada no tiene un código
+válido o si un código se repite, el build se detiene: sin los idiomas no se
+sabe qué ficheros se leen ni qué URL lleva cada página. Cualquier otro campo
+de una entrada se avisa y se ignora.
 
-    contenido/contacto.es.md
-    contenido/contacto.eu.md
+Con `idiomas`, `idioma` sobra: si se escribe y no es el primero de la lista,
+se avisa, y `sitio.idioma` vale siempre el del predeterminado. Un sitio en un
+solo idioma lo dice con `idioma` (§2), y para el motor es un sitio con un solo
+idioma en la lista.
 
-Mismo árbol de contenido; el idioma es parte del nombre del fichero. La
-relación entre traducciones es la propia convención, sin declarar nada.
+### 15.2 Un fichero por idioma
 
-A favor: cada página y sus traducciones viven juntas, así que un editor puede
-mostrarlas como pestañas de idioma sobre la misma página y es imposible no ver
-que falta una; las faltantes se detectan solas; los slugs por idioma se
-resuelven con el campo `url` en cada fichero.
+El idioma de una página es el código que lleva antes de la extensión:
+`contacto.eu.md` está en euskera. Un fichero sin código (`contacto.md`) está
+en el idioma predeterminado, así que un sitio pasa a ser bilingüe sin renombrar
+nada: basta con añadir los ficheros del otro idioma. Escribir el código del
+predeterminado (`contacto.es.md`) es lo mismo; tener a la vez `contacto.md` y
+`contacto.es.md` detiene el build, porque serían dos veces la misma página en
+el mismo idioma.
 
-En contra: el motor tiene que entender el idioma en el nombre del fichero, que
-es código nuevo aunque poco; el árbol se ve más cargado; y lo no traducible
-sigue repitiéndose salvo que se saque a un fichero de datos compartido.
+Las traducciones de una página son los ficheros de la misma carpeta con el
+mismo nombre sin el código: `contacto.md` y `contacto.eu.md` son la misma
+página. No hay que declararlo en ningún sitio, y un editor puede mostrarlas
+como pestañas de idioma sobre la misma página.
 
-### C. Un fichero con campos por idioma
+Un fichero con un código que el sitio no declara (`contacto.fr.md` en un sitio
+sin francés), o con un punto de más en el nombre (`guia.v2.md`), no se lee: se
+salta con un aviso. El punto en el nombre de una página, de un fichero de
+`datos/` o de un `_datos.yml` queda reservado para el idioma. Los ficheros que
+se copian tal cual (`jquery.min.js`) llevan los puntos que quieran.
 
-    titulo:
-      es: Contacto
-      eu: Kontaktua
+El idioma sale del nombre del fichero, no del front matter. `idioma` es un
+campo reservado: si se escribe en una página, en un `_datos.yml` o en los
+campos comunes de una página (§15.7), se avisa y se ignora.
 
-A favor: cero duplicación de lo no traducible, porque la imagen o el teléfono
-se escriben una vez; un editor con pestañas sale casi gratis.
+### 15.3 URL
 
-En contra: un cuerpo largo en Markdown dentro de un YAML es inmanejable, y los
-cambios son ilegibles al compararlos. Sirve para páginas hechas de campos, no
-para artículos.
+Las páginas del idioma predeterminado tienen la URL de siempre (§5). Las de los
+demás llevan delante el prefijo de su idioma, y el motor lo pone siempre,
+también a la URL que se escribe en `url` y a la que sale de un patrón:
 
-### Decisión: B
+    contenido/index.eu.md                                →  /eu/
+    contenido/instalaciones.eu.md                        →  /eu/instalaciones/
+    contenido/instalaciones.eu.md con url: /instalazioak/ →  /eu/instalazioak/
+    contenido/404.eu.md con url: /404.html               →  /eu/404.html
 
-Fichero por idioma, con lo no traducible en un fichero de datos compartido
-junto a la página. Es la que mejor encaja con un editor, que es donde el
-multiidioma se rompe en la práctica.
+Así el patrón `url: "/blog/{{ titulo|slug }}/"` de un `_datos.yml` vale para
+todos los idiomas, y en la URL de una traducción solo se escribe lo que se
+traduce. Una página que no es del predeterminado no puede salir de su prefijo.
+Si su `url` ya empieza por él (`url: /eu/instalazioak/`), se avisa: saldría
+`/eu/eu/instalazioak/`.
 
-### 15.1 Traducción parcial
+Si la raíz de un idioma (`/eu/`) no es la URL de ninguna página, se avisa: el
+selector de idioma llevaría a una dirección que no existe (§15.8). Solo en los
+sitios que declaran `idiomas`.
+
+### 15.4 Traducción parcial
 
 El caso normal no es un sitio duplicado: es una empresa que traduce portada,
-quiénes somos y contacto, y mantiene el blog solo en castellano. El formato
-tiene que tratar eso como lo corriente, no como la excepción.
-
-Con fichero por idioma sale solo: existe lo que existe. Si hay
-`contacto.es.md` y `contacto.en.md`, la página está en dos idiomas; si un
-artículo solo tiene `.es.md`, solo existe en castellano y no se genera nada en
-inglés.
+quiénes somos y contacto, y mantiene el blog solo en castellano. Con un fichero
+por idioma, eso sale solo: existe lo que existe. Si hay `contacto.md` y
+`contacto.en.md`, la página está en dos idiomas; si un artículo solo tiene
+`un-articulo.md`, solo existe en castellano y no se genera nada en inglés. No
+se avisa de las traducciones que faltan.
 
 Reglas que se derivan de eso:
 
@@ -969,71 +1052,166 @@ Reglas que se derivan de eso:
   idioma con el texto del otro. Servir castellano bajo una URL inglesa es
   contenido duplicado y un `hreflang` que miente.
 - **`hreflang` solo entre las traducciones que existen**, y cada página se
-  apunta también a sí misma.
+  apunta también a sí misma (§15.8).
 - **El selector de idioma nunca enlaza a una URL que no existe.** Si la página
-  actual no está traducida, el selector lleva a la portada de ese idioma, y la
-  plantilla puede distinguir ambos casos para avisar al visitante.
-- Las colecciones están acotadas al idioma de la página que las consulta. Un
-  listado de blog en inglés nunca saca artículos en castellano. Para el caso
-  raro en que hagan falta todos: `coleccion('blog', idioma: 'todos')`.
+  actual no está traducida, lleva a la portada de ese idioma, y la plantilla
+  puede distinguir los dos casos para avisar al visitante (§15.8).
 
-### 15.2 Idiomas en `sitio.yml`
+### 15.5 Colecciones
 
-    idiomas:
-      - codigo: es
-        nombre: Castellano
-        predeterminado: sí
-      - codigo: en
-        nombre: English
-        prefijo: /en
+Las colecciones están acotadas al idioma de la página que las consulta: un
+listado de blog en inglés nunca saca artículos en castellano. También `todo`.
+Otro idioma se pide con un segundo argumento, que es un código o `todos`:
 
-El predeterminado no lleva prefijo. Un sitio monolingüe simplemente tiene
-`idioma: es` y no escribe esta sección; nada cambia para él.
+    {% for articulo in coleccion('blog') %}                  {# en el idioma de la página #}
+    {% for articulo in coleccion('blog', 'eu') %}            {# solo los que están en euskera #}
+    {% for articulo in coleccion('blog', idioma: 'todos') %} {# todos #}
 
-### 15.3 Datos por idioma: menús y demás
+Un código que el sitio no declara avisa y da una lista vacía. `orden` y `donde`
+ven también `idioma` (§6.2).
 
-Este es el punto que más duele si se resuelve mal. Los menús no son la
-traducción uno a uno del mismo árbol: si el blog solo existe en castellano, el
-menú inglés tiene una entrada menos. Lo mismo pasa con el pie y a veces con
-secciones enteras.
+### 15.6 Datos por idioma
 
-Así que los datos siguen la misma convención que el contenido:
+Los menús no son la traducción uno a uno del mismo árbol: si el blog solo
+existe en castellano, el menú inglés tiene una entrada menos. Lo mismo pasa con
+el pie y a veces con secciones enteras. Así que los datos siguen la misma
+convención que el contenido:
 
-    datos/menus.yml        común a todos los idiomas (o sitio monolingüe)
+    datos/menus.yml        común a todos los idiomas
     datos/menus.es.yml     castellano
     datos/menus.en.yml     inglés
 
-Cada fichero es un menú completo e independiente, con sus propias entradas y
-su propio número de entradas. No es una tabla de traducciones: es otro menú.
-
-Al resolver `datos.menus`, el motor usa el fichero del idioma actual si existe
-y, si no, el común. La misma regla vale para cualquier otro fichero de
-`datos/`, de modo que `cliente.yml` puede quedarse común (teléfonos,
-dirección, redes) mientras `textos.en.yml` lleva los rótulos traducidos.
+Al contrario que con las páginas, un fichero de datos sin código no es del
+predeterminado: es común a todos. En una página, `datos.menus` es el fichero
+común con el de su idioma encima, mezclados por sus claves de primer nivel,
+igual que un `_datos.yml` sobre el de su carpeta (§3): gana el del idioma, y
+las listas y los mapas se sustituyen enteros. Un `cliente.en.yml` que solo
+tiene `horario` traduce el horario y deja los teléfonos y la dirección del
+común. Un `menus.en.yml` con su lista `principal` es otro menú, con sus
+propias entradas, no una tabla de traducciones. Si uno de los dos no es un
+mapa, el del idioma sustituye entero al común. Un dato que solo existe en un
+idioma (`textos.en.yml` sin `textos.yml`) solo está en las páginas de ese
+idioma. El atajo `dato` (§8.2) lee lo mismo que la página en la que está.
 
 Aquí sí hay respaldo al fichero común, al contrario que con las páginas: un
 menú que falta deja el sitio sin navegación, mientras que una página que falta
 simplemente no está.
 
-Los `_datos.yml` de carpeta admiten lo mismo (`_datos.en.yml`) para poder
-cambiar por idioma el patrón de URL o la plantilla de una sección.
+Los `_datos.yml` de carpeta admiten lo mismo: en cada carpeta, `_datos.en.yml`
+se pone encima de `_datos.yml` para las páginas en inglés, antes de pasar a la
+subcarpeta, donde el `_datos.yml` vuelve a ganar por estar más cerca. Sirve
+para cambiar por idioma la plantilla o el patrón de URL de una sección.
 
-### 15.4 Lo no traducible de una página
+### 15.7 Lo no traducible de una página
 
-Junto a `servicios.es.md` y `servicios.en.md` puede haber un
-`servicios.yml` con lo que no cambia de idioma: imagen principal, icono,
-orden, identificadores. Se mezcla con el front matter de cada idioma, y este
-último gana si repite un campo.
+Junto a una página puede haber un `.yml` con su mismo nombre y lo que no
+cambia de idioma: la imagen principal, el icono, el orden, los destinos de los
+enlaces.
 
-Así se evita tener la misma imagen escrita una vez por idioma, sin nada que
-obligue a que coincidan.
+    contenido/servicios.yml       imagen, icono, orden
+    contenido/servicios.md        título y texto en castellano
+    contenido/servicios.eu.md     título y texto en euskera
 
-### 15.5 Lo que hay que reservar en la v1
+Sus campos van encima de la cascada y debajo del front matter de cada idioma,
+que gana si repite alguno; `etiquetas`, `css` y `js` se suman, como en toda la
+cascada (§3). Así la misma imagen no se escribe una vez por idioma, sin nada
+que obligue a que coincidan. Vale también en un sitio de un solo idioma.
 
-Aunque el multiidioma no entre todavía: el punto en el nombre de un fichero
-queda prohibido para cualquier otro uso, las URL pueden llevar prefijo, y las
-consultas a colecciones aceptan un parámetro de idioma que de momento siempre
-vale lo mismo.
+Ese `.yml` no se copia a `salida/`: es parte de la página, no un fichero
+publicado. Un `.yml` sin una página con su nombre en la misma carpeta se copia
+como cualquier otro fichero (§4).
 
-En la v1, una página o un fichero de datos con un punto de más en el nombre
-(`contacto.en.md`, `menus.es.yml`) no se lee: se salta con un aviso.
+### 15.8 Plantillas
+
+Todas las páginas, también las que dan `coleccion()`, llevan:
+
+- `pagina.idioma`, el código de su idioma. En un sitio de un solo idioma es el
+  de `idioma`, así que `<html lang="{{ pagina.idioma }}">` vale para todos.
+- `pagina.traducciones`, sus versiones publicadas, ella incluida, por código y
+  en el orden de `idiomas`: `pagina.traducciones.eu.url`. Cada una tiene la
+  misma forma que cualquier otra página. Un borrador o una traducción con
+  `publicar` en el futuro no están.
+
+`sitio.idiomas` es la lista de `idiomas`, cada uno con `codigo`, `nombre` y
+`url`, la raíz de ese idioma: `/` para el predeterminado y `/eu/` para los
+demás. En un sitio de un solo idioma tiene una sola entrada.
+
+Con eso, la plantilla escribe los `hreflang` y el selector de idioma; el motor
+no toca el HTML:
+
+    {% for codigo, traduccion in pagina.traducciones %}
+      <link rel="alternate" hreflang="{{ codigo }}" href="{{ sitio.url }}{{ traduccion.url }}">
+    {% endfor %}
+
+    {% for idioma in sitio.idiomas %}
+      {% set traduccion = pagina.traducciones[idioma.codigo] %}
+      <a href="{{ traduccion ? traduccion.url : idioma.url }}" hreflang="{{ idioma.codigo }}">{{ idioma.nombre }}</a>
+    {% endfor %}
+
+`activo('/eu/')` solo es cierto en la portada en euskera, igual que `/` solo lo
+es en la del predeterminado (§7.3).
+
+### 15.9 Fechas
+
+`fecha()` (§7.3) escribe los meses y los días en el idioma de la página. El
+motor trae castellano, euskera e inglés, cada uno con su formato por defecto:
+
+| Idioma | `fecha()`                | `fecha('l j F Y')`         |
+|--------|--------------------------|----------------------------|
+| `es`   | 18 de marzo de 2025      | martes 18 marzo 2025       |
+| `eu`   | 2025eko martxoaren 18a   | asteartea 18 martxoa 2025  |
+| `en`   | 18 March 2025            | Tuesday 18 March 2025      |
+
+El formato por defecto del euskera no se puede escribir con letras: el sufijo
+del año es `-ko` o `-eko` según cómo se lee el número (`2026ko`, `2025eko`), y
+lo calcula el motor. Con las letras, el mes sale como se nombra suelto
+(`martxoa`); `fecha('F\\r\\e\\n j\\a')` da `martxoaren 18a`.
+
+Para un idioma que el motor no trae (`fr`), se avisa una vez, al leer
+`sitio.yml`, y las fechas salen con los nombres en inglés, que son los de PHP.
+
+### 15.10 Sitemap y feed
+
+El sitemap es uno solo, con las páginas de todos los idiomas (§10.1) y sin la
+`404.html` de ninguno. No lleva alternativas de idioma: los `hreflang` van en
+el HTML de cada página.
+
+El feed (§10.2) sale de la misma colección en cada idioma, cada uno en la raíz
+de su idioma y con su `xml:lang`: `/feed.xml` en el predeterminado y
+`/eu/feed.xml` en euskera. El del predeterminado se genera siempre, como en un
+sitio de un solo idioma; el de los demás, solo si tienen alguna entrada. Todos
+llevan el mismo título. Como en §10, un `/eu/feed.xml` del proyecto gana al
+del motor.
+
+### 15.11 Por qué un fichero por idioma
+
+Había tres formas de hacerlo. En las tres, el idioma por defecto va sin
+prefijo en la URL, los demás con prefijo, y cada página emite sus `hreflang`
+apuntando a sus traducciones.
+
+**A. Carpeta por idioma** (`contenido/es/contacto.md`,
+`contenido/eu/kontaktua.md`). Cada idioma es un árbol completo e
+independiente. No exige nada nuevo al motor, porque la cascada ya funciona por
+carpeta, y una página que solo existe en un idioma no es un caso especial. Pero
+nada relaciona una página con su traducción, hay que declararlo a mano con un
+campo; un editor muestra dos árboles separados y es fácil publicar en uno y
+olvidar el otro; y lo que no se traduce (imágenes, enlaces, teléfonos) se
+duplica y acaba desincronizándose.
+
+**B. Fichero por idioma, mismo árbol** (`contenido/contacto.md`,
+`contenido/contacto.eu.md`). La relación entre traducciones es la propia
+convención, sin declarar nada. Cada página y sus traducciones viven juntas, así
+que un editor puede mostrarlas como pestañas de idioma sobre la misma página y
+es imposible no ver que falta una; los slugs por idioma se resuelven con el
+campo `url` de cada fichero. El motor tiene que entender el idioma en el nombre
+del fichero, que es código nuevo aunque poco, y el árbol se ve más cargado; lo
+no traducible se saca a los campos comunes de la página (§15.7).
+
+**C. Un fichero con campos por idioma** (`titulo: { es: Contacto, eu:
+Kontaktua }`). Cero duplicación de lo no traducible, y un editor con pestañas
+sale casi gratis. Pero un cuerpo largo en Markdown dentro de un YAML es
+inmanejable, y los cambios son ilegibles al compararlos. Sirve para páginas
+hechas de campos, no para artículos.
+
+Se eligió B: es la que mejor encaja con un editor, que es donde el multiidioma
+se rompe en la práctica.

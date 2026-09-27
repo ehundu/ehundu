@@ -718,36 +718,111 @@ En un sitio en varios idiomas hay un feed por idioma (§15.10).
 ## 11. `esquema.json`
 
 Lo usan los editores; el motor lo ignora. Declara los tipos de contenido del
-sitio, sus campos y quién puede editarlos.
+sitio, dónde están sus páginas, qué campos llevan y quién puede editarlos.
 
     {
       "tipos": [
         {
           "nombre": "articulo",
           "titulo": "Artículo del blog",
+          "plural": "Artículos del blog",
           "carpeta": "contenido/blog",
           "cuerpo": "markdown",
           "campos": [
-            { "nombre": "titulo", "tipo": "texto", "requerido": true },
-            { "nombre": "subtitulo", "tipo": "texto" },
-            { "nombre": "fecha", "tipo": "fecha" },
-            { "nombre": "imagen", "tipo": "imagen" },
-            { "nombre": "imagenAlt", "tipo": "texto", "requerido": true },
+            { "nombre": "titulo", "titulo": "Título", "tipo": "texto", "requerido": true },
+            { "nombre": "subtitulo", "titulo": "Entradilla", "tipo": "texto" },
+            { "nombre": "fecha", "titulo": "Fecha", "tipo": "fecha" },
+            { "nombre": "imagen", "titulo": "Imagen", "tipo": "imagen" },
+            { "nombre": "imagenAlt", "titulo": "Texto alternativo de la imagen", "tipo": "texto", "requerido": true },
             { "nombre": "etiquetas", "tipo": "lista-texto", "rol": "agencia" }
+          ]
+        },
+        {
+          "nombre": "libro",
+          "titulo": "Libro",
+          "plural": "Libros",
+          "carpeta": ["contenido/libros/*", "contenido/segunda-mano"],
+          "fichero": "{{ autoria|slug }}-{{ titulo|slug }}",
+          "cuerpo": "markdown",
+          "campos": [
+            { "nombre": "titulo", "titulo": "Título del libro", "tipo": "texto", "requerido": true },
+            { "nombre": "autoria", "titulo": "Autor o autora", "tipo": "texto" },
+            { "nombre": "ficha", "titulo": "Ficha de la editorial", "tipo": "enlace" },
+            {
+              "nombre": "presentaciones",
+              "titulo": "Presentaciones",
+              "tipo": "lista",
+              "campos": [
+                { "nombre": "dia", "titulo": "Día", "tipo": "fecha", "requerido": true },
+                { "nombre": "lugar", "titulo": "Lugar", "tipo": "texto", "ayuda": "Solo si no es en la librería" }
+              ]
+            }
           ]
         }
       ]
     }
 
-Tipos de campo en la v1: `texto`, `parrafo`, `markdown`, `numero`, `fecha`,
-`booleano`, `imagen`, `lista-texto`, `lista` (grupos repetibles) y `grupo`.
+**Tipos.** `nombre` identifica el tipo. `titulo` es como lo llama el editor
+(«Libro») y `plural`, como llama a la lista («Libros»); sin `plural`, se usa
+`titulo`.
+
+`carpeta` dice dónde están las páginas del tipo, y es también donde el editor
+crea las nuevas. Es una ruta desde la raíz del proyecto o una lista de ellas.
+Una ruta que acaba en `/*` son cada una de las subcarpetas directas de esa
+carpeta, y no la carpeta misma: con `contenido/libros/*`, las páginas de
+`contenido/libros/novela/` y de `contenido/libros/ensayo/` son libros, y
+`contenido/libros.md` o lo que haya en una subcarpeta más honda no lo son. Así
+un tipo se puede repartir en categorías, cada una con su `_datos.yml` (§3), sin
+declarar sus campos una vez por categoría.
+
+Cuando un tipo tiene más de una carpeta, el editor agrupa sus páginas por
+carpeta y pregunta en cuál crear una nueva. Cada carpeta se rotula con el
+título de la página que se llama como ella a su lado
+(`contenido/libros/novela.md` para `contenido/libros/novela/`) o, si no la
+hay, con el de su `index.md`; si tampoco, con su nombre. El editor no crea
+carpetas: una categoría nueva lleva su `_datos.yml`, y eso es trabajo de
+quien desarrolla el sitio.
+
+`fichero` es el nombre, sin extensión, de las páginas que crea el editor, con
+el vocabulario de los patrones de URL (§5.1): `{{ campo }}` y
+`{{ campo|slug }}`. Si falta, es `{{ titulo|slug }}`. Si ya hay en la carpeta
+un fichero con ese nombre, se le añade `-2`, `-3`, y así hasta que no choque;
+si el patrón no da un nombre (un campo vacío, un `slug` vacío), el editor no
+crea la página y lo dice. El nombre se fija al crear la página y no cambia
+después, aunque cambien los campos de los que salió: de él sale la URL (§5), y
+renombrarlo rompería la dirección publicada. Una traducción toma el nombre de
+la página que traduce, con el código de su idioma (§15.2).
+
+`cuerpo` vale `markdown` o `ninguno`. Sin cuerpo, la página es pura ficha de
+campos, que es el caso de las páginas de aterrizaje.
+
+**Campos.** `nombre` es la clave del front matter, la que lee el motor;
+`titulo` es el rótulo que enseña el editor («Autor o autora»), y sin él se
+enseña el nombre. `ayuda` es una explicación corta junto al campo, si hace
+falta. `requerido` dice que el campo no puede quedar vacío.
 
 `rol` vale `cliente` (por defecto), para quien es titular del sitio y edita su
 contenido, o `agencia`, para quien lo desarrolla. Los campos de agencia solo
 aparecen en el modo avanzado.
 
-`cuerpo` vale `markdown` o `ninguno`. Sin cuerpo, la página es pura ficha de
-campos, que es el caso de las páginas de aterrizaje.
+Tipos de campo en la v1: `texto`, `parrafo`, `markdown`, `numero`, `fecha`,
+`booleano`, `imagen`, `enlace`, `lista-texto`, `lista` y `grupo`.
+
+- `enlace` es una dirección: completa, con `http://` o `https://`, o una ruta
+  del propio sitio que empieza por `/`. El editor la comprueba, y puede
+  completar el `https://` que falte.
+- `lista-texto` es una lista de textos sueltos, como `etiquetas`.
+- `grupo` es un conjunto de campos con nombre, un mapa en el front matter, y
+  `lista` es una lista de grupos, que se pueden añadir, quitar y ordenar. Los
+  dos declaran lo que llevan en su propio `campos`, con la misma forma que los
+  del tipo. Ahí dentro solo caben campos simples: ni listas ni grupos.
+
+Con el esquema de arriba, las presentaciones de un libro son:
+
+    presentaciones:
+      - dia: 2026-10-15
+        lugar: Biblioteca municipal
+      - dia: 2026-11-02
 
 ---
 
@@ -949,6 +1024,19 @@ un sitio de la v1 no debe usarlo como campo propio.
     del predeterminado siempre y los demás si tienen entradas (§15.10).
 81. **Cerrada.** `activo()` trata la raíz de cada idioma como la portada, y se
     avisa si esa raíz no es la URL de ninguna página (§7.3, §15.3).
+82. **Cerrada.** Un tipo del esquema puede vivir en varias carpetas: `carpeta`
+    admite una lista, y una ruta que acaba en `/*` son sus subcarpetas
+    directas. El editor agrupa por carpeta, pregunta dónde crear y no crea
+    carpetas (§11).
+83. **Cerrada.** `lista` y `grupo` declaran lo que llevan en su propio
+    `campos`, y ahí dentro solo caben campos simples (§11).
+84. **Cerrada.** En tipos y campos, `nombre` es la clave y `titulo` lo que se
+    enseña; los campos admiten `ayuda` y los tipos, `plural` (§11).
+85. **Cerrada.** Nuevo tipo de campo `enlace`: una dirección completa o una
+    ruta del propio sitio (§11).
+86. **Cerrada.** Una página que crea un editor se llama según el patrón
+    `fichero` del tipo, `{{ titulo|slug }}` si falta; el nombre se fija al
+    crearla y no cambia después (§11).
 
 ---
 

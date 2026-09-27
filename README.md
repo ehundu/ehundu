@@ -11,7 +11,8 @@ Ehundu es un generador de sitios estáticos escrito en PHP. Toma una carpeta con
 contenido en Markdown, datos en YAML y plantillas Twig, y produce un sitio web
 de HTML plano que se puede alojar en cualquier servidor.
 
-> **Estado: 0.2.** Compila sitios reales, los previsualiza y los publica.
+> **Estado: 0.3.** Compila sitios reales, también en varios idiomas, los
+> previsualiza y los publica.
 > Hasta la 1.0 el formato del proyecto todavía puede cambiar; cada cambio
 > queda anotado, con su motivo, en el registro de decisiones de
 > [`docs/formato.md`](docs/formato.md).
@@ -115,11 +116,11 @@ url: "/blog/{{ titulo|slug }}/"
 ```
 
 La plantilla es Twig, con las funciones que añade Ehundu, como `coleccion()`,
-y las fechas en español:
+y las fechas en el idioma de la página:
 
 ```twig
 <!doctype html>
-<html lang="{{ sitio.idioma }}">
+<html lang="{{ pagina.idioma }}">
 <meta charset="utf-8">
 <title>{{ pagina.titulo }} · {{ sitio.nombre }}</title>
 <main>
@@ -164,6 +165,12 @@ servidor no lo toca nunca. Con `--simular` dice qué haría sin hacerlo.
   heredan todas sus páginas y subcarpetas.
 - **URL** que salen de la ruta del fichero o de un patrón con los campos de la
   página.
+- **Varios idiomas**, con un fichero por idioma en el mismo árbol
+  (`contacto.md`, `contacto.eu.md`): cada idioma con su prefijo en la URL, las
+  traducciones enlazadas entre sí para los `hreflang` y el selector de
+  idioma, colecciones y datos de cada idioma, y las fechas en castellano,
+  euskera o inglés. Traducir solo parte del sitio es lo normal, no una
+  excepción.
 - **El CSS y el JavaScript de cada página**, reunidos e incrustados en ella:
   cada plantilla declara lo que necesita donde lo usa.
 - **Un `sitemap.xml`**, y un feed Atom si se pide.
@@ -172,15 +179,15 @@ servidor no lo toca nunca. Con `--simular` dice qué haría sin hacerlo.
   contraseñas van en un fichero aparte que no se versiona.
 
 Lo que no hace, a propósito, en esta versión: procesar imágenes, compilar CSS o
-JavaScript, paginar listados, sitios en varios idiomas o ejecutar código propio
-de cada sitio. El formato está pensado para que lo que llegue después no
+JavaScript, paginar listados o ejecutar código propio de cada sitio. El formato está pensado para que lo que llegue después no
 obligue a cambiarlo, y ya reserva lo que necesitará.
 
 ## Documentación
 
 - [`docs/formato.md`](docs/formato.md): el formato de un proyecto, completo.
   Carpetas, `sitio.yml`, datos, campos, URL, colecciones, plantillas, Markdown,
-  atajos, CSS y JavaScript, y el registro de las decisiones tomadas.
+  atajos, CSS y JavaScript, varios idiomas, y el registro de las decisiones
+  tomadas.
 - [`docs/previsualizacion.md`](docs/previsualizacion.md): `ehundu servir`.
 - [`docs/compilacion.md`](docs/compilacion.md): cómo decide la compilación
   incremental qué rehace.
@@ -233,9 +240,9 @@ Ehundu es software libre bajo licencia MIT. Consulta el fichero `LICENSE`.
 
 Ehundu is a static site generator written in PHP, designed to build sites both
 from the command line and from within a web process on ordinary shared PHP
-hosting. The current version is 0.2: it builds Markdown and Twig sites,
-previews them with incremental rebuilds, and deploys them to a folder, FTP,
-SFTP or any S3-compatible storage. It needs PHP 8.4 or later and nothing else,
+hosting. The current version is 0.3: it builds Markdown and Twig sites,
+multilingual ones included, previews them with incremental rebuilds, and
+deploys them to a folder, FTP, SFTP or any S3-compatible storage. It needs PHP 8.4 or later and nothing else,
 and ships as a single `ehundu.phar` or as the Composer package
 `ehundu/ehundu`.
 

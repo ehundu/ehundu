@@ -16,11 +16,15 @@ final class Url
      * La URL de una página: la de su campo `url` si vale, y si no, la que sale
      * de su ruta. `false` si la página es un fragmento.
      *
-     * @param string                  $ruta    ruta dentro de `contenido/`
+     * Las páginas que no son del idioma predeterminado llevan delante el
+     * prefijo del suyo, también cuando la URL se escribe (formato §15.3).
+     *
+     * @param string                  $ruta    ruta dentro de `contenido/`, sin el código de idioma
      * @param array<array-key, mixed> $campos  los campos ya combinados con la cascada
      * @param string                  $fichero ruta relativa a la raíz del proyecto, para los avisos
+     * @param string                  $prefijo el del idioma de la página: '' o '/eu'
      */
-    public static function resolver(string $ruta, array $campos, string $fichero, Avisos $avisos): string|false
+    public static function resolver(string $ruta, array $campos, string $fichero, Avisos $avisos, string $prefijo = ''): string|false
     {
         $escrita = $campos['url'] ?? null;
 
@@ -28,16 +32,27 @@ final class Url
             return false;
         }
 
+        $url = null;
+
         if (is_string($escrita) && $escrita !== '') {
             $url = self::aplicarPatron($escrita, $campos, $fichero, $avisos);
             $url = $url === null ? null : self::normalizar($url, $fichero, $avisos);
-
-            if ($url !== null) {
-                return $url;
-            }
         }
 
-        return self::derivada($ruta, $fichero, $avisos);
+        $url ??= self::derivada($ruta, $fichero, $avisos);
+
+        if ($prefijo === '') {
+            return $url;
+        }
+
+        if (str_starts_with($url, "{$prefijo}/")) {
+            $avisos->registrar(
+                "La URL {$url} ya empieza por {$prefijo}/, el prefijo de su idioma, que el motor pone solo (formato §15.3); queda {$prefijo}{$url}",
+                $fichero,
+            );
+        }
+
+        return $prefijo . $url;
     }
 
     /**

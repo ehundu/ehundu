@@ -7,28 +7,61 @@ namespace Ehundu;
 /**
  * El `feed.xml` del sitio, en Atom (formato §10.2). Solo se genera si
  * `sitio.yml` tiene una sección `feed` con la colección de la que sale.
+ *
+ * En un sitio en varios idiomas hay uno por idioma, en la raíz de cada uno
+ * (formato §15.10): el del predeterminado siempre, y los demás si tienen
+ * alguna entrada.
  */
 final class Feed
 {
     public const int LIMITE_POR_DEFECTO = 20;
 
     /**
-     * @param \Closure(Pagina): string $cuerpo da el contenido de una página ya en HTML
+     * @param \Closure(Pagina): string     $cuerpo  da el contenido de una página ya en HTML
+     * @param (\Closure(string): bool)|null $ocupado si el proyecto ya tiene algo en ese fichero de
+     *                                               salida; entonces gana lo suyo
      *
-     * @return string|null null si el sitio no tiene feed
+     * @return array<string, string> cada feed, por su fichero en `salida/`; ninguno si el sitio no tiene
      */
-    public static function generar(Sitio $sitio, Colecciones $colecciones, \Closure $cuerpo, Avisos $avisos): ?string
+    public static function generar(Sitio $sitio, Colecciones $colecciones, \Closure $cuerpo, Avisos $avisos, ?\Closure $ocupado = null): array
     {
         $configuracion = self::configuracion($sitio, $avisos);
 
         if ($configuracion === null) {
-            return null;
+            return [];
         }
 
+        $feeds = [];
+
+        foreach ($sitio->idiomas->codigos() as $idioma) {
+            $fichero = ltrim($sitio->idiomas->prefijo($idioma) . '/feed.xml', '/');
+
+            if ($ocupado !== null && $ocupado($fichero)) {
+                continue;
+            }
+
+            $feed = self::deUnIdioma($sitio, $idioma, $configuracion, $colecciones, $cuerpo, $avisos);
+
+            if ($feed !== null) {
+                $feeds[$fichero] = $feed;
+            }
+        }
+
+        return $feeds;
+    }
+
+    /**
+     * @param array{0: string, 1: int, 2: string} $configuracion colección, límite y título
+     * @param \Closure(Pagina): string            $cuerpo
+     *
+     * @return string|null null si no es el idioma predeterminado y no tiene entradas
+     */
+    private static function deUnIdioma(Sitio $sitio, string $idioma, array $configuracion, Colecciones $colecciones, \Closure $cuerpo, Avisos $avisos): ?string
+    {
         [$coleccion, $limite, $titulo] = $configuracion;
         $entradas = [];
 
-        foreach ($colecciones->coleccion($coleccion) as $pagina) {
+        foreach ($colecciones->coleccion($coleccion, $idioma) as $pagina) {
             if ($pagina->url === false) {
                 continue;
             }
@@ -42,15 +75,18 @@ final class Feed
             $entradas[] = $pagina;
         }
 
+        if ($entradas === [] && $idioma !== $sitio->idiomas->predeterminado()) {
+            return null;
+        }
+
         $entradas = Coleccion::limite(Coleccion::orden($entradas, 'fecha desc'), $limite);
-        $inicio = $sitio->absoluta('/');
-        $idioma = is_string($sitio->campos['idioma'] ?? null) ? ' xml:lang="' . self::escapar($sitio->campos['idioma']) . '"' : '';
+        $inicio = $sitio->absoluta($sitio->idiomas->raiz($idioma));
         $actualizado = $entradas === [] ? new \DateTimeImmutable('now', $sitio->zonaHoraria) : $entradas[0]->campos['fecha'];
 
         $xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-            . "<feed xmlns=\"http://www.w3.org/2005/Atom\"{$idioma}>\n"
+            . '<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="' . self::escapar($idioma) . "\">\n"
             . '  <title>' . self::escapar($titulo) . "</title>\n"
-            . '  <link href="' . self::escapar($sitio->absoluta('/feed.xml')) . "\" rel=\"self\"/>\n"
+            . '  <link href="' . self::escapar($sitio->absoluta($sitio->idiomas->prefijo($idioma) . '/feed.xml')) . "\" rel=\"self\"/>\n"
             . '  <link href="' . self::escapar($inicio) . "\"/>\n"
             . '  <updated>' . self::fecha($actualizado, $sitio) . "</updated>\n"
             . '  <id>' . self::escapar($inicio) . "</id>\n"

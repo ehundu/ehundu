@@ -60,7 +60,7 @@ final class Constructor
         $plan = Plan::trazar($anterior, $proyecto, $conBorradores, $lectura, $huellas, $publicadas);
         $aprovechables = $plan->completa === null ? array_flip($plan->paginas) : [];
 
-        $colecciones = new Colecciones($lectura->paginas, $ahora, $conBorradores);
+        $colecciones = new Colecciones($lectura->paginas, $ahora, $conBorradores, $lectura->sitio->idiomas);
         $maquetador = new Maquetador($proyecto, $lectura, $colecciones, $avisos);
         $destinos = new Destinos();
 
@@ -114,17 +114,17 @@ final class Constructor
             $copias[$fichero] = $origen;
         }
 
+        $this->avisarDeLasPortadas($lectura, $destinos, $avisos);
+
         // Si el proyecto ya tiene su propio sitemap o feed, gana el suyo.
         if (!$destinos->ocupado('sitemap.xml')) {
             $escritos['sitemap.xml'] = Sitemap::generar($lectura->sitio, $colecciones->coleccion(Colecciones::TODO));
         }
 
-        if (!$destinos->ocupado('feed.xml')) {
-            $feed = Feed::generar($lectura->sitio, $colecciones, $maquetador->cuerpo(...), $avisos);
+        $feeds = Feed::generar($lectura->sitio, $colecciones, $maquetador->cuerpo(...), $avisos, $destinos->ocupado(...));
 
-            if ($feed !== null) {
-                $escritos['feed.xml'] = $feed;
-            }
+        foreach ($feeds as $fichero => $feed) {
+            $escritos[$fichero] = $feed;
         }
 
         if ($this->incremental) {
@@ -132,6 +132,31 @@ final class Constructor
         }
 
         return new Construccion($escritos, $copias, $paginas, [...$lectura->avisos, ...$avisos->todos()], $rehechas);
+    }
+
+    /**
+     * En un sitio que declara sus idiomas, avisa de los que no tienen una
+     * página en su raíz: el selector de idioma llevaría a una dirección que
+     * no existe (formato §15.3).
+     */
+    private function avisarDeLasPortadas(Lectura $lectura, Destinos $destinos, Avisos $avisos): void
+    {
+        $idiomas = $lectura->sitio->idiomas;
+
+        if (!$idiomas->declarados) {
+            return;
+        }
+
+        foreach ($idiomas->codigos() as $codigo) {
+            $raiz = $idiomas->raiz($codigo);
+
+            if (!$destinos->ocupado(Url::fichero($raiz))) {
+                $avisos->registrar(
+                    "Ninguna página tiene la URL {$raiz}, la portada en «{$codigo}»: el selector de idioma llevaría a una dirección que no existe",
+                    Proyecto::SITIO,
+                );
+            }
+        }
     }
 
     /**

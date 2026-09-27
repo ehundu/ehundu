@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ehundu\Pruebas;
 
 use Ehundu\Colecciones;
+use Ehundu\Idiomas;
 use Ehundu\Pagina;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -91,11 +92,37 @@ final class ColeccionesPrueba extends TestCase
     }
 
     #[Test]
-    public function aceptaElParametroDeIdiomaReservado(): void
+    public function unaColeccionSePuedePedirEnUnSoloIdioma(): void
     {
-        $colecciones = $this->colecciones($this->pagina('blog/a.md', ['etiquetas' => ['blog']]));
+        $colecciones = $this->colecciones(
+            $this->pagina('blog/a.md', ['etiquetas' => ['blog']]),
+            $this->pagina('blog/a.eu.md', ['etiquetas' => ['blog']], idioma: 'eu'),
+            $this->pagina('blog/b.md', ['etiquetas' => ['blog']]),
+        );
 
-        self::assertSame(['blog/a.md'], $this->rutas($colecciones->coleccion('blog', 'todos')));
+        self::assertSame(['blog/a.eu.md', 'blog/a.md', 'blog/b.md'], $this->rutas($colecciones->coleccion('blog')));
+        self::assertSame(['blog/a.eu.md', 'blog/a.md', 'blog/b.md'], $this->rutas($colecciones->coleccion('blog', 'todos')));
+        self::assertSame(['blog/a.md', 'blog/b.md'], $this->rutas($colecciones->coleccion('blog', 'es')));
+        self::assertSame(['blog/a.eu.md'], $this->rutas($colecciones->coleccion('blog', 'eu')));
+        self::assertSame(['blog/a.eu.md'], $this->rutas($colecciones->coleccion('todo', 'eu')));
+        self::assertSame([], $colecciones->coleccion('blog', 'en'));
+    }
+
+    #[Test]
+    public function lasTraduccionesSonLasVersionesPublicadasEnElOrdenDeLosIdiomas(): void
+    {
+        $idiomas = new Idiomas([['codigo' => 'es', 'nombre' => 'Castellano'], ['codigo' => 'eu', 'nombre' => 'Euskara'], ['codigo' => 'en', 'nombre' => 'English']], true);
+        $es = $this->pagina('aviso-legal.md', ['listada' => false]);
+        $en = $this->pagina('aviso-legal.en.md', idioma: 'en');
+        $eu = $this->pagina('aviso-legal.eu.md', idioma: 'eu');
+        $borrador = $this->pagina('contacto.eu.md', ['borrador' => true], idioma: 'eu');
+        $contacto = $this->pagina('contacto.md');
+
+        $colecciones = new Colecciones([$en, $es, $eu, $borrador, $contacto], new \DateTimeImmutable('2026-09-25'), idiomas: $idiomas);
+
+        self::assertSame(['es' => $es, 'eu' => $eu, 'en' => $en], $colecciones->traducciones($en));
+        self::assertSame(['es' => $contacto], $colecciones->traducciones($contacto));
+        self::assertSame(['es' => $contacto], $colecciones->traducciones($borrador));
     }
 
     #[Test]
@@ -114,9 +141,9 @@ final class ColeccionesPrueba extends TestCase
     /**
      * @param array<array-key, mixed> $campos
      */
-    private function pagina(string $ruta, array $campos = [], string|false|null $url = null): Pagina
+    private function pagina(string $ruta, array $campos = [], string|false|null $url = null, string $idioma = 'es'): Pagina
     {
-        return new Pagina($ruta, 'md', $campos, $url ?? '/' . substr($ruta, 0, -3) . '/', '', 1);
+        return new Pagina($ruta, 'md', $campos, $url ?? '/' . substr($ruta, 0, -3) . '/', '', 1, $idioma);
     }
 
     /**

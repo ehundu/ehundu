@@ -8,8 +8,8 @@ use Ehundu\Aviso;
 
 /**
  * Lo que ha usado una página, o el cuerpo de una página, al construirse:
- * plantillas, ficheros de `publico/`, colecciones y el contenido de otras
- * páginas; el CSS y el JS que ha declarado; y los avisos que ha dado. Es lo
+ * plantillas, ficheros de `publico/`, colecciones, el contenido de otras
+ * páginas y qué traducciones tiene una página; el CSS y el JS que ha declarado; y los avisos que ha dado. Es lo
  * que permite a la compilación incremental saber qué rehacer y repetir lo
  * que no rehace.
  *
@@ -28,6 +28,9 @@ final class Registro
 
     /** @var array<string, true> rutas de páginas cuyo contenido se ha usado */
     public array $contenidos = [];
+
+    /** @var array<string, true> claves de páginas cuyas traducciones se han mirado */
+    public array $traducciones = [];
 
     /** @var list<string> */
     public array $css = [];

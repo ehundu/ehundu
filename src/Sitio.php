@@ -14,12 +14,14 @@ final readonly class Sitio
      * @param \DateTimeZone           $zonaHoraria la de `zonaHoraria`, o UTC si no se indica
      * @param array<array-key, mixed> $campos      todo `sitio.yml` salvo `despliegue`: es la
      *                                             variable `sitio` de las plantillas
+     * @param Idiomas                 $idiomas     los de `idiomas`, o el de `idioma` (formato §15.1)
      */
     public function __construct(
         public string $nombre,
         public string $url,
         public \DateTimeZone $zonaHoraria,
         public array $campos,
+        public Idiomas $idiomas = new Idiomas(),
     ) {
     }
 

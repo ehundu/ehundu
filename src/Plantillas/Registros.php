@@ -38,7 +38,7 @@ final class Registros
     }
 
     /**
-     * @param 'plantillas'|'publico'|'colecciones'|'contenidos' $conjunto
+     * @param 'plantillas'|'publico'|'colecciones'|'contenidos'|'traducciones' $conjunto
      */
     public function anotar(string $conjunto, string $valor): void
     {
@@ -73,7 +73,7 @@ final class Registros
      */
     public function repetir(Registro $otro): void
     {
-        foreach (['plantillas', 'publico', 'colecciones', 'contenidos'] as $conjunto) {
+        foreach (['plantillas', 'publico', 'colecciones', 'contenidos', 'traducciones'] as $conjunto) {
             foreach (array_keys($otro->{$conjunto}) as $valor) {
                 $this->anotar($conjunto, (string) $valor);
             }

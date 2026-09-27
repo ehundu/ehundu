@@ -46,6 +46,22 @@ final class PaginaPrueba extends TestCase
     }
 
     #[Test]
+    public function susTraduccionesCompartenLaClave(): void
+    {
+        self::assertSame('blog/uno', new Pagina('blog/uno.md', 'md', [], '/blog/uno/', '', 1)->clave());
+        self::assertSame('blog/uno', new Pagina('blog/uno.eu.md', 'md', [], '/eu/blog/uno/', '', 1, 'eu')->clave());
+        self::assertSame('index', new Pagina('index.es.twig', 'twig', [], '/', '', 1)->clave());
+        self::assertSame('v1.2/guia', new Pagina('v1.2/guia.md', 'md', [], '/v1.2/guia/', '', 1)->clave());
+    }
+
+    #[Test]
+    public function suIdiomaEsUnValorMas(): void
+    {
+        self::assertSame('es', $this->pagina([])->valor('idioma'));
+        self::assertSame('eu', new Pagina('a.eu.md', 'md', [], '/eu/a/', '', 1, 'eu')->valor('idioma'));
+    }
+
+    #[Test]
     public function unFragmentoTambienSePublica(): void
     {
         self::assertTrue(new Pagina('a.md', 'md', [], false, '', 1)->estaPublicada($this->ahora()));

@@ -14,9 +14,11 @@ use Ehundu\Plantillas\Registro;
  *
  * Una página o un cuerpo se rehacen si ha cambiado su fichero, o si han
  * cambiado una plantilla o un parcial que usaron, un fichero de `publico/`
- * que miraron o incrustaron, una colección que recorrieron o el contenido de
- * otra página que mostraron. Una colección cambia cuando entra, sale o cambia
- * los campos alguna página con su etiqueta. Si cambian `sitio.yml` o
+ * que miraron o incrustaron, una colección que recorrieron, el contenido de
+ * otra página que mostraron o las traducciones de una página que miraron.
+ * Una colección cambia cuando entra, sale o cambia los campos alguna página
+ * con su etiqueta, y las traducciones de una página, cuando lo hace alguna
+ * de sus versiones. Si cambian `sitio.yml` o
  * `datos/`, que llegan a todas las plantillas, se rehace todo. Ante la duda,
  * también: el resultado tiene que ser siempre el de una construcción
  * completa.
@@ -57,7 +59,8 @@ final readonly class Plan
             $anterior->raiz !== $proyecto->raiz => 'es otro proyecto',
             $anterior->conBorradores !== $conBorradores => 'cambia si se incluyen los borradores',
             serialize($anterior->lectura->sitio) !== serialize($lectura->sitio) => 'ha cambiado sitio.yml',
-            serialize($anterior->lectura->datos) !== serialize($lectura->datos) => 'han cambiado los datos',
+            serialize([$anterior->lectura->datos, $anterior->lectura->datosPorIdioma])
+                !== serialize([$lectura->datos, $lectura->datosPorIdioma]) => 'han cambiado los datos',
             default => null,
         };
 
@@ -92,6 +95,7 @@ final readonly class Plan
         }
 
         $colecciones = [];
+        $traducciones = [];
 
         if ($conOtrosCampos !== []) {
             $colecciones[Colecciones::TODO] = true;
@@ -100,6 +104,10 @@ final readonly class Plan
                 foreach ([$antes[$ruta] ?? null, $ahora[$ruta] ?? null] as $pagina) {
                     foreach ($pagina?->campos['etiquetas'] ?? [] as $etiqueta) {
                         $colecciones[(string) $etiqueta] = true;
+                    }
+
+                    if ($pagina !== null) {
+                        $traducciones[$pagina->clave()] = true;
                     }
                 }
             }
@@ -126,7 +134,7 @@ final readonly class Plan
             $plantillas[Maquetador::ATAJOS] = true;
         }
 
-        $vale = function (Registro $registro) use ($cambiadas, $colecciones, $plantillas, $publico): bool {
+        $vale = function (Registro $registro) use ($cambiadas, $colecciones, $traducciones, $plantillas, $publico): bool {
             foreach (array_keys($registro->plantillas) as $nombre) {
                 if (isset($plantillas[self::normalizar((string) $nombre)])) {
                     return false;
@@ -150,6 +158,12 @@ final readonly class Plan
 
             foreach (array_keys($registro->contenidos) as $ruta) {
                 if (isset($cambiadas[$ruta])) {
+                    return false;
+                }
+            }
+
+            foreach (array_keys($registro->traducciones) as $clave) {
+                if (isset($traducciones[$clave])) {
                     return false;
                 }
             }

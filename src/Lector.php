@@ -16,33 +16,39 @@ final class Lector
     /** Plantillas y datos de otros generadores, que nunca se publican (formato §4). */
     private const string DE_OTROS_GENERADORES = '/\.(?:njk|liquid|vto|webc)$|\.11ty\.[cm]?js$|\.11tydata\.(?:[cm]?js|json)$/i';
 
+    /** Los campos que admite cada idioma de `idiomas` en `sitio.yml`. */
+    private const array CAMPOS_DE_UN_IDIOMA = ['codigo', 'nombre'];
+
     /**
      * @throws ErrorDeProyecto si falta algo imprescindible o un fichero no se puede leer
      */
     public function leer(Proyecto $proyecto): Lectura
     {
         $avisos = new Avisos();
-        $sitio = $this->leerSitio($proyecto);
-        $datos = $this->leerDatos($proyecto, $avisos);
+        $sitio = $this->leerSitio($proyecto, $avisos);
+        [$datos, $datosPorIdioma] = $this->leerDatos($proyecto, $sitio->idiomas, $avisos);
         $cascada = new Cascada($proyecto, $avisos, $sitio->zonaHoraria);
 
         $paginas = [];
-        [$rutas, $ficheros] = $this->recorrerContenido($proyecto, $avisos);
+        [$encontradas, $ficheros, $comunes] = $this->recorrerContenido($proyecto, $sitio->idiomas, $avisos);
 
-        foreach ($rutas as $ruta) {
-            $paginas[] = $this->leerPagina($proyecto, $ruta, $cascada, $sitio->zonaHoraria, $avisos);
+        foreach ($encontradas as $encontrada) {
+            $paginas[] = $this->leerPagina($proyecto, $encontrada, $comunes, $cascada, $sitio, $avisos);
         }
 
-        return new Lectura($sitio, $datos, $paginas, $avisos->todos(), $ficheros);
+        return new Lectura($sitio, $datos, $paginas, $avisos->todos(), $ficheros, $datosPorIdioma);
     }
 
     /**
      * Solo `sitio.yml`, sin el resto del proyecto.
      *
+     * @param Avisos|null $avisos donde van los avisos; si falta, se pierden
+     *
      * @throws ErrorDeProyecto si falta o le falta algo imprescindible
      */
-    public function leerSitio(Proyecto $proyecto): Sitio
+    public function leerSitio(Proyecto $proyecto, ?Avisos $avisos = null): Sitio
     {
+        $avisos ??= new Avisos();
         $fichero = Proyecto::SITIO;
 
         if (!is_file($proyecto->ruta($fichero))) {
@@ -84,71 +90,202 @@ final class Lector
             );
         }
 
+        $idiomas = self::leerIdiomas($campos, $lineas, $avisos);
+
         $campos['url'] = rtrim($url, '/');
+        $campos['idioma'] = $idiomas->predeterminado();
+        $campos['idiomas'] = $idiomas->paraPlantillas();
         unset($campos['despliegue']);
 
-        return new Sitio($nombre, $campos['url'], $zonaHoraria, $campos);
+        return new Sitio($nombre, $campos['url'], $zonaHoraria, $campos, $idiomas);
     }
 
     /**
-     * Los ficheros `.yml` y `.json` de `datos/`, por su nombre sin extensión.
-     * Si dos ficheros dan el mismo nombre, gana el `.yml`.
+     * Los idiomas del sitio (formato §2 y §15.1): los de `idiomas`, o el de
+     * `idioma`, que es `es` si falta.
      *
-     * @return array<string, mixed>
+     * @param array<array-key, mixed> $campos los de `sitio.yml`
+     * @param array<string, int>      $lineas
+     *
+     * @throws ErrorDeProyecto si `idiomas` está mal escrito
      */
-    private function leerDatos(Proyecto $proyecto, Avisos $avisos): array
+    private static function leerIdiomas(array $campos, array $lineas, Avisos $avisos): Idiomas
     {
+        $fichero = Proyecto::SITIO;
+        $idioma = $campos['idioma'] ?? null;
+
+        if (!array_key_exists('idiomas', $campos)) {
+            if ($idioma !== null && !Idiomas::esCodigo($idioma)) {
+                $avisos->registrar(
+                    '«idioma» tiene que ser el código del idioma, en dos o tres letras minúsculas, como es, eu o en; se usa es',
+                    $fichero,
+                    $lineas['idioma'] ?? null,
+                );
+                $idioma = null;
+            }
+
+            $codigo = is_string($idioma) ? $idioma : Idiomas::PREDETERMINADO;
+            $idiomas = new Idiomas([['codigo' => $codigo, 'nombre' => $codigo]]);
+        } else {
+            $linea = $lineas['idiomas'] ?? null;
+            $lista = $campos['idiomas'];
+
+            if (!is_array($lista) || $lista === [] || !array_is_list($lista)) {
+                throw new ErrorDeProyecto(
+                    '«idiomas» tiene que ser una lista con los idiomas del sitio, cada uno con su código (- codigo: es)',
+                    $fichero,
+                    $linea,
+                );
+            }
+
+            $leidos = [];
+
+            foreach ($lista as $posicion => $entrada) {
+                $codigo = is_array($entrada) ? ($entrada['codigo'] ?? null) : null;
+
+                if (!Idiomas::esCodigo($codigo)) {
+                    throw new ErrorDeProyecto(
+                        sprintf('El idioma %d de «idiomas» necesita un «codigo» de dos o tres letras minúsculas, como es, eu o en', $posicion + 1),
+                        $fichero,
+                        $linea,
+                    );
+                }
+
+                if (isset($leidos[$codigo])) {
+                    throw new ErrorDeProyecto("El idioma «{$codigo}» está dos veces en «idiomas»", $fichero, $linea);
+                }
+
+                $nombre = $entrada['nombre'] ?? null;
+
+                if ($nombre !== null && (!is_string($nombre) || trim($nombre) === '')) {
+                    $avisos->registrar("«idiomas»: el nombre de «{$codigo}» tiene que ser un texto; se usa el código", $fichero, $linea);
+                }
+
+                foreach (array_keys($entrada) as $campo) {
+                    if (!in_array($campo, self::CAMPOS_DE_UN_IDIOMA, true)) {
+                        $avisos->registrar("«idiomas»: {$codigo} " . match ($campo) {
+                            'predeterminado' => 'no necesita «predeterminado»: el predeterminado es el primero de la lista',
+                            'prefijo' => "no necesita «prefijo»: el de cada idioma es siempre /{$codigo}/",
+                            default => "no admite «{$campo}»; se ignora",
+                        }, $fichero, $linea);
+                    }
+                }
+
+                $leidos[$codigo] = [
+                    'codigo' => $codigo,
+                    'nombre' => is_string($nombre) && trim($nombre) !== '' ? $nombre : $codigo,
+                ];
+            }
+
+            $idiomas = new Idiomas(array_values($leidos), declarados: true);
+
+            if ($idioma !== null && $idioma !== $idiomas->predeterminado()) {
+                $avisos->registrar(
+                    "«idioma» no hace falta con «idiomas», y no coincide con el primero de la lista, que es el predeterminado; se usa {$idiomas->predeterminado()}",
+                    $fichero,
+                    $lineas['idioma'] ?? null,
+                );
+            }
+        }
+
+        foreach ($idiomas->codigos() as $codigo) {
+            if (!Fecha::conoce($codigo)) {
+                $avisos->registrar("Ehundu no trae los nombres de los meses y los días en «{$codigo}»; fecha() los escribe en inglés", $fichero);
+            }
+        }
+
+        return $idiomas;
+    }
+
+    /**
+     * Los ficheros `.yml` y `.json` de `datos/`, por su nombre sin extensión:
+     * los comunes y, aparte, los que llevan el código de un idioma
+     * (formato §15.6). Si dos ficheros dan el mismo nombre, gana el `.yml`.
+     *
+     * @return array{0: array<string, mixed>, 1: array<string, array<string, mixed>>} los comunes y los de cada idioma
+     */
+    private function leerDatos(Proyecto $proyecto, Idiomas $idiomas, Avisos $avisos): array
+    {
+        /** @var array<string, array<string, array<string, string>>> $ficheros por idioma ('' los comunes), nombre y formato */
         $ficheros = [];
 
-        foreach ($this->entradas($proyecto, Proyecto::DATOS) as $nombre) {
-            $fichero = Proyecto::DATOS . "/{$nombre}";
-            $extension = pathinfo($nombre, PATHINFO_EXTENSION);
-            $clave = pathinfo($nombre, PATHINFO_FILENAME);
+        foreach ($this->entradas($proyecto, Proyecto::DATOS) as $entrada) {
+            $fichero = Proyecto::DATOS . "/{$entrada}";
+            $extension = pathinfo($entrada, PATHINFO_EXTENSION);
 
             if (is_dir($proyecto->ruta($fichero))) {
                 $avisos->registrar('Las subcarpetas de datos/ no se leen', $fichero);
-            } elseif (!in_array($extension, self::FORMATOS_DE_DATOS, true)) {
-                $avisos->registrar('En datos/ solo se leen ficheros .yml y .json; este se ignora', $fichero);
-            } elseif (str_contains($clave, '.')) {
-                $avisos->registrar('El punto en el nombre está reservado para el idioma (formato §15.5); este fichero no se lee', $fichero);
-            } else {
-                $ficheros[$clave][$extension] = $fichero;
+
+                continue;
             }
+
+            if (!in_array($extension, self::FORMATOS_DE_DATOS, true)) {
+                $avisos->registrar('En datos/ solo se leen ficheros .yml y .json; este se ignora', $fichero);
+
+                continue;
+            }
+
+            $nombreEIdioma = self::nombreEIdioma(pathinfo($entrada, PATHINFO_FILENAME), $idiomas);
+
+            if (is_string($nombreEIdioma)) {
+                $avisos->registrar("{$nombreEIdioma}; este fichero no se lee", $fichero);
+
+                continue;
+            }
+
+            [$nombre, $idioma] = $nombreEIdioma;
+            $ficheros[$idioma ?? ''][$nombre][$extension] = $fichero;
         }
 
         $datos = [];
+        $datosPorIdioma = [];
 
-        foreach ($ficheros as $clave => $porFormato) {
-            if (count($porFormato) > 1) {
-                $avisos->registrar("«datos.{$clave}» sale también de {$porFormato['yml']}; este fichero se ignora", $porFormato['json']);
+        foreach ($ficheros as $idioma => $porNombre) {
+            foreach ($porNombre as $nombre => $porFormato) {
+                if (count($porFormato) > 1) {
+                    $avisos->registrar("«datos.{$nombre}» sale también de {$porFormato['yml']}; este fichero se ignora", $porFormato['json']);
+                }
+
+                $fichero = $porFormato['yml'] ?? $porFormato['json'];
+                $texto = $proyecto->leerTexto($fichero);
+                $valor = isset($porFormato['yml']) ? Yaml::leer($texto, $fichero) : self::leerJson($texto, $fichero);
+
+                if ($idioma === '') {
+                    $datos[$nombre] = $valor;
+                } else {
+                    $datosPorIdioma[$idioma][$nombre] = $valor;
+                }
             }
-
-            $fichero = $porFormato['yml'] ?? $porFormato['json'];
-            $texto = $proyecto->leerTexto($fichero);
-
-            $datos[$clave] = isset($porFormato['yml']) ? Yaml::leer($texto, $fichero) : self::leerJson($texto, $fichero);
         }
 
-        return $datos;
+        return [$datos, $datosPorIdioma];
     }
 
     /**
-     * Las páginas de `contenido/` y los demás ficheros, que se copian tal cual
-     * salvo los que empiezan por `_` (formato §4). Rutas relativas a esa
-     * carpeta y en orden, para que el resultado no dependa del sistema de
-     * ficheros.
+     * Las páginas de `contenido/`, con su idioma y su clave (la ruta sin
+     * extensión ni idioma, que comparten las traducciones), y los demás
+     * ficheros, que se copian tal cual salvo los que empiezan por `_`
+     * (formato §4) y los campos comunes de una página (formato §15.7). Rutas
+     * relativas a esa carpeta y en orden, para que el resultado no dependa
+     * del sistema de ficheros.
      *
-     * @return array{0: list<string>, 1: list<string>} páginas y ficheros
+     * @return array{
+     *     0: list<array{ruta: string, idioma: string, clave: string}>,
+     *     1: list<string>,
+     *     2: array<string, string>,
+     * } las páginas, los ficheros que se copian y los campos comunes por clave
+     *
+     * @throws ErrorDeProyecto si hay dos ficheros de la misma página en el mismo idioma
      */
-    private function recorrerContenido(Proyecto $proyecto, Avisos $avisos): array
+    private function recorrerContenido(Proyecto $proyecto, Idiomas $idiomas, Avisos $avisos): array
     {
         if (!is_dir($proyecto->ruta(Proyecto::CONTENIDO))) {
             $avisos->registrar('No hay carpeta contenido/: no se genera ninguna página');
 
-            return [[], []];
+            return [[], [], []];
         }
 
-        $rutas = [];
+        $paginas = [];
         $ficheros = [];
         $pendientes = [''];
 
@@ -161,13 +298,16 @@ final class Lector
                 if (is_dir($proyecto->ruta(Proyecto::CONTENIDO, $ruta))) {
                     $pendientes[] = $ruta;
                 } elseif (in_array(pathinfo($nombre, PATHINFO_EXTENSION), self::FORMATOS, true)) {
-                    if (str_contains(pathinfo($nombre, PATHINFO_FILENAME), '.')) {
-                        $avisos->registrar(
-                            'El punto en el nombre está reservado para el idioma (formato §15.5); este fichero no se compila',
-                            Proyecto::CONTENIDO . "/{$ruta}",
-                        );
+                    $nombreEIdioma = self::nombreEIdioma(pathinfo($nombre, PATHINFO_FILENAME), $idiomas);
+
+                    if (is_string($nombreEIdioma)) {
+                        $avisos->registrar("{$nombreEIdioma}; este fichero no se compila", Proyecto::CONTENIDO . "/{$ruta}");
                     } else {
-                        $rutas[] = $ruta;
+                        $paginas[$ruta] = [
+                            'ruta' => $ruta,
+                            'idioma' => $nombreEIdioma[1] ?? $idiomas->predeterminado(),
+                            'clave' => $carpeta === '' ? $nombreEIdioma[0] : "{$carpeta}/{$nombreEIdioma[0]}",
+                        ];
                     }
                 } elseif (preg_match(self::DE_OTROS_GENERADORES, $nombre) === 1) {
                     $avisos->registrar(
@@ -176,18 +316,60 @@ final class Lector
                     );
                 } elseif (!str_starts_with($nombre, '_')) {
                     $ficheros[] = $ruta;
+                } elseif (str_starts_with($nombre, '_datos.') && $nombre !== Cascada::FICHERO && str_ends_with($nombre, '.yml')) {
+                    $nombreEIdioma = self::nombreEIdioma(substr($nombre, 0, -4), $idiomas);
+
+                    if (is_string($nombreEIdioma) || $nombreEIdioma[0] !== '_datos') {
+                        $motivo = is_string($nombreEIdioma) ? $nombreEIdioma : 'El punto en el nombre está reservado para el idioma (formato §15.2)';
+                        $avisos->registrar("{$motivo}; este fichero no se lee", Proyecto::CONTENIDO . "/{$ruta}");
+                    }
                 }
             }
         }
 
-        sort($rutas, SORT_STRING);
+        ksort($paginas, SORT_STRING);
         sort($ficheros, SORT_STRING);
 
-        return [$rutas, $ficheros];
+        /** @var array<string, string> $porClaveEIdioma */
+        $porClaveEIdioma = [];
+
+        foreach ($paginas as $pagina) {
+            $otra = $porClaveEIdioma["{$pagina['idioma']}:{$pagina['clave']}"] ?? null;
+
+            if ($otra !== null) {
+                throw new ErrorDeProyecto(sprintf(
+                    '%s y %s son la misma página en el mismo idioma (%s); sobra uno de los dos (formato §15.2)',
+                    Proyecto::CONTENIDO . "/{$otra}",
+                    Proyecto::CONTENIDO . "/{$pagina['ruta']}",
+                    $pagina['idioma'],
+                ), Proyecto::CONTENIDO . "/{$pagina['ruta']}");
+            }
+
+            $porClaveEIdioma["{$pagina['idioma']}:{$pagina['clave']}"] = $pagina['ruta'];
+        }
+
+        // Un .yml con el nombre de una página son sus campos comunes, no un
+        // fichero que se publica.
+        $claves = array_flip(array_column($paginas, 'clave'));
+        $comunes = [];
+
+        foreach ($ficheros as $posicion => $fichero) {
+            if (str_ends_with($fichero, '.yml') && isset($claves[substr($fichero, 0, -4)])) {
+                $comunes[substr($fichero, 0, -4)] = $fichero;
+                unset($ficheros[$posicion]);
+            }
+        }
+
+        return [array_values($paginas), array_values($ficheros), $comunes];
     }
 
-    private function leerPagina(Proyecto $proyecto, string $ruta, Cascada $cascada, \DateTimeZone $zona, Avisos $avisos): Pagina
+    /**
+     * @param array{ruta: string, idioma: string, clave: string} $encontrada
+     * @param array<string, string>                              $comunes    los `.yml` de campos comunes, por clave
+     */
+    private function leerPagina(Proyecto $proyecto, array $encontrada, array $comunes, Cascada $cascada, Sitio $sitio, Avisos $avisos): Pagina
     {
+        ['ruta' => $ruta, 'idioma' => $idioma, 'clave' => $clave] = $encontrada;
         $fichero = Proyecto::CONTENIDO . "/{$ruta}";
         $frontMatter = FrontMatter::separar($proyecto->leerTexto($fichero), $fichero);
 
@@ -197,12 +379,19 @@ final class Lector
             $frontMatter->lineaYaml,
             $fichero,
             $avisos,
-            $zona,
+            $sitio->zonaHoraria,
         );
 
         $carpeta = str_contains($ruta, '/') ? substr($ruta, 0, strrpos($ruta, '/')) : '';
-        $campos = Cascada::combinar($cascada->campos($carpeta), $propios);
-        $url = Url::resolver($ruta, $campos, $fichero, $avisos);
+        $campos = $cascada->campos($carpeta, $idioma);
+
+        if (isset($comunes[$clave])) {
+            $campos = Cascada::combinar($campos, $cascada->comunes($comunes[$clave]));
+        }
+
+        $campos = Cascada::combinar($campos, $propios);
+        $extension = pathinfo($ruta, PATHINFO_EXTENSION);
+        $url = Url::resolver("{$clave}.{$extension}", $campos, $fichero, $avisos, $sitio->idiomas->prefijo($idioma));
 
         // Obligatorio en las páginas HTML, por su <title>; un fragmento o un
         // robots.txt no lo necesitan.
@@ -212,12 +401,44 @@ final class Lector
 
         return new Pagina(
             $ruta,
-            pathinfo($ruta, PATHINFO_EXTENSION),
+            $extension,
             $campos,
             $url,
             $frontMatter->cuerpo,
             $frontMatter->lineaCuerpo,
+            $idioma,
         );
+    }
+
+    /**
+     * El nombre de un fichero sin el código de idioma, y el idioma, o null si
+     * no lleva código (formato §15.2). Si el punto del nombre no es el de un
+     * idioma del sitio, el motivo por el que el fichero no se lee.
+     *
+     * @param string $nombre el nombre sin la extensión: 'contacto.eu'
+     *
+     * @return array{0: string, 1: string|null}|string
+     */
+    private static function nombreEIdioma(string $nombre, Idiomas $idiomas): array|string
+    {
+        $punto = strrpos($nombre, '.');
+
+        if ($punto === false) {
+            return [$nombre, null];
+        }
+
+        $base = substr($nombre, 0, $punto);
+        $codigo = substr($nombre, $punto + 1);
+
+        if (str_contains($base, '.') || !Idiomas::esCodigo($codigo)) {
+            return 'El punto en el nombre está reservado para el idioma (formato §15.2)';
+        }
+
+        if (!$idiomas->declara($codigo)) {
+            return "El punto en el nombre está reservado para el idioma, y «{$codigo}» no es un idioma del sitio (formato §15.2)";
+        }
+
+        return [$base, $codigo];
     }
 
     /**

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Ehundu;
 
 /**
- * El `sitemap.xml` del sitio (formato §10.1): las páginas HTML de la
- * colección `todo`, en su orden, sin `/404.html`, con `lastmod` cuando la
- * página tiene fecha.
+ * El `sitemap.xml` del sitio (formato §10.1 y §15.10): las páginas HTML de
+ * la colección `todo`, de todos los idiomas y en su orden, sin la
+ * `404.html` de ninguno, con `lastmod` cuando la página tiene fecha.
  */
 final class Sitemap
 {
@@ -19,8 +19,13 @@ final class Sitemap
         $xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
             . "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n";
 
+        $errores = array_map(
+            fn (string $codigo) => $sitio->idiomas->prefijo($codigo) . '/404.html',
+            $sitio->idiomas->codigos(),
+        );
+
         foreach ($todo as $pagina) {
-            if (!is_string($pagina->url) || !self::esHtml($pagina->url) || $pagina->url === '/404.html') {
+            if (!is_string($pagina->url) || !self::esHtml($pagina->url) || in_array($pagina->url, $errores, true)) {
                 continue;
             }
 

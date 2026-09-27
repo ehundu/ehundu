@@ -91,7 +91,7 @@ final class Atajos
             'imagen' => $this->imagen($atributos, $aviso),
             'video' => $this->video($atributos, $aviso),
             'archivo' => $this->archivo($atributos, $aviso),
-            'dato' => $this->dato($atributos, $aviso),
+            'dato' => $this->dato($atributos, $aviso, $pagina),
             default => [],
         };
 
@@ -109,7 +109,7 @@ final class Atajos
                 ...$variables,
                 'contenido' => $contenido === null ? null : new Markup($contenido, 'UTF-8'),
                 'sitio' => $this->lectura->sitio->campos,
-                'datos' => $this->lectura->datos,
+                'datos' => $this->lectura->datosDe($pagina->idioma),
                 'pagina' => $this->extension->vistaDe($pagina),
             ]);
         } catch (Error $error) {
@@ -284,12 +284,14 @@ final class Atajos
     }
 
     /**
+     * Un valor de `datos/`, con los del idioma de la página (formato §15.6).
+     *
      * @param array<string, string>  $atributos
      * @param \Closure(string): void $aviso
      *
      * @return array<string, mixed>|null
      */
-    private function dato(array $atributos, \Closure $aviso): ?array
+    private function dato(array $atributos, \Closure $aviso, \Ehundu\Pagina $pagina): ?array
     {
         $clave = $atributos['clave'] ?? '';
 
@@ -299,7 +301,7 @@ final class Atajos
             return null;
         }
 
-        $valor = $this->lectura->datos;
+        $valor = $this->lectura->datosDe($pagina->idioma);
 
         foreach (explode('.', $clave) as $parte) {
             $valor = is_array($valor) ? ($valor[$parte] ?? null) : null;

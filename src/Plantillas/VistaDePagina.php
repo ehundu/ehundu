@@ -8,9 +8,10 @@ use Ehundu\Pagina;
 use Twig\Markup;
 
 /**
- * Una página tal como la ven las plantillas (formato §7): sus campos, más
- * `url`, `ruta` y `contenido`. Se lee como un array: `pagina.titulo`,
- * `articulo.url`. No se puede modificar desde una plantilla.
+ * Una página tal como la ven las plantillas (formato §7 y §15.8): sus campos,
+ * más `url`, `ruta`, `idioma`, `contenido` y `traducciones`. Se lee como un
+ * array: `pagina.titulo`, `articulo.url`. No se puede modificar desde una
+ * plantilla.
  *
  * @implements \ArrayAccess<string, mixed>
  */
@@ -22,10 +23,13 @@ final class VistaDePagina implements \ArrayAccess
      *                                                 guarda el cuerpo convertido, y así puede
      *                                                 volver a declarar su CSS y su JS en la
      *                                                 página que lo reutiliza
+     * @param \Closure(Pagina): array<string, VistaDePagina>|null $traducciones da sus versiones
+     *                                                 publicadas, por idioma
      */
     public function __construct(
         private readonly Pagina $pagina,
         private readonly ?\Closure $renderizar = null,
+        private readonly ?\Closure $traducciones = null,
     ) {
     }
 
@@ -37,7 +41,7 @@ final class VistaDePagina implements \ArrayAccess
     public function offsetExists(mixed $clave): bool
     {
         return match ($clave) {
-            'url', 'ruta' => true,
+            'url', 'ruta', 'idioma', 'traducciones' => true,
             'contenido' => $this->renderizar !== null,
             default => isset($this->pagina->campos[$clave]),
         };
@@ -45,7 +49,11 @@ final class VistaDePagina implements \ArrayAccess
 
     public function offsetGet(mixed $clave): mixed
     {
-        return $clave === 'contenido' ? $this->contenido() : $this->pagina->valor((string) $clave);
+        return match ($clave) {
+            'contenido' => $this->contenido(),
+            'traducciones' => $this->traducciones === null ? [] : ($this->traducciones)($this->pagina),
+            default => $this->pagina->valor((string) $clave),
+        };
     }
 
     public function offsetSet(mixed $clave, mixed $valor): never

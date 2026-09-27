@@ -14,8 +14,9 @@ algo no cuadra.
 
 Mientras construye una página, el motor apunta todo lo que usa: qué
 plantillas y parciales carga (también los que busca y no existen), qué
-ficheros de `publico/` mira, incrusta o comprueba, qué colecciones recorre y
-de qué otras páginas muestra el contenido. Apunta también el CSS y el JS que
+ficheros de `publico/` mira, incrusta o comprueba, qué colecciones recorre,
+de qué otras páginas muestra el contenido y de qué páginas mira las
+traducciones. Apunta también el CSS y el JS que
 declara y los avisos que da. Lo mismo hace con el cuerpo de cada página, que
 se convierte una vez y se reutiliza donde se muestre. Lo que usa un cuerpo lo
 usa también la página que lo muestra, así que cada registro está completo
@@ -44,7 +45,12 @@ parcial, un fichero de `publico/`, una colección o el contenido de otra
 página. Una colección cambia cuando entra o sale una página con su etiqueta, o
 cuando una de sus páginas cambia de campos o de URL; un cambio solo en el
 cuerpo de una página no cambia la colección, pero sí rehace las páginas que
-muestran ese cuerpo. Si aparece o desaparece un atajo del sitio, cambian todos
+muestran ese cuerpo. Las traducciones de una página cambian igual: cuando
+aparece, desaparece o se publica una de sus versiones, o cuando cambia de
+campos o de URL. Los datos de cada idioma (`menus.eu.yml`) son parte de
+`datos/`, y su cambio rehace todo; los `_datos.eu.yml` y los campos comunes
+de una página cambian los campos de las páginas que los heredan, como
+cualquier `_datos.yml`. Si aparece o desaparece un atajo del sitio, cambian todos
 los cuerpos en Markdown, porque cambia cómo se lee el texto. El sitemap y el
 feed se generan siempre de nuevo, y la lista de ficheros que se copian también.
 

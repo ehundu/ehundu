@@ -10,6 +10,7 @@ use Ehundu\Lectura;
 use Ehundu\Pagina;
 use Ehundu\Proyecto;
 use Ehundu\Pruebas\Apoyo\CarpetaTemporal;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -76,9 +77,306 @@ final class LectorPrueba extends TestCase
         self::assertSame('Librería La Esquina', $sitio->nombre);
         self::assertSame('https://www.ejemplo.com', $sitio->url);
         self::assertSame(
-            ['nombre' => 'Librería La Esquina', 'url' => 'https://www.ejemplo.com', 'idioma' => 'es'],
+            [
+                'nombre' => 'Librería La Esquina',
+                'url' => 'https://www.ejemplo.com',
+                'idioma' => 'es',
+                'idiomas' => [['codigo' => 'es', 'nombre' => 'es', 'url' => '/']],
+            ],
             $sitio->campos,
         );
+    }
+
+    #[Test]
+    public function unSitioSinIdiomaEstaEnCastellano(): void
+    {
+        $this->crearSitioMinimo();
+
+        $sitio = $this->leer()->sitio;
+
+        self::assertSame('es', $sitio->campos['idioma']);
+        self::assertSame(['es'], $sitio->idiomas->codigos());
+        self::assertFalse($sitio->idiomas->declarados);
+    }
+
+    #[Test]
+    public function unIdiomaQueNoEsUnCodigoAvisaYSeUsaElCastellano(): void
+    {
+        $this->crearFichero('sitio.yml', "nombre: Prueba\nurl: https://ejemplo.com\nidioma: es-ES\n");
+        $this->crearFichero('contenido/.gitkeep', '');
+
+        $lectura = $this->leer();
+
+        self::assertSame('es', $lectura->sitio->campos['idioma']);
+        self::assertSame(
+            ['sitio.yml:3: «idioma» tiene que ser el código del idioma, en dos o tres letras minúsculas, como es, eu o en; se usa es'],
+            $this->avisos($lectura),
+        );
+    }
+
+    #[Test]
+    public function leeLosIdiomasDelSitio(): void
+    {
+        $this->crearFichero('sitio.yml', <<<'YAML'
+            nombre: Prueba
+            url: https://ejemplo.com
+            idiomas:
+              - codigo: es
+                nombre: Castellano
+              - codigo: eu
+                nombre: Euskara
+              - codigo: en
+            YAML);
+        $this->crearFichero('contenido/.gitkeep', '');
+
+        $lectura = $this->leer();
+        $idiomas = $lectura->sitio->idiomas;
+
+        self::assertTrue($idiomas->declarados);
+        self::assertSame(['es', 'eu', 'en'], $idiomas->codigos());
+        self::assertSame('es', $idiomas->predeterminado());
+        self::assertSame(['', '/eu', '/en'], array_map($idiomas->prefijo(...), $idiomas->codigos()));
+        self::assertSame('es', $lectura->sitio->campos['idioma']);
+        self::assertSame([
+            ['codigo' => 'es', 'nombre' => 'Castellano', 'url' => '/'],
+            ['codigo' => 'eu', 'nombre' => 'Euskara', 'url' => '/eu/'],
+            ['codigo' => 'en', 'nombre' => 'en', 'url' => '/en/'],
+        ], $lectura->sitio->campos['idiomas']);
+        self::assertSame([], $this->avisos($lectura));
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function idiomasMalEscritos(): iterable
+    {
+        yield 'no es una lista' => ["idiomas: es\n", 'sitio.yml:3: «idiomas» tiene que ser una lista con los idiomas del sitio'];
+        yield 'vacía' => ["idiomas: []\n", 'sitio.yml:3: «idiomas» tiene que ser una lista con los idiomas del sitio'];
+        yield 'sin código' => ["idiomas:\n  - nombre: Castellano\n", 'sitio.yml:3: El idioma 1 de «idiomas» necesita un «codigo»'];
+        yield 'código raro' => ["idiomas:\n  - codigo: es\n  - codigo: es-ES\n", 'sitio.yml:3: El idioma 2 de «idiomas» necesita un «codigo»'];
+        yield 'sueltos' => ["idiomas: [es, eu]\n", 'sitio.yml:3: El idioma 1 de «idiomas» necesita un «codigo»'];
+        yield 'repetido' => ["idiomas:\n  - codigo: es\n  - codigo: es\n", 'sitio.yml:3: El idioma «es» está dos veces en «idiomas»'];
+    }
+
+    #[Test]
+    #[DataProvider('idiomasMalEscritos')]
+    public function unosIdiomasMalEscritosDetienenLaLectura(string $idiomas, string $error): void
+    {
+        $this->crearFichero('sitio.yml', "nombre: Prueba\nurl: https://ejemplo.com\n{$idiomas}");
+
+        $this->expectException(ErrorDeProyecto::class);
+        $this->expectExceptionMessage($error);
+
+        $this->leer();
+    }
+
+    #[Test]
+    public function avisaDeLoQueSobraEnLosIdiomas(): void
+    {
+        $this->crearFichero('sitio.yml', <<<'YAML'
+            nombre: Prueba
+            url: https://ejemplo.com
+            idioma: eu
+            idiomas:
+              - codigo: es
+                nombre: [Castellano]
+              - codigo: eu
+                predeterminado: sí
+                prefijo: /euskaraz
+                bandera: eu.svg
+              - codigo: fr
+            YAML);
+        $this->crearFichero('contenido/.gitkeep', '');
+
+        $lectura = $this->leer();
+
+        self::assertSame('es', $lectura->sitio->campos['idioma']);
+        self::assertSame('es', $lectura->sitio->campos['idiomas'][0]['nombre']);
+        self::assertSame([
+            'sitio.yml:4: «idiomas»: el nombre de «es» tiene que ser un texto; se usa el código',
+            'sitio.yml:4: «idiomas»: eu no necesita «predeterminado»: el predeterminado es el primero de la lista',
+            'sitio.yml:4: «idiomas»: eu no necesita «prefijo»: el de cada idioma es siempre /eu/',
+            'sitio.yml:4: «idiomas»: eu no admite «bandera»; se ignora',
+            'sitio.yml:3: «idioma» no hace falta con «idiomas», y no coincide con el primero de la lista, que es el predeterminado; se usa es',
+            'sitio.yml: Ehundu no trae los nombres de los meses y los días en «fr»; fecha() los escribe en inglés',
+        ], $this->avisos($lectura));
+    }
+
+    #[Test]
+    public function cadaPaginaTieneElIdiomaDeSuNombre(): void
+    {
+        $this->crearSitioEnDosIdiomas();
+        $this->crearFichero('contenido/index.md', "---\ntitulo: Inicio\n---\n");
+        $this->crearFichero('contenido/index.eu.md', "---\ntitulo: Hasiera\n---\n");
+        $this->crearFichero('contenido/instalaciones.md', "---\ntitulo: Instalaciones\n---\n");
+        $this->crearFichero('contenido/instalaciones.eu.md', "---\ntitulo: Instalazioak\nurl: /instalazioak/\n---\n");
+        $this->crearFichero('contenido/blog/_datos.yml', "url: \"/blog/{{ titulo|slug }}/\"\n");
+        $this->crearFichero('contenido/blog/uno.eu.md', "---\ntitulo: Lehena\n---\n");
+        $this->crearFichero('contenido/contacto.es.twig', "---\ntitulo: Contacto\n---\n");
+        $this->crearFichero('contenido/404.eu.md', "---\ntitulo: Ez dago\nurl: /404.html\n---\n");
+
+        $lectura = $this->leer();
+        $porRuta = array_column(array_map(fn (Pagina $pagina) => [$pagina->ruta, [$pagina->idioma, $pagina->url, $pagina->clave()]], $lectura->paginas), 1, 0);
+
+        self::assertSame([
+            '404.eu.md' => ['eu', '/eu/404.html', '404'],
+            'blog/uno.eu.md' => ['eu', '/eu/blog/lehena/', 'blog/uno'],
+            'contacto.es.twig' => ['es', '/contacto/', 'contacto'],
+            'index.eu.md' => ['eu', '/eu/', 'index'],
+            'index.md' => ['es', '/', 'index'],
+            'instalaciones.eu.md' => ['eu', '/eu/instalazioak/', 'instalaciones'],
+            'instalaciones.md' => ['es', '/instalaciones/', 'instalaciones'],
+        ], $porRuta);
+        self::assertSame([], $this->avisos($lectura));
+    }
+
+    #[Test]
+    public function avisaSiLaUrlYaLlevaElPrefijoDeSuIdioma(): void
+    {
+        $this->crearSitioEnDosIdiomas();
+        $this->crearFichero('contenido/instalaciones.eu.md', "---\ntitulo: Instalazioak\nurl: /eu/instalazioak/\n---\n");
+        $this->crearFichero('contenido/eu/kontaktua.eu.md', "---\ntitulo: Kontaktua\n---\n");
+
+        $lectura = $this->leer();
+
+        self::assertSame(['/eu/eu/kontaktua/', '/eu/eu/instalazioak/'], array_map(fn (Pagina $pagina) => $pagina->url, $lectura->paginas));
+        self::assertSame([
+            'contenido/eu/kontaktua.eu.md: La URL /eu/kontaktua/ ya empieza por /eu/, el prefijo de su idioma, que el motor pone solo (formato §15.3); queda /eu/eu/kontaktua/',
+            'contenido/instalaciones.eu.md: La URL /eu/instalazioak/ ya empieza por /eu/, el prefijo de su idioma, que el motor pone solo (formato §15.3); queda /eu/eu/instalazioak/',
+        ], $this->avisos($lectura));
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function mismaPaginaEnElMismoIdioma(): iterable
+    {
+        yield 'con y sin el código del predeterminado' => [
+            'contacto.es.md',
+            'contenido/contacto.md: contenido/contacto.es.md y contenido/contacto.md son la misma página en el mismo idioma (es); sobra uno de los dos (formato §15.2)',
+        ];
+        yield 'en Markdown y en Twig' => [
+            'contacto.twig',
+            'contenido/contacto.twig: contenido/contacto.md y contenido/contacto.twig son la misma página en el mismo idioma (es); sobra uno de los dos (formato §15.2)',
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('mismaPaginaEnElMismoIdioma')]
+    public function dosFicherosDeLaMismaPaginaEnElMismoIdiomaDetienenLaLectura(string $otro, string $error): void
+    {
+        $this->crearSitioEnDosIdiomas();
+        $this->crearFichero('contenido/contacto.md', "---\ntitulo: Contacto\n---\n");
+        $this->crearFichero("contenido/{$otro}", "---\ntitulo: Contacto\nurl: /otro/\n---\n");
+
+        $this->expectException(ErrorDeProyecto::class);
+        $this->expectExceptionMessage($error);
+
+        $this->leer();
+    }
+
+    #[Test]
+    public function laCascadaDeCadaIdiomaVaEncimaDeLaDeSuCarpeta(): void
+    {
+        $this->crearSitioEnDosIdiomas();
+        $this->crearFichero('contenido/_datos.yml', "plantilla: pagina\nseccion: raiz\netiquetas: [todas]\n");
+        $this->crearFichero('contenido/_datos.eu.yml', "plantilla: orria\nseccion: erroa\netiquetas: [euskaraz]\n");
+        $this->crearFichero('contenido/blog/_datos.yml', "plantilla: articulo\n");
+        $this->crearFichero('contenido/blog/uno.md', "---\ntitulo: Uno\n---\n");
+        $this->crearFichero('contenido/blog/uno.eu.md', "---\ntitulo: Bat\n---\n");
+        $this->crearFichero('contenido/contacto.eu.md', "---\ntitulo: Kontaktua\n---\n");
+
+        $campos = array_column(array_map(fn (Pagina $pagina) => [$pagina->ruta, $pagina->campos], $this->leer()->paginas), 1, 0);
+
+        self::assertSame(['plantilla' => 'articulo', 'seccion' => 'raiz', 'etiquetas' => ['todas'], 'titulo' => 'Uno'], $campos['blog/uno.md']);
+        self::assertSame(['plantilla' => 'articulo', 'seccion' => 'erroa', 'etiquetas' => ['todas', 'euskaraz'], 'titulo' => 'Bat'], $campos['blog/uno.eu.md']);
+        self::assertSame(['plantilla' => 'orria', 'seccion' => 'erroa', 'etiquetas' => ['todas', 'euskaraz'], 'titulo' => 'Kontaktua'], $campos['contacto.eu.md']);
+    }
+
+    #[Test]
+    public function avisaDeLosDatosDeCarpetaQueNoSonDeUnIdiomaDelSitio(): void
+    {
+        $this->crearSitioEnDosIdiomas();
+        $this->crearFichero('contenido/_datos.fr.yml', 'plantilla: page');
+        $this->crearFichero('contenido/blog/_datos.v2.yml', 'plantilla: otra');
+        $this->crearFichero('contenido/blog/_datos.antiguo.eu.yml', 'plantilla: otra');
+        $this->crearFichero('contenido/blog/_datos.eu.yml', 'plantilla: orria');
+        $this->crearFichero('contenido/blog/_notas.es.txt', 'no es de datos');
+
+        self::assertSame([
+            'contenido/_datos.fr.yml: El punto en el nombre está reservado para el idioma, y «fr» no es un idioma del sitio (formato §15.2); este fichero no se lee',
+            'contenido/blog/_datos.antiguo.eu.yml: El punto en el nombre está reservado para el idioma (formato §15.2); este fichero no se lee',
+            'contenido/blog/_datos.v2.yml: El punto en el nombre está reservado para el idioma (formato §15.2); este fichero no se lee',
+        ], $this->avisos($this->leer()));
+    }
+
+    #[Test]
+    public function losCamposComunesDeUnaPaginaVanEntreLaCascadaYSuFrontMatter(): void
+    {
+        $this->crearSitioEnDosIdiomas();
+        $this->crearFichero('contenido/servicios/_datos.yml', "etiquetas: [servicios]\nicono: generico.svg\n");
+        $this->crearFichero('contenido/servicios/comedor.yml', "icono: comedor.svg\nimagen: img/comedor.jpg\norden: 2\netiquetas: [destacados]\nidioma: eu\n");
+        $this->crearFichero('contenido/servicios/comedor.md', "---\ntitulo: Comedor\n---\n");
+        $this->crearFichero('contenido/servicios/comedor.eu.md', "---\ntitulo: Jangela\nimagen: img/jangela.jpg\n---\n");
+        $this->crearFichero('contenido/servicios/suelto.yml', 'se: copia');
+
+        $lectura = $this->leer();
+        $campos = array_column(array_map(fn (Pagina $pagina) => [$pagina->ruta, $pagina->campos], $lectura->paginas), 1, 0);
+
+        self::assertSame(
+            ['etiquetas' => ['servicios', 'destacados'], 'icono' => 'comedor.svg', 'imagen' => 'img/comedor.jpg', 'orden' => 2, 'titulo' => 'Comedor'],
+            $campos['servicios/comedor.md'],
+        );
+        self::assertSame(
+            ['etiquetas' => ['servicios', 'destacados'], 'icono' => 'comedor.svg', 'imagen' => 'img/jangela.jpg', 'orden' => 2, 'titulo' => 'Jangela'],
+            $campos['servicios/comedor.eu.md'],
+        );
+        self::assertSame(['servicios/suelto.yml'], $lectura->ficheros);
+        self::assertSame(
+            ['contenido/servicios/comedor.yml:5: «idioma» sale del nombre del fichero (formato §15.2); este campo se ignora'],
+            $this->avisos($lectura),
+        );
+    }
+
+    #[Test]
+    public function elIdiomaNoSeEscribeEnElFrontMatter(): void
+    {
+        $this->crearSitioEnDosIdiomas();
+        $this->crearFichero('contenido/contacto.md', "---\ntitulo: Contacto\nidioma: eu\n---\n");
+
+        $lectura = $this->leer();
+
+        self::assertSame('es', $lectura->paginas[0]->idioma);
+        self::assertSame(['titulo' => 'Contacto'], $lectura->paginas[0]->campos);
+        self::assertSame(
+            ['contenido/contacto.md:3: «idioma» sale del nombre del fichero (formato §15.2); este campo se ignora'],
+            $this->avisos($lectura),
+        );
+    }
+
+    #[Test]
+    public function leeLosDatosDeCadaIdiomaAparte(): void
+    {
+        $this->crearSitioEnDosIdiomas();
+        $this->crearFichero('datos/cliente.yml', "nombre: Ercilla\ntelefono: '944000000'\nhorario: De lunes a viernes\n");
+        $this->crearFichero('datos/cliente.eu.yml', "horario: Astelehenetik ostiralera\n");
+        $this->crearFichero('datos/menus.yml', "principal:\n  - Inicio\n  - Blog\npie: [Aviso legal]\n");
+        $this->crearFichero('datos/menus.eu.yml', "principal:\n  - Hasiera\n");
+        $this->crearFichero('datos/textos.eu.json', '{"saltar": "Joan edukira"}');
+        $this->crearFichero('datos/lista.yml', "- uno\n- dos\n");
+        $this->crearFichero('datos/lista.eu.yml', "- bat\n");
+
+        $lectura = $this->leer();
+
+        self::assertSame(['cliente', 'lista', 'menus'], array_keys($lectura->datos));
+        self::assertSame($lectura->datos, $lectura->datosDe('es'));
+        self::assertSame([
+            'cliente' => ['nombre' => 'Ercilla', 'telefono' => '944000000', 'horario' => 'Astelehenetik ostiralera'],
+            'lista' => ['bat'],
+            'menus' => ['principal' => ['Hasiera'], 'pie' => ['Aviso legal']],
+            'textos' => ['saltar' => 'Joan edukira'],
+        ], $lectura->datosDe('eu'));
+        self::assertSame([], $this->avisos($lectura));
     }
 
     #[Test]
@@ -133,18 +431,34 @@ final class LectorPrueba extends TestCase
     {
         $this->crearSitioMinimo();
         $this->crearFichero('datos/images.js', 'export default [];');
-        $this->crearFichero('datos/menus.es.yml', 'a: 1');
+        $this->crearFichero('datos/menus.eu.yml', 'a: 1');
+        $this->crearFichero('datos/menus.v2.yml', 'a: 1');
         $this->crearFichero('datos/menus/principal.yml', 'a: 1');
         $this->crearFichero('datos/.gitkeep', '');
 
         $lectura = $this->leer();
 
         self::assertSame([], $lectura->datos);
+        self::assertSame([], $lectura->datosPorIdioma);
         self::assertSame([
             'datos/images.js: En datos/ solo se leen ficheros .yml y .json; este se ignora',
             'datos/menus: Las subcarpetas de datos/ no se leen',
-            'datos/menus.es.yml: El punto en el nombre está reservado para el idioma (formato §15.5); este fichero no se lee',
+            'datos/menus.eu.yml: El punto en el nombre está reservado para el idioma, y «eu» no es un idioma del sitio (formato §15.2); este fichero no se lee',
+            'datos/menus.v2.yml: El punto en el nombre está reservado para el idioma (formato §15.2); este fichero no se lee',
         ], $this->avisos($lectura));
+    }
+
+    #[Test]
+    public function enUnSitioDeUnSoloIdiomaSusDatosConCodigoTambienValen(): void
+    {
+        $this->crearSitioMinimo();
+        $this->crearFichero('datos/menus.yml', 'principal: [Inicio]');
+        $this->crearFichero('datos/menus.es.yml', 'principal: [Portada]');
+
+        $lectura = $this->leer();
+
+        self::assertSame(['menus' => ['principal' => ['Portada']]], $lectura->datosDe('es'));
+        self::assertSame([], $this->avisos($lectura));
     }
 
     #[Test]
@@ -266,13 +580,17 @@ final class LectorPrueba extends TestCase
         $this->crearSitioMinimo();
         $this->crearFichero('contenido/contacto.en.md', 'Contact');
         $this->crearFichero('contenido/sitemap.xml.twig', '<urlset/>');
+        $this->crearFichero('contenido/guia.v2.md', 'Guía');
+        $this->crearFichero('contenido/guia.antigua.es.md', 'Guía');
 
         $lectura = $this->leer();
 
         self::assertSame([], $lectura->paginas);
         self::assertSame([
-            'contenido/contacto.en.md: El punto en el nombre está reservado para el idioma (formato §15.5); este fichero no se compila',
-            'contenido/sitemap.xml.twig: El punto en el nombre está reservado para el idioma (formato §15.5); este fichero no se compila',
+            'contenido/contacto.en.md: El punto en el nombre está reservado para el idioma, y «en» no es un idioma del sitio (formato §15.2); este fichero no se compila',
+            'contenido/guia.antigua.es.md: El punto en el nombre está reservado para el idioma (formato §15.2); este fichero no se compila',
+            'contenido/guia.v2.md: El punto en el nombre está reservado para el idioma (formato §15.2); este fichero no se compila',
+            'contenido/sitemap.xml.twig: El punto en el nombre está reservado para el idioma, y «xml» no es un idioma del sitio (formato §15.2); este fichero no se compila',
         ], $this->avisos($lectura));
     }
 
@@ -339,6 +657,12 @@ final class LectorPrueba extends TestCase
 
         self::assertSame([], $lectura->paginas);
         self::assertSame(['No hay carpeta contenido/: no se genera ninguna página'], $this->avisos($lectura));
+    }
+
+    private function crearSitioEnDosIdiomas(): void
+    {
+        $this->crearFichero('sitio.yml', "nombre: Prueba\nurl: https://ejemplo.com\nidiomas:\n  - codigo: es\n  - codigo: eu\n");
+        $this->crearFichero('contenido/.gitkeep', '');
     }
 
     private function leer(): Lectura

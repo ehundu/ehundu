@@ -143,6 +143,74 @@ final class ConstructorIncrementalPrueba extends TestCase
     }
 
     #[Test]
+    public function enUnSitioEnDosIdiomasCadaCambioRehaceSoloLoQueLeAfecta(): void
+    {
+        $this->crearSitioEnDosIdiomas();
+        $constructor = new Constructor(incremental: true);
+        $ahora = new \DateTimeImmutable(self::AHORA);
+
+        $pasos = [
+            'primera construcción' => [fn () => null, 7],
+            'nada cambia' => [fn () => null, 0],
+            'cambia el título de una traducción: ella, su versión en castellano, que la enlaza, y las dos portadas, que recorren el blog' => [
+                fn () => $this->cambiar('contenido/blog/uno.eu.md', 'titulo: Bat', 'titulo: Lehena'),
+                4,
+            ],
+            'cambia el cuerpo de una traducción: solo ella' => [
+                fn () => $this->cambiar('contenido/blog/uno.eu.md', 'Lehen artikulua.', 'Lehen artikulua, berrikusia.'),
+                1,
+            ],
+            'aparece una traducción: ella, la página que traduce y las dos portadas' => [
+                fn () => $this->poner('contenido/blog/dos.eu.md', "---\ntitulo: Bi\nfecha: 2024-02-01\n---\nBigarren artikulua.\n"),
+                4,
+            ],
+            'cambian los datos de un idioma: todo' => [fn () => $this->cambiar('datos/menu.eu.yml', 'Hasiera', 'Atari'), 8],
+            'cambian los campos comunes de una página: sus dos versiones' => [
+                fn () => $this->cambiar('contenido/contacto.yml', '944000000', '944111111'),
+                2,
+            ],
+            'cambia la cascada de un idioma: sus artículos, sus traducciones y las portadas' => [
+                fn () => $this->cambiar('contenido/blog/_datos.eu.yml', 'seccion: Bloga', 'seccion: Albisteak'),
+                6,
+            ],
+            'una traducción cambia de URL: ella, su traducción y las portadas' => [
+                fn () => $this->cambiar('contenido/blog/uno.eu.md', 'titulo: Lehena', "titulo: Lehena\nurl: /lehena/"),
+                4,
+            ],
+            'desaparece una traducción: la página que traducía y las portadas' => [fn () => $this->quitar('contenido/blog/uno.eu.md'), 3],
+            'una traducción pasa a borrador: la página que traducía' => [
+                fn () => $this->cambiar('contenido/contacto.eu.md', 'titulo: Kontaktua', "titulo: Kontaktua\nborrador: sí"),
+                1,
+            ],
+            'cambian los idiomas: todo' => [fn () => $this->cambiar('sitio.yml', 'nombre: Euskara', 'nombre: Euskera'), 6],
+        ];
+
+        foreach ($pasos as $paso => [$cambio, $rehechas]) {
+            $cambio();
+            $construccion = $this->comprobar($constructor, $ahora, $paso);
+
+            self::assertSame($rehechas, $construccion?->rehechas, "Páginas rehechas: {$paso}");
+        }
+    }
+
+    #[Test]
+    public function enUnSitioEnDosIdiomasUnaSecuenciaDeCambiosAlAzarDaLoMismoQueUnaConstruccionCompleta(): void
+    {
+        $this->crearSitioEnDosIdiomas();
+        $constructor = new Constructor(incremental: true);
+        $ahora = new \DateTimeImmutable(self::AHORA);
+        $aleatorio = new \Random\Randomizer(new \Random\Engine\Mt19937(20260927));
+        $cambios = $this->cambiosAlAzarEnDosIdiomas($aleatorio);
+        $this->comprobar($constructor, $ahora, 'primera construcción');
+
+        for ($paso = 1; $paso <= 80; $paso++) {
+            $nombre = $aleatorio->pickArrayKeys($cambios, 1)[0];
+            $cambios[$nombre]();
+            $this->comprobar($constructor, $ahora, "paso {$paso}: {$nombre}");
+        }
+    }
+
+    #[Test]
     public function losAvisosDeLoQueSeAprovechaSeRepiten(): void
     {
         $this->crearSitio();
@@ -368,6 +436,102 @@ final class ConstructorIncrementalPrueba extends TestCase
                     : str_replace('</header>', '{% if %}</header>', $texto));
             },
             'datos' => fn () => $this->poner('datos/menu.yml', "- texto: {$palabra()}\n  url: /\n"),
+            'nada' => fn () => null,
+        ];
+    }
+
+    /**
+     * Un sitio en castellano y euskera en el que las páginas dependen de sus
+     * traducciones (los `hreflang` llevan su título), de los datos de su
+     * idioma, de la cascada de su idioma y de los campos comunes de una
+     * página. Salen siete páginas.
+     */
+    private function crearSitioEnDosIdiomas(): void
+    {
+        $this->ficheros = [
+            'sitio.yml' => "nombre: Prueba\nurl: https://ejemplo.com\nidiomas:\n  - codigo: es\n    nombre: Castellano\n  - codigo: eu\n    nombre: Euskara\nfeed:\n  coleccion: blog\n",
+            'datos/menu.yml' => "- texto: Inicio\n  url: /\n",
+            'datos/menu.eu.yml' => "- texto: Hasiera\n  url: /eu/\n",
+            'plantillas/base.twig' => <<<'TWIG'
+                <!doctype html>
+                <html lang="{{ pagina.idioma }}">
+                {% for codigo, traduccion in pagina.traducciones %}<link rel="alternate" hreflang="{{ codigo }}" href="{{ traduccion.url }}" title="{{ traduccion.titulo }}">{% endfor %}
+                {% for enlace in datos.menu %}<a href="{{ enlace.url }}"{{ activo(enlace.url) ? ' class="activo"' }}>{{ enlace.texto }}</a>{% endfor %}
+                <main>{% block principal %}{{ pagina.seccion }} {{ pagina.telefono }} {{ pagina.contenido }}{% endblock %}</main>
+
+                TWIG,
+            'plantillas/pagina.twig' => "{% extends 'plantillas/base.twig' %}\n",
+            'plantillas/portada.twig' => <<<'TWIG'
+                {% extends 'plantillas/base.twig' %}
+                {% block principal %}<ul>{% for articulo in coleccion('blog') %}<li><a href="{{ articulo.url }}">{{ articulo.titulo }}</a> {{ articulo.fecha|fecha }}</li>{% endfor %}</ul>{% endblock %}
+
+                TWIG,
+            'contenido/index.md' => "---\ntitulo: Inicio\nplantilla: portada\n---\n",
+            'contenido/index.eu.md' => "---\ntitulo: Hasiera\nplantilla: portada\n---\n",
+            'contenido/blog/_datos.yml' => "etiquetas: [blog]\nseccion: Blog\n",
+            'contenido/blog/_datos.eu.yml' => "seccion: Bloga\n",
+            'contenido/blog/uno.md' => "---\ntitulo: Uno\nfecha: 2024-01-01\n---\nPrimer artículo.\n",
+            'contenido/blog/uno.eu.md' => "---\ntitulo: Bat\nfecha: 2024-01-01\n---\nLehen artikulua.\n",
+            'contenido/blog/dos.md' => "---\ntitulo: Dos\nfecha: 2024-02-01\n---\nSegundo artículo.\n",
+            'contenido/contacto.yml' => "telefono: '944000000'\n",
+            'contenido/contacto.md' => "---\ntitulo: Contacto\n---\nEscríbenos.\n",
+            'contenido/contacto.eu.md' => "---\ntitulo: Kontaktua\nurl: /kontaktua/\n---\nIdatzi.\n",
+        ];
+
+        foreach ($this->ficheros as $ruta => $contenido) {
+            $this->crearFichero($ruta, $contenido);
+        }
+    }
+
+    /**
+     * @return array<string, \Closure(): void>
+     */
+    private function cambiosAlAzarEnDosIdiomas(\Random\Randomizer $aleatorio): array
+    {
+        $palabra = fn () => $aleatorio->getBytesFromString('abcdefghijklmnopqrstuvwxyz', 5);
+        $una = fn (array $lista): string => $lista[$aleatorio->getInt(0, count($lista) - 1)];
+        $enCastellano = ['contenido/blog/uno.md', 'contenido/blog/dos.md', 'contenido/contacto.md', 'contenido/blog/tres.md'];
+        $paginas = fn () => array_values(array_filter(
+            array_keys($this->ficheros),
+            fn (string $ruta) => str_starts_with($ruta, 'contenido/') && preg_match('/\.(md|twig)$/', $ruta) === 1,
+        ));
+        $alternar = function (string $ruta, string $contenido): void {
+            isset($this->ficheros[$ruta]) ? $this->quitar($ruta) : $this->poner($ruta, $contenido);
+        };
+
+        return [
+            'traducción que va y viene' => function () use ($una, $enCastellano, $palabra, $alternar): void {
+                $ruta = str_replace('.md', '.eu.md', $una($enCastellano));
+                $alternar($ruta, "---\ntitulo: " . $palabra() . "\nfecha: 2024-03-01\n---\n" . $palabra() . "\n");
+            },
+            'página en castellano que va y viene' => fn () => $alternar('contenido/blog/tres.md', "---\ntitulo: Tres\nfecha: 2024-03-01\n---\nTercero.\n"),
+            'título de una página' => function () use ($paginas, $una, $palabra): void {
+                $ruta = $una($paginas());
+                $this->poner($ruta, (string) preg_replace('/^titulo: .*$/m', 'titulo: ' . $palabra(), $this->ficheros[$ruta], 1));
+            },
+            'cuerpo de una página' => function () use ($paginas, $una, $palabra): void {
+                $ruta = $una($paginas());
+                $this->poner($ruta, $this->ficheros[$ruta] . $palabra() . "\n");
+            },
+            'URL de una página' => function () use ($paginas, $una, $palabra): void {
+                $ruta = $una($paginas());
+                $texto = $this->ficheros[$ruta];
+                $this->poner($ruta, str_contains($texto, "\nurl: ")
+                    ? (string) preg_replace('/^url: .*\n/m', '', $texto)
+                    : (string) preg_replace('/^---\n/', "---\nurl: /" . $palabra() . "/\n", $texto));
+            },
+            'borrador sí o no' => function () use ($paginas, $una): void {
+                $ruta = $una($paginas());
+                $texto = $this->ficheros[$ruta];
+                $this->poner($ruta, str_contains($texto, "borrador: sí\n")
+                    ? str_replace("borrador: sí\n", '', $texto)
+                    : (string) preg_replace('/^---\n/', "---\nborrador: sí\n", $texto));
+            },
+            'datos del idioma' => fn () => $this->poner('datos/menu.eu.yml', "- texto: {$palabra()}\n  url: /eu/\n"),
+            'datos del idioma que van y vienen' => fn () => $alternar('datos/menu.eu.yml', "- texto: Hasiera\n  url: /eu/\n"),
+            'cascada del idioma' => fn () => $alternar('contenido/blog/_datos.eu.yml', "seccion: {$palabra()}\n"),
+            'campos comunes' => fn () => $alternar('contenido/contacto.yml', "telefono: '{$aleatorio->getInt(900000000, 999999999)}'\n"),
+            'plantilla' => fn () => $this->poner('plantillas/portada.twig', $this->ficheros['plantillas/portada.twig'] . '{# ' . $palabra() . " #}\n"),
             'nada' => fn () => null,
         ];
     }

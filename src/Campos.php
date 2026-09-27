@@ -71,6 +71,13 @@ final class Campos
         }
 
         foreach ($normalizados as $nombre => $valor) {
+            if ($nombre === 'idioma') {
+                $avisos->registrar('«idioma» sale del nombre del fichero (formato §15.2); este campo se ignora', $fichero, $lineas[$escrito[$nombre]] ?? null);
+                unset($normalizados[$nombre]);
+
+                continue;
+            }
+
             if ($valor === null) {
                 continue;
             }

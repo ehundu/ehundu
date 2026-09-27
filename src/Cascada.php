@@ -7,9 +7,12 @@ namespace Ehundu;
 /**
  * Los `_datos.yml` de `contenido/` y sus subcarpetas (formato §3). Cada
  * carpeta hereda lo de sus antecesoras; gana lo más cercano, salvo
- * `etiquetas`, `css` y `js`, que se suman.
+ * `etiquetas`, `css` y `js`, que se suman. En cada carpeta, el `_datos.eu.yml`
+ * de un idioma va encima de su `_datos.yml` (formato §15.6).
  *
- * Cada `_datos.yml` se lee una sola vez, la primera vez que se necesita.
+ * Lee también los campos comunes de una página, el `.yml` con su nombre
+ * (formato §15.7). Cada fichero se lee una sola vez, la primera vez que se
+ * necesita.
  *
  * @internal
  */
@@ -20,8 +23,11 @@ final class Cascada
     /** Campos que se suman a lo largo de la cascada en lugar de sustituirse. */
     public const array SUMADOS = ['etiquetas', 'css', 'js'];
 
-    /** @var array<string, array<array-key, mixed>> campos ya combinados, por carpeta */
+    /** @var array<string, array<array-key, mixed>> campos ya combinados, por idioma y carpeta */
     private array $porCarpeta = [];
+
+    /** @var array<string, array<array-key, mixed>> campos de cada fichero ya leído, por su ruta */
+    private array $leidos = [];
 
     public function __construct(
         private readonly Proyecto $proyecto,
@@ -34,19 +40,37 @@ final class Cascada
      * Los campos que hereda lo que hay en una carpeta.
      *
      * @param string $carpeta ruta dentro de `contenido/`: '' es la raíz, 'blog/recetas' una subcarpeta
+     * @param string $idioma  el de las páginas que heredan
      *
      * @return array<array-key, mixed>
      *
      * @throws ErrorDeProyecto si algún `_datos.yml` no se puede leer
      */
-    public function campos(string $carpeta): array
+    public function campos(string $carpeta, string $idioma = Idiomas::PREDETERMINADO): array
     {
-        if (!array_key_exists($carpeta, $this->porCarpeta)) {
-            $heredados = $carpeta === '' ? [] : $this->campos(self::padre($carpeta));
-            $this->porCarpeta[$carpeta] = self::combinar($heredados, $this->leer($carpeta));
+        $clave = "{$idioma}:{$carpeta}";
+
+        if (!array_key_exists($clave, $this->porCarpeta)) {
+            $heredados = $carpeta === '' ? [] : $this->campos(self::padre($carpeta), $idioma);
+            $comunes = self::combinar($heredados, $this->leer(self::ruta($carpeta, self::FICHERO)));
+            $this->porCarpeta[$clave] = self::combinar($comunes, $this->leer(self::ruta($carpeta, "_datos.{$idioma}.yml")));
         }
 
-        return $this->porCarpeta[$carpeta];
+        return $this->porCarpeta[$clave];
+    }
+
+    /**
+     * Los campos comunes a las traducciones de una página (formato §15.7).
+     *
+     * @param string $ruta la del `.yml` dentro de `contenido/`
+     *
+     * @return array<array-key, mixed>
+     *
+     * @throws ErrorDeProyecto si no se puede leer
+     */
+    public function comunes(string $ruta): array
+    {
+        return $this->leer(Proyecto::CONTENIDO . "/{$ruta}");
     }
 
     /**
@@ -76,19 +100,27 @@ final class Cascada
     }
 
     /**
+     * @param string $fichero ruta relativa a la raíz del proyecto
+     *
      * @return array<array-key, mixed>
      */
-    private function leer(string $carpeta): array
+    private function leer(string $fichero): array
     {
-        $fichero = implode('/', array_filter([Proyecto::CONTENIDO, $carpeta, self::FICHERO], fn ($parte) => $parte !== ''));
-
-        if (!is_file($this->proyecto->ruta($fichero))) {
-            return [];
+        if (!array_key_exists($fichero, $this->leidos)) {
+            if (!is_file($this->proyecto->ruta($fichero))) {
+                $this->leidos[$fichero] = [];
+            } else {
+                $yaml = $this->proyecto->leerTexto($fichero);
+                $this->leidos[$fichero] = Campos::normalizar(Yaml::leerCampos($yaml, $fichero), $yaml, 1, $fichero, $this->avisos, $this->zona);
+            }
         }
 
-        $yaml = $this->proyecto->leerTexto($fichero);
+        return $this->leidos[$fichero];
+    }
 
-        return Campos::normalizar(Yaml::leerCampos($yaml, $fichero), $yaml, 1, $fichero, $this->avisos, $this->zona);
+    private static function ruta(string $carpeta, string $nombre): string
+    {
+        return implode('/', array_filter([Proyecto::CONTENIDO, $carpeta, $nombre], fn ($parte) => $parte !== ''));
     }
 
     private static function padre(string $carpeta): string

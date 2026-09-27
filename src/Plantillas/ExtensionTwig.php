@@ -9,6 +9,7 @@ use Ehundu\Coleccion;
 use Ehundu\Colecciones;
 use Ehundu\Dimensiones;
 use Ehundu\Fecha;
+use Ehundu\Idiomas;
 use Ehundu\Pagina;
 use Ehundu\Proyecto;
 use Ehundu\Slug;
@@ -17,7 +18,7 @@ use Twig\TwigFilter;
 use Twig\TwigFunction;
 
 /**
- * Lo que Ehundu añade a Twig (formato §5.2, §6, §7 y §9): las funciones
+ * Lo que Ehundu añade a Twig (formato §5.2, §6, §7, §9 y §15): las funciones
  * `coleccion()`, `svg()`, `dimensiones()`, `activo()`, `css()` y `js()`, y los filtros `slug`, `fecha`, `orden`,
  * `limite`, `invertir`, `sin`, `donde`, `anterior` y `siguiente`.
  *
@@ -37,6 +38,7 @@ final class ExtensionTwig extends AbstractExtension
      * @param \Closure(Pagina): string|null $renderizar da el cuerpo de una página ya en HTML
      * @param Proyecto|null                 $proyecto   de donde lee `svg()`
      * @param \DateTimeZone|null            $zona       la del sitio, para `fecha`; UTC si falta
+     * @param Idiomas                       $idiomas    los del sitio
      */
     public function __construct(
         private readonly Colecciones $colecciones,
@@ -45,17 +47,14 @@ final class ExtensionTwig extends AbstractExtension
         private readonly Avisos $avisos = new Avisos(),
         private readonly \DateTimeZone $zona = new \DateTimeZone('UTC'),
         private readonly ?Registros $registros = null,
+        private readonly Idiomas $idiomas = new Idiomas(),
     ) {
     }
 
     public function getFunctions(): array
     {
         return [
-            new TwigFunction('coleccion', function (string $nombre, ?string $idioma = null): array {
-                $this->registros?->anotar('colecciones', $nombre);
-
-                return $this->vistas($this->colecciones->coleccion($nombre, $idioma));
-            }),
+            new TwigFunction('coleccion', $this->coleccion(...), ['needs_context' => true]),
             new TwigFunction('svg', $this->svg(...), ['is_safe' => ['html']]),
             new TwigFunction('dimensiones', $this->dimensiones(...)),
             new TwigFunction('activo', $this->activo(...), ['needs_context' => true]),
@@ -68,7 +67,16 @@ final class ExtensionTwig extends AbstractExtension
     {
         return [
             new TwigFilter('slug', fn (mixed $texto) => Slug::de((string) $texto)),
-            new TwigFilter('fecha', fn (mixed $valor, string $formato = Fecha::FORMATO) => Fecha::formatear($valor, $formato, $this->zona)),
+            new TwigFilter(
+                'fecha',
+                fn (array $contexto, mixed $valor, ?string $formato = null) => Fecha::formatear(
+                    $valor,
+                    $formato,
+                    $this->zona,
+                    $this->idiomaDe($contexto) ?? $this->idiomas->predeterminado(),
+                ),
+                ['needs_context' => true],
+            ),
             new TwigFilter('orden', fn (iterable $lista, string $criterio = Coleccion::ORDEN_POR_DEFECTO) => $this->vistas(
                 Coleccion::orden($this->paginas($lista), $criterio),
             )),
@@ -99,7 +107,30 @@ final class ExtensionTwig extends AbstractExtension
      */
     public function vistaDe(Pagina $pagina): VistaDePagina
     {
-        return $this->vistas[$pagina->ruta] ??= new VistaDePagina($pagina, $this->renderizar);
+        return $this->vistas[$pagina->ruta] ??= new VistaDePagina($pagina, $this->renderizar, $this->traducciones(...));
+    }
+
+    /**
+     * Las páginas de una colección en el idioma de la página que la pide, o
+     * en el que se indique; con `todos`, en todos (formato §15.5).
+     *
+     * @param array<string, mixed> $contexto
+     *
+     * @return list<VistaDePagina>
+     */
+    public function coleccion(array $contexto, string $nombre, ?string $idioma = null): array
+    {
+        $this->registros?->anotar('colecciones', $nombre);
+
+        if ($idioma === null) {
+            $idioma = $this->idiomaDe($contexto);
+        } elseif ($idioma !== Idiomas::TODOS && !$this->idiomas->declara($idioma)) {
+            $this->avisos->registrar("coleccion('{$nombre}', '{$idioma}'): «{$idioma}» no es un idioma del sitio; la lista sale vacía");
+
+            return [];
+        }
+
+        return $this->vistas($this->colecciones->coleccion($nombre, $idioma));
     }
 
     /**
@@ -173,8 +204,8 @@ final class ExtensionTwig extends AbstractExtension
     }
 
     /**
-     * Si la página actual es esa URL o está dentro de ella. `/` solo es
-     * activa en la portada.
+     * Si la página actual es esa URL o está dentro de ella. `/`, y la raíz
+     * de cada idioma (`/eu/`), solo son activas en su portada.
      *
      * @param array<string, mixed> $contexto
      */
@@ -190,7 +221,9 @@ final class ExtensionTwig extends AbstractExtension
             return true;
         }
 
-        return $url !== '/' && str_starts_with($actual, str_ends_with($url, '/') ? $url : "{$url}/");
+        $raices = array_map($this->idiomas->raiz(...), $this->idiomas->codigos());
+
+        return !in_array($url, $raices, true) && str_starts_with($actual, str_ends_with($url, '/') ? $url : "{$url}/");
     }
 
     /**
@@ -211,6 +244,31 @@ final class ExtensionTwig extends AbstractExtension
         }
 
         return '';
+    }
+
+    /**
+     * Las versiones publicadas de una página, por idioma. Queda anotado:
+     * si aparece, desaparece o cambia una traducción, la página se rehace.
+     *
+     * @return array<string, VistaDePagina>
+     */
+    private function traducciones(Pagina $pagina): array
+    {
+        $this->registros?->anotar('traducciones', $pagina->clave());
+
+        return array_map($this->vistaDe(...), $this->colecciones->traducciones($pagina));
+    }
+
+    /**
+     * El idioma de la página que se está construyendo, si se sabe.
+     *
+     * @param array<string, mixed> $contexto
+     */
+    private function idiomaDe(array $contexto): ?string
+    {
+        $pagina = $contexto['pagina'] ?? null;
+
+        return $pagina instanceof VistaDePagina ? $pagina->paginaDeOrigen()->idioma : null;
     }
 
     /**

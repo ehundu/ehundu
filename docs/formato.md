@@ -354,6 +354,14 @@ un proyecto tiene que dar el mismo resultado en cualquiera.
 Los filtros aceptan también los alias ingleses de los campos (`date`,
 `title`).
 
+`orden` y `donde` ven cada página como la ven las plantillas (§7.2): los
+campos del front matter, con la cascada, y además `url`, la URL ya resuelta
+(vacía en un fragmento), y `ruta`, la del fichero dentro de `contenido/`.
+`donde('url', '/contacto/')` encuentra la página aunque su URL salga de la
+ruta y no esté escrita en el front matter. `contenido` no cuenta: para
+filtrar u ordenar por él habría que convertir el cuerpo de todas las páginas
+de la lista.
+
 Como `orden` respeta el orden previo en los empates, `orden('fecha desc')` no
 es lo mismo que `invertir` cuando hay páginas con la misma fecha: la primera
 las deja por ruta y la segunda, al revés. Lo que en Eleventy es
@@ -879,6 +887,8 @@ un sitio de la v1 no debe usarlo como campo propio.
     Si la del destino es otra, el despliegue se detiene antes de tocar nada,
     porque lo normal es que la `ruta` apunte a otro sitio; `--todo` confirma
     que es el mismo sitio con otra dirección (`despliegue.md`).
+71. **Cerrada.** `orden` y `donde` ven también `url` y `ruta`, con los mismos
+    valores que las plantillas; `contenido`, no (§6.2).
 
 ---
 

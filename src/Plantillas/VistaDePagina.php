@@ -45,12 +45,7 @@ final class VistaDePagina implements \ArrayAccess
 
     public function offsetGet(mixed $clave): mixed
     {
-        return match ($clave) {
-            'url' => $this->pagina->url === false ? null : $this->pagina->url,
-            'ruta' => $this->pagina->ruta,
-            'contenido' => $this->contenido(),
-            default => $this->pagina->campos[$clave] ?? null,
-        };
+        return $clave === 'contenido' ? $this->contenido() : $this->pagina->valor((string) $clave);
     }
 
     public function offsetSet(mixed $clave, mixed $valor): never

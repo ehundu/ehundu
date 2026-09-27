@@ -34,6 +34,18 @@ final class PaginaPrueba extends TestCase
     }
 
     #[Test]
+    public function elValorDeUnCampoEsElQueVenLasPlantillas(): void
+    {
+        $pagina = new Pagina('blog/hola.md', 'md', ['titulo' => 'Hola', 'url' => '/blog/{{ titulo|slug }}/'], '/blog/hola/', '', 1);
+
+        self::assertSame('Hola', $pagina->valor('titulo'));
+        self::assertSame('/blog/hola/', $pagina->valor('url'));
+        self::assertSame('blog/hola.md', $pagina->valor('ruta'));
+        self::assertNull($pagina->valor('subtitulo'));
+        self::assertNull(new Pagina('pie.md', 'md', [], false, '', 1)->valor('url'));
+    }
+
+    #[Test]
     public function unFragmentoTambienSePublica(): void
     {
         self::assertTrue(new Pagina('a.md', 'md', [], false, '', 1)->estaPublicada($this->ahora()));

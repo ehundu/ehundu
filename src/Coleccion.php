@@ -15,7 +15,8 @@ final class Coleccion
     /**
      * Ordena por uno o varios campos: 'fecha desc', 'orden, titulo asc'. Las
      * páginas a las que les falta un campo van al final en las dos
-     * direcciones; a igualdad, quedan en el orden que tenían.
+     * direcciones; a igualdad, quedan en el orden que tenían. Además de los
+     * campos, ve `url` y `ruta`, como las plantillas (Pagina::valor).
      *
      * @param list<Pagina> $paginas
      *
@@ -29,7 +30,7 @@ final class Coleccion
 
         usort($paginas, function (Pagina $a, Pagina $b) use ($claves): int {
             foreach ($claves as [$campo, $descendente]) {
-                $resultado = self::comparar($a->campos[$campo] ?? null, $b->campos[$campo] ?? null, $descendente);
+                $resultado = self::comparar($a->valor($campo), $b->valor($campo), $descendente);
 
                 if ($resultado !== 0) {
                     return $resultado;
@@ -81,7 +82,7 @@ final class Coleccion
 
     /**
      * Las páginas cuyo campo vale `$valor`; si el campo es una lista, las que
-     * lo contienen.
+     * lo contienen. Como `orden`, ve también `url` y `ruta` (Pagina::valor).
      *
      * @param list<Pagina> $paginas
      *
@@ -92,7 +93,7 @@ final class Coleccion
         $campo = Campos::ALIAS[$campo] ?? $campo;
 
         return array_values(array_filter($paginas, function (Pagina $pagina) use ($campo, $valor): bool {
-            $actual = $pagina->campos[$campo] ?? null;
+            $actual = $pagina->valor($campo);
 
             return is_array($actual) && array_is_list($actual)
                 ? array_any($actual, fn (mixed $elemento) => self::iguales($elemento, $valor))

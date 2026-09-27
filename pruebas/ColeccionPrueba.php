@@ -156,6 +156,27 @@ final class ColeccionPrueba extends TestCase
     }
 
     #[Test]
+    public function dondeVeTambienLaUrlYLaRuta(): void
+    {
+        $paginas = $this->conUrlYRuta();
+
+        self::assertSame(['contacto.md'], $this->rutas(Coleccion::donde($paginas, 'url', '/contacto/')));
+        self::assertSame(['blog/hola.md'], $this->rutas(Coleccion::donde($paginas, 'url', '/blog/hola/')));
+        self::assertSame(['blog/hola.md'], $this->rutas(Coleccion::donde($paginas, 'permalink', '/blog/hola/')));
+        self::assertSame([], $this->rutas(Coleccion::donde($paginas, 'url', '/blog/{{ titulo|slug }}/')));
+        self::assertSame(['pie.md'], $this->rutas(Coleccion::donde($paginas, 'ruta', 'pie.md')));
+    }
+
+    #[Test]
+    public function ordenVeTambienLaUrlYLaRuta(): void
+    {
+        $paginas = $this->conUrlYRuta();
+
+        self::assertSame(['contacto.md', 'blog/hola.md', 'pie.md'], $this->rutas(Coleccion::orden($paginas, 'url desc')));
+        self::assertSame(['blog/hola.md', 'contacto.md', 'pie.md'], $this->rutas(Coleccion::orden($paginas, 'ruta')));
+    }
+
+    #[Test]
     public function anteriorYSiguienteDanLasPaginasDeAlLado(): void
     {
         $paginas = $this->paginas('a', 'b', 'c');
@@ -182,6 +203,21 @@ final class ColeccionPrueba extends TestCase
     private function paginas(string ...$rutas): array
     {
         return array_map(fn (string $ruta) => $this->pagina($ruta), array_values($rutas));
+    }
+
+    /**
+     * Una página con la URL de un patrón, otra con la que sale de su ruta y
+     * un fragmento, que no tiene URL.
+     *
+     * @return list<Pagina>
+     */
+    private function conUrlYRuta(): array
+    {
+        return [
+            new Pagina('pie.md', 'md', [], false, '', 1),
+            new Pagina('blog/hola.md', 'md', ['titulo' => 'Hola', 'url' => '/blog/{{ titulo|slug }}/'], '/blog/hola/', '', 1),
+            new Pagina('contacto.md', 'md', [], '/contacto/', '', 1),
+        ];
     }
 
     private function fecha(string $dia): \DateTimeImmutable

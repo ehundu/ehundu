@@ -29,6 +29,21 @@ final readonly class Pagina
     }
 
     /**
+     * El valor de un campo tal como lo ven las plantillas y los filtros de
+     * colección (formato §6.2 y §7.2): `url` es la URL ya resuelta, o null
+     * en un fragmento; `ruta`, la del fichero, y los demás salen de los
+     * campos. `contenido` no está aquí: se convierte al pedirlo.
+     */
+    public function valor(string $campo): mixed
+    {
+        return match ($campo) {
+            'url' => $this->url === false ? null : $this->url,
+            'ruta' => $this->ruta,
+            default => $this->campos[$campo] ?? null,
+        };
+    }
+
+    /**
      * Si la página está publicada en ese momento: no es un borrador y su
      * fecha de `publicar`, si la tiene, ya ha llegado. Vale también para los
      * fragmentos, que se publican aunque no generen fichero. Con borradores

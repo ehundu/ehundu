@@ -58,6 +58,7 @@ final class ExtensionTwigPrueba extends TestCase
         self::assertSame('Tres Dos ', $this->render("{% for a in coleccion('blog')|orden('fecha desc')|limite(2) %}{{ a.titulo }} {% endfor %}"));
         self::assertSame('Tres Dos Uno ', $this->render("{% for a in coleccion('blog')|invertir %}{{ a.titulo }} {% endfor %}"));
         self::assertSame('Dos ', $this->render("{% for a in coleccion('blog')|donde('etiquetas', 'novela') %}{{ a.titulo }} {% endfor %}"));
+        self::assertSame('Dos ', $this->render("{% for a in coleccion('blog')|donde('url', '/blog/dos/') %}{{ a.titulo }} {% endfor %}"));
     }
 
     #[Test]

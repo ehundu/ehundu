@@ -39,7 +39,9 @@ Ese es el rasgo que lo distingue y el criterio para decidir qué entra.
     docs/         documentación: el formato (formato.md), la previsualización,
                   la compilación incremental y el despliegue
     marca/        el logotipo de Ehundu en SVG: símbolo, horizontal y vertical,
-                  en color y en negativo
+                  en color y en negativo; en nidel/, las ilustraciones de
+                  Nidel en WebP sin pérdida, fuera del paquete de Composer.
+                  La licencia MIT no cubre nada de marca/ (marca/README.md)
     herramientas/ lo que sirve para desarrollar el motor, no para usarlo:
                   construir-phar.php
     paquete/      el ehundu.phar construido (no se versiona)

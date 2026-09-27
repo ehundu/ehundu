@@ -16,5 +16,6 @@
 /pruebas export-ignore
 /phpunit.xml.dist export-ignore
 /CLAUDE.md export-ignore
+/marca/nidel export-ignore
 /.gitattributes export-ignore
 /.gitignore export-ignore

@@ -234,6 +234,10 @@ Se pronuncia más o menos «e-ún-du».
 
 Ehundu es software libre bajo licencia MIT. Consulta el fichero `LICENSE`.
 
+La licencia cubre el código y la documentación, pero no el logotipo ni las
+ilustraciones de Nidel que hay en `marca/`: sus condiciones están en
+[`marca/README.md`](marca/README.md).
+
 ---
 
 ## In English
@@ -252,3 +256,7 @@ field names are accepted to ease migrations from Eleventy or Lume.
 Documentation is in Spanish for now and will be available in English too.
 
 The name *ehundu* is Basque for "to weave".
+
+Ehundu is free software under the MIT licence. The licence covers the code
+and documentation, not the logo or the Nidel illustrations in `marca/` (see
+[`marca/README.md`](marca/README.md)).

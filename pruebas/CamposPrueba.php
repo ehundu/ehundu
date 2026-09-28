@@ -126,6 +126,21 @@ final class CamposPrueba extends TestCase
     }
 
     #[Test]
+    public function avisaDeUnaFechaQueYamlNoPuedeLeerConOSinComillas(): void
+    {
+        // Un mes 13 o un día 32 sin comillas: YAML no llega a leerlos como fecha
+        self::assertSame([], $this->normalizar('fecha: 2026-13-01'));
+        self::assertSame([], $this->normalizar('publicar: 2026-01-32'));
+        self::assertSame([], $this->normalizar('fecha: "2026-00-10"'));
+
+        self::assertSame([
+            'contenido/a.md:2: «fecha» no es una fecha posible: 2026-13-01',
+            'contenido/a.md:2: «publicar» no es una fecha posible: 2026-01-32',
+            'contenido/a.md:2: «fecha» no es una fecha posible: 2026-00-10',
+        ], $this->avisos());
+    }
+
+    #[Test]
     public function avisaDeUnaFechaImposibleConOSinComillas(): void
     {
         self::assertSame([], $this->normalizar('fecha: 2025-02-31'));

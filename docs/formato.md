@@ -223,7 +223,10 @@ Detalles de los tipos:
   dos últimos, así que el motor traduce los otros tres.
 - **fecha** se escribe `AAAA-MM-DD`, con o sin comillas. Es ese día en la
   zona horaria del sitio (§2), desde su medianoche: `publicar: 2026-10-01`
-  publica a las 00:00 del 1 de octubre en esa zona.
+  publica a las 00:00 del 1 de octubre en esa zona. Una fecha sin comillas
+  que no existe (`2026-13-01`) se lee como el texto que es: en `fecha` y
+  `publicar` avisa, como cualquier fecha imposible, y en un campo que no es
+  reservado llega así a la plantilla, sin aviso (decisión 88).
 - **texto** admite un número, que se toma como texto (`titulo: 2024`).
 - **número** admite un número entre comillas (`orden: "2"`).
 - **`etiquetas`**, **`css`** y **`js`** admiten un texto suelto, que cuenta
@@ -1042,6 +1045,10 @@ un sitio de la v1 no debe usarlo como campo propio.
     crearla y no cambia después (§11).
 87. **Cerrada.** `cuerpo` admite también la forma de un campo, con su `titulo`
     y su `ayuda`; `"markdown"` a secas es la forma corta (§11).
+88. **Cerrada.** Una fecha sin comillas que no existe (`2026-13-01`,
+    `2026-01-32`) se lee como el texto que es y nunca detiene el build: en
+    `fecha` y `publicar` avisa, como cualquier fecha imposible; en los demás
+    campos llega así a la plantilla, sin aviso (§4).
 
 ---
 

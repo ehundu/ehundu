@@ -10,15 +10,19 @@ use Symfony\Component\Yaml\Yaml as SymfonyYaml;
 /**
  * Lectura de YAML con errores en español y situados en la línea del fichero.
  *
- * Las fechas sin comillas se leen como `DateTimeImmutable` en UTC. Las
- * etiquetas de PHP (`!php/object`, `!php/const`) no se admiten: el motor no
- * construye objetos ni lee constantes a partir del proyecto.
+ * Las fechas sin comillas se leen como `DateTimeImmutable` en UTC; las que no
+ * existen (`2026-13-01`), como texto. Las etiquetas de PHP (`!php/object`,
+ * `!php/const`) no se admiten: el motor no construye objetos ni lee
+ * constantes a partir del proyecto.
  *
  * @internal
  */
 final class Yaml
 {
     private const int OPCIONES = SymfonyYaml::PARSE_DATETIME | SymfonyYaml::PARSE_EXCEPTION_ON_INVALID_TYPE;
+
+    /** Cuántas fechas imposibles sin comillas se arreglan en un mismo texto, como mucho */
+    private const int FECHAS_IMPOSIBLES = 100;
 
     /**
      * @param string $fichero      ruta relativa a la raíz del proyecto, para los errores
@@ -31,18 +35,62 @@ final class Yaml
      */
     public static function leer(string $texto, string $fichero, int $primeraLinea = 1, bool $secreto = false): mixed
     {
-        try {
-            return SymfonyYaml::parse($texto, self::OPCIONES);
-        } catch (ParseException $error) {
-            $linea = $error->getParsedLine();
+        for ($vuelta = 0; ; $vuelta++) {
+            try {
+                return SymfonyYaml::parse($texto, self::OPCIONES);
+            } catch (ParseException $error) {
+                // Una fecha sin comillas que no existe (un mes 13, un día 32)
+                // se lee como texto, como si llevara comillas (decisión 88).
+                // Las comillas no cambian las líneas: un error que salga
+                // después sigue en la suya.
+                $arreglado = $vuelta < self::FECHAS_IMPOSIBLES ? self::entrecomillarFechaImposible($texto, $error) : null;
 
-            throw new ErrorDeProyecto(
-                self::explicar($error, $secreto),
-                $fichero,
-                $linea > 0 ? $linea + $primeraLinea - 1 : null,
-                $secreto ? null : $error,
-            );
+                if ($arreglado !== null) {
+                    $texto = $arreglado;
+
+                    continue;
+                }
+
+                $linea = $error->getParsedLine();
+
+                throw new ErrorDeProyecto(
+                    self::explicar($error, $secreto),
+                    $fichero,
+                    $linea > 0 ? $linea + $primeraLinea - 1 : null,
+                    $secreto ? null : $error,
+                );
+            }
         }
+    }
+
+    /**
+     * Symfony lee como fecha lo que lo parece, y si la fecha no existe, falla
+     * y no lee nada más. Pone entre comillas esa fecha, en su línea, para
+     * volver a leer el texto. Null si el error no es ese o no la encuentra.
+     */
+    private static function entrecomillarFechaImposible(string $texto, ParseException $error): ?string
+    {
+        if (!self::esFechaImposible($error) || preg_match('/The date "([^"]+)" could not be parsed/', $error->getMessage(), $partes) !== 1) {
+            return null;
+        }
+
+        $lineas = explode("\n", $texto);
+        $indice = $error->getParsedLine() - 1;
+
+        if (!isset($lineas[$indice])) {
+            return null;
+        }
+
+        // Sin comillas: ni pegada a una palabra ni a unas comillas
+        $patron = '/(?<![\w"\'.:-])' . preg_quote($partes[1], '/') . '(?![\w"\'])/u';
+        $lineas[$indice] = (string) preg_replace($patron, "'{$partes[1]}'", $lineas[$indice], 1, $cuantas);
+
+        return $cuantas === 1 ? implode("\n", $lineas) : null;
+    }
+
+    private static function esFechaImposible(ParseException $error): bool
+    {
+        return $error->getPrevious() instanceof \DateMalformedStringException;
     }
 
     /**

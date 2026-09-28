@@ -637,6 +637,23 @@ final class LectorPrueba extends TestCase
     }
 
     #[Test]
+    public function unaFechaQueYamlNoPuedeLeerAvisaYNoDetieneLaLectura(): void
+    {
+        $this->crearSitioMinimo();
+        $this->crearFichero('contenido/blog/_datos.yml', "publicar: 2026-01-32\n");
+        $this->crearFichero('contenido/blog/uno.md', "---\ntitulo: Uno\nfecha: 2026-13-01\n---\n");
+
+        $lectura = $this->leer();
+
+        self::assertSame([
+            'contenido/blog/uno.md:3: «fecha» no es una fecha posible: 2026-13-01',
+            'contenido/blog/_datos.yml:1: «publicar» no es una fecha posible: 2026-01-32',
+        ], $this->avisos($lectura));
+        self::assertArrayNotHasKey('fecha', $lectura->paginas[0]->campos);
+        self::assertArrayNotHasKey('publicar', $lectura->paginas[0]->campos);
+    }
+
+    #[Test]
     public function unFrontMatterMalEscritoDetieneLaLectura(): void
     {
         $this->crearSitioMinimo();

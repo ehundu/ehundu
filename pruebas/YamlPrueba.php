@@ -27,6 +27,22 @@ final class YamlPrueba extends TestCase
     }
 
     #[Test]
+    public function unaFechaSinComillasQueNoExisteSeLeeComoTexto(): void
+    {
+        $campos = Yaml::leerCampos(
+            "mes: 2026-13-01\ndia: 2026-01-32\nlista: [2026-13-01, 2026-05-01]\nhora: 2026-13-01T10:00:00Z\nbuena: 2026-05-01\n",
+            'a.yml',
+        );
+
+        self::assertSame('2026-13-01', $campos['mes']);
+        self::assertSame('2026-01-32', $campos['dia']);
+        self::assertSame('2026-13-01', $campos['lista'][0]);
+        self::assertInstanceOf(\DateTimeImmutable::class, $campos['lista'][1], 'las demás fechas siguen siendo fechas');
+        self::assertSame('2026-13-01T10:00:00Z', $campos['hora']);
+        self::assertInstanceOf(\DateTimeImmutable::class, $campos['buena']);
+    }
+
+    #[Test]
     public function unTextoVacioSonCeroCampos(): void
     {
         self::assertSame([], Yaml::leerCampos('', 'a.yml'));

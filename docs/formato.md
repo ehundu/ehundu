@@ -1049,6 +1049,9 @@ un sitio de la v1 no debe usarlo como campo propio.
     `2026-01-32`) se lee como el texto que es y nunca detiene el build: en
     `fecha` y `publicar` avisa, como cualquier fecha imposible; en los demás
     campos llega así a la plantilla, sin aviso (§4).
+89. **Cerrada.** El motor trae también el alemán para `fecha()`: meses y días
+    con mayúscula, como se escriben, y «18. März 2025» por defecto (§15.9).
+    Amplía la decisión 79.
 
 ---
 
@@ -1254,13 +1257,15 @@ es en la del predeterminado (§7.3).
 ### 15.9 Fechas
 
 `fecha()` (§7.3) escribe los meses y los días en el idioma de la página. El
-motor trae castellano, euskera e inglés, cada uno con su formato por defecto:
+motor trae castellano, euskera, inglés y alemán, cada uno con su formato por
+defecto:
 
 | Idioma | `fecha()`                | `fecha('l j F Y')`         |
 |--------|--------------------------|----------------------------|
 | `es`   | 18 de marzo de 2025      | martes 18 marzo 2025       |
 | `eu`   | 2025eko martxoaren 18a   | asteartea 18 martxoa 2025  |
 | `en`   | 18 March 2025            | Tuesday 18 March 2025      |
+| `de`   | 18. März 2025            | Dienstag 18 März 2025      |
 
 El formato por defecto del euskera no se puede escribir con letras: el sufijo
 del año es `-ko` o `-eko` según cómo se lee el número (`2026ko`, `2025eko`), y

@@ -44,6 +44,9 @@ final class FechaPrueba extends TestCase
         yield 'euskera, el mes en genitivo' => ['eu', 'F\r\e\n j\a', 'martxoaren 18a'];
         yield 'inglés, por defecto' => ['en', null, '18 March 2025'];
         yield 'inglés, con letras' => ['en', 'l j F Y', 'Tuesday 18 March 2025'];
+        yield 'alemán, por defecto' => ['de', null, '18. März 2025'];
+        yield 'alemán, con letras' => ['de', 'l, j. F Y', 'Dienstag, 18. März 2025'];
+        yield 'alemán, abreviaturas' => ['de', 'D, j. M', 'Di, 18. Mär'];
         yield 'un idioma que no trae el motor' => ['fr', null, '18 March 2025'];
     }
 
@@ -85,7 +88,7 @@ final class FechaPrueba extends TestCase
     #[Test]
     public function sabeQueIdiomasTrae(): void
     {
-        self::assertSame([true, true, true, false], array_map(Fecha::conoce(...), ['es', 'eu', 'en', 'fr']));
+        self::assertSame([true, true, true, true, false], array_map(Fecha::conoce(...), ['es', 'eu', 'en', 'de', 'fr']));
     }
 
     #[Test]

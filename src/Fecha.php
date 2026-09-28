@@ -9,19 +9,28 @@ namespace Ehundu;
  * `date` de Twig y la función `date()` de PHP, con los nombres de meses y
  * días en el idioma de la página, y siempre en la zona horaria del sitio.
  *
- * Trae castellano, euskera e inglés. Con cualquier otro idioma, los nombres
- * salen en inglés, que son los de PHP.
+ * Trae castellano, euskera, inglés y alemán. Con cualquier otro idioma, los
+ * nombres salen en inglés, que son los de PHP.
  */
 final class Fecha
 {
     /** «18 de marzo de 2025». */
     public const string FORMATO = 'j \d\e F \d\e Y';
 
+    /**
+     * El formato por defecto de los idiomas que no escriben la fecha como el
+     * inglés. El del euskera no se puede escribir con letras: ver enEuskera().
+     */
+    private const array FORMATOS = [
+        'es' => self::FORMATO,
+        'de' => 'j. F Y',
+    ];
+
     /** «18 March 2025», también en los idiomas que no trae el motor. */
     private const string FORMATO_EN_INGLES = 'j F Y';
 
     /** Los idiomas que trae el motor. */
-    private const array IDIOMAS = ['es', 'eu', 'en'];
+    private const array IDIOMAS = ['es', 'eu', 'en', 'de'];
 
     /**
      * Meses, meses cortos, días y días cortos de cada idioma, salvo el
@@ -41,6 +50,13 @@ final class Fecha
             'M' => [1 => 'urt', 'ots', 'mar', 'api', 'mai', 'eka', 'uzt', 'abu', 'ira', 'urr', 'aza', 'abe'],
             'l' => [1 => 'astelehena', 'asteartea', 'asteazkena', 'osteguna', 'ostirala', 'larunbata', 'igandea'],
             'D' => [1 => 'al', 'ar', 'az', 'og', 'or', 'lr', 'ig'],
+        ],
+        'de' => [
+            'F' => [1 => 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+                'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'],
+            'M' => [1 => 'Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'],
+            'l' => [1 => 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'],
+            'D' => [1 => 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'],
         ],
     ];
 
@@ -73,7 +89,7 @@ final class Fecha
             return self::enEuskera($fecha);
         }
 
-        $formato ??= $idioma === 'es' ? self::FORMATO : self::FORMATO_EN_INGLES;
+        $formato ??= self::FORMATOS[$idioma] ?? self::FORMATO_EN_INGLES;
         $nombres = self::NOMBRES[$idioma] ?? [];
         $resultado = '';
 

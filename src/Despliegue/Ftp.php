@@ -24,6 +24,12 @@ use Ehundu\Proyecto;
  * ellas. La extensión no da el código de la respuesta, que diría si el fallo
  * es pasajero (4xx) o no (5xx); por eso se repite una vez sin saberlo.
  *
+ * Algunos servidores FTPS cortan siempre la subida de ciertos tamaños exactos
+ * de fichero, sea cual sea su contenido, y repetir no sirve. Como último
+ * recurso, un fichero que no sube entero se sube en dos partes: la primera
+ * normal y el resto añadido al final (APPE), partiendo por otro punto si
+ * tampoco así, y comprobando que al final mide lo que tiene que medir.
+ *
  * La extensión cifra pero no comprueba el certificado del servidor: protege
  * de quien escucha, no de quien se haga pasar por el servidor. Para eso está
  * SFTP, con la huella del servidor.
@@ -31,6 +37,12 @@ use Ehundu\Proyecto;
 final class Ftp implements Destino
 {
     private const int ESPERA = 30;
+
+    /**
+     * Por dónde se parte, en orden, un fichero que no sube entero. Los que
+     * miden menos que el corte más pequeño no se parten.
+     */
+    private const array CORTES = [32768, 20000, 45000, 12000, 52000, 7000];
 
     private \FTP\Connection $conexion;
     private string $base;
@@ -85,34 +97,39 @@ final class Ftp implements Destino
     {
         $remota = $this->remota($ruta);
 
-        $this->intentar("subir {$ruta}", function () use ($remota, $origen) {
-            $this->prepararCarpeta(Rutas::carpeta($remota));
+        try {
+            $this->intentar("subir {$ruta}", function () use ($remota, $origen) {
+                $this->prepararCarpeta(Rutas::carpeta($remota));
 
-            return @ftp_put($this->conexion, $remota, $origen, FTP_BINARY) ? ['hecho' => null] : false;
-        });
+                return @ftp_put($this->conexion, $remota, $origen, FTP_BINARY) ? ['hecho' => null] : false;
+            });
+        } catch (ErrorDeProyecto $error) {
+            $this->enDosPartes($ruta, $remota, fn () => fopen($origen, 'rb'), (int) filesize($origen), $error);
+        }
     }
 
     public function escribir(string $ruta, string $contenido): void
     {
         $remota = $this->remota($ruta);
 
-        $this->intentar("subir {$ruta}", function () use ($remota, $contenido) {
-            $this->prepararCarpeta(Rutas::carpeta($remota));
-            $temporal = fopen('php://temp', 'r+');
+        try {
+            $this->intentar("subir {$ruta}", function () use ($remota, $contenido) {
+                $this->prepararCarpeta(Rutas::carpeta($remota));
+                $temporal = self::flujo($contenido);
 
-            if ($temporal === false) {
-                return false;
-            }
+                if ($temporal === false) {
+                    return false;
+                }
 
-            try {
-                fwrite($temporal, $contenido);
-                rewind($temporal);
-
-                return @ftp_fput($this->conexion, $remota, $temporal, FTP_BINARY) ? ['hecho' => null] : false;
-            } finally {
-                fclose($temporal);
-            }
-        });
+                try {
+                    return @ftp_fput($this->conexion, $remota, $temporal, FTP_BINARY) ? ['hecho' => null] : false;
+                } finally {
+                    fclose($temporal);
+                }
+            });
+        } catch (ErrorDeProyecto $error) {
+            $this->enDosPartes($ruta, $remota, fn () => self::flujo($contenido), strlen($contenido), $error);
+        }
     }
 
     public function borrar(string $ruta): void
@@ -188,6 +205,108 @@ final class Ftp implements Destino
             $this->carpetas = [];
             $this->avisos->registrar("Se cortó la conexión con {$this->configuracion->servidor} al {$que}{$motivo}; se ha vuelto a conectar");
         }
+    }
+
+    /**
+     * El último recurso para un fichero que no ha subido entero (ver arriba).
+     * Si tampoco sube así, el error es el de la subida entera.
+     *
+     * @param \Closure(): (resource|false) $abrir abre lo que se sube, desde el principio
+     *
+     * @throws ErrorDeProyecto
+     */
+    private function enDosPartes(string $ruta, string $remota, \Closure $abrir, int $tamano, ErrorDeProyecto $error): void
+    {
+        $cortes = array_filter(self::CORTES, fn (int $corte) => $corte < $tamano);
+
+        foreach ($cortes as $corte) {
+            if (!$this->viva()) {
+                @ftp_close($this->conexion);
+
+                try {
+                    $this->conexion = $this->conectar();
+                } catch (ErrorDeProyecto) {
+                    throw $error;
+                }
+
+                $this->carpetas = [];
+            }
+
+            $this->prepararCarpeta(Rutas::carpeta($remota));
+
+            if ($this->intentarEnDosPartes($remota, $abrir, $corte, $tamano)) {
+                $this->avisos->registrar("{$ruta} no subía entero; se ha subido en dos partes");
+
+                return;
+            }
+        }
+
+        if ($cortes !== []) {
+            $this->avisos->registrar("Tampoco se ha podido subir {$ruta} en dos partes");
+        }
+
+        throw $error;
+    }
+
+    /**
+     * Sube hasta `$corte` con STOR y el resto con APPE, que la extensión solo
+     * sabe mandar desde un fichero: va a uno temporal del sistema, fuera del
+     * proyecto, que se borra al terminar.
+     *
+     * @param \Closure(): (resource|false) $abrir
+     */
+    private function intentarEnDosPartes(string $remota, \Closure $abrir, int $corte, int $tamano): bool
+    {
+        $origen = $abrir();
+        $primera = fopen('php://temp', 'r+');
+        $resto = tempnam(sys_get_temp_dir(), 'ehundu-ftp-');
+
+        try {
+            if ($origen === false || $primera === false || $resto === false) {
+                return false;
+            }
+
+            stream_copy_to_stream($origen, $primera, $corte);
+            rewind($primera);
+            $destino = fopen($resto, 'wb');
+
+            if ($destino === false) {
+                return false;
+            }
+
+            stream_copy_to_stream($origen, $destino);
+            fclose($destino);
+
+            if (!@ftp_fput($this->conexion, $remota, $primera, FTP_BINARY) || !@ftp_append($this->conexion, $remota, $resto, FTP_BINARY)) {
+                return false;
+            }
+
+            // Si el servidor no dice cuánto mide (no todos responden a SIZE), valen sus dos respuestas
+            $mide = @ftp_size($this->conexion, $remota);
+
+            return $mide === -1 || $mide === $tamano;
+        } finally {
+            is_resource($origen) && fclose($origen);
+            is_resource($primera) && fclose($primera);
+            $resto !== false && @unlink($resto);
+        }
+    }
+
+    /**
+     * Un texto como flujo que se puede subir con `ftp_fput`.
+     *
+     * @return resource|false
+     */
+    private static function flujo(string $contenido)
+    {
+        $flujo = fopen('php://temp', 'r+');
+
+        if ($flujo !== false) {
+            fwrite($flujo, $contenido);
+            rewind($flujo);
+        }
+
+        return $flujo;
     }
 
     /**

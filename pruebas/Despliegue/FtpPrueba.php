@@ -50,13 +50,14 @@ final class FtpPrueba extends TestCase
     }
 
     /**
-     * @param int $cortarCada si no es cero, el servidor corta la conexión en cada subida número N
-     * @param int $fallarCada si no es cero, el servidor guarda la mitad y contesta 426 en cada subida número N
+     * @param int       $cortarCada si no es cero, el servidor corta la conexión en cada subida número N
+     * @param int       $fallarCada si no es cero, el servidor guarda la mitad y contesta 426 en cada subida número N
+     * @param list<int> $rechazar   el servidor hace lo mismo con toda subida de uno de estos tamaños exactos
      */
-    private function arrancar(int $cortarCada = 0, int $fallarCada = 0): void
+    private function arrancar(int $cortarCada = 0, int $fallarCada = 0, array $rechazar = []): void
     {
         $this->proceso = proc_open(
-            [PHP_BINARY, dirname(__DIR__) . '/Apoyo/servidor-ftp-falso.php', $this->servidor, self::CLAVE, (string) $cortarCada, (string) $fallarCada],
+            [PHP_BINARY, dirname(__DIR__) . '/Apoyo/servidor-ftp-falso.php', $this->servidor, self::CLAVE, (string) $cortarCada, (string) $fallarCada, implode(',', $rechazar)],
             [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
             $tuberias,
         ) ?: null;
@@ -208,6 +209,63 @@ final class FtpPrueba extends TestCase
             'Falló al subir b.css (el servidor dice: Failure reading network stream.); se ha vuelto a intentar',
             'Falló al subir c.css (el servidor dice: Failure reading network stream.); se ha vuelto a intentar',
         ], array_map('strval', $avisos->todos()));
+    }
+
+    #[Test]
+    public function unFicheroQueElServidorNoAceptaEnteroSeSubeEnDosPartes(): void
+    {
+        $this->pararServidor();
+        $this->arrancar(rechazar: [40000]);
+        $avisos = new Avisos();
+        $ftp = new Ftp($this->configuracion(), $avisos, esperas: [0, 0]);
+        $contenido = random_bytes(40000);
+        $local = $this->carpetaTemporal() . '/grande.bin';
+        file_put_contents($local, $contenido);
+
+        $ftp->subir('img/grande.bin', $local);
+        $ftp->cerrar();
+
+        self::assertSame($contenido, file_get_contents("{$this->servidor}/www/img/grande.bin"));
+        self::assertSame([
+            'Falló al subir img/grande.bin (el servidor dice: Failure reading network stream.); se ha vuelto a intentar',
+            'img/grande.bin no subía entero; se ha subido en dos partes',
+        ], array_map('strval', $avisos->todos()));
+    }
+
+    #[Test]
+    public function siUnCorteTampocoValeSePruebaOtro(): void
+    {
+        $this->pararServidor();
+        // Rechaza el fichero entero y la primera parte del primer corte, 32768
+        $this->arrancar(rechazar: [40000, 32768]);
+        $ftp = new Ftp($this->configuracion(), esperas: [0, 0]);
+        $contenido = random_bytes(40000);
+
+        $ftp->escribir('.ehundu.json', $contenido);
+
+        self::assertSame($contenido, $ftp->leer('.ehundu.json'), 'también lo que se escribe, como el manifiesto');
+        $ftp->cerrar();
+    }
+
+    #[Test]
+    public function siTampocoSubeEnDosPartesEsElErrorDeSiempre(): void
+    {
+        $this->pararServidor();
+        // Rechaza el fichero entero y la primera parte de todos los cortes que caben
+        $this->arrancar(rechazar: [40000, 32768, 20000, 12000, 7000]);
+        $avisos = new Avisos();
+        $ftp = new Ftp($this->configuracion(), $avisos, esperas: [0, 0]);
+        $local = $this->carpetaTemporal() . '/grande.bin';
+        file_put_contents($local, random_bytes(40000));
+
+        try {
+            $ftp->subir('grande.bin', $local);
+            self::fail('Tenía que fallar');
+        } catch (ErrorDeProyecto $error) {
+            self::assertSame('No se puede subir grande.bin (el servidor dice: Failure reading network stream.)', $error->getMessage());
+        }
+
+        self::assertSame('Tampoco se ha podido subir grande.bin en dos partes', (string) $avisos->todos()[1]);
     }
 
     private function configuracion(string $clave = self::CLAVE): Configuracion

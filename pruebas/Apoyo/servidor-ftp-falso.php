@@ -12,14 +12,17 @@ declare(strict_types=1);
  * subida número N, sin contestar, como un servidor que se cae: para probar
  * que el cliente vuelve a conectar. Con un cuarto, en cada subida número N
  * guarda solo la mitad y contesta 426, como vsftpd cuando una subida le llega
- * mal, pero sin cortar.
+ * mal, pero sin cortar. Con un quinto, una lista de tamaños separados por
+ * comas, hace lo mismo con toda subida (STOR o APPE) de uno de esos tamaños
+ * exactos, como algunos servidores FTPS.
  *
- * Uso: php servidor-ftp-falso.php <carpeta> <clave> [cortar-cada] [fallar-cada]
+ * Uso: php servidor-ftp-falso.php <carpeta> <clave> [cortar-cada] [fallar-cada] [tamaños]
  */
 
 [, $raiz, $clave] = $argv;
 $cortarCada = (int) ($argv[3] ?? 0);
 $fallarCada = (int) ($argv[4] ?? 0);
+$rechazados = array_map('intval', array_filter(explode(',', $argv[5] ?? '')));
 $subidas = 0;
 
 $servidor = stream_socket_server('tcp://127.0.0.1:0', $codigo, $mensaje);
@@ -34,13 +37,14 @@ echo puerto($servidor), "\n";
 // Si en medio minuto no llega nadie, se acaba: una prueba que se corta no
 // deja el servidor huérfano.
 while (($control = @stream_socket_accept($servidor, 30)) !== false) {
-    atender($control, $raiz, $clave, $cortarCada, $fallarCada, $subidas);
+    atender($control, $raiz, $clave, $cortarCada, $fallarCada, $rechazados, $subidas);
 }
 
 /**
- * @param resource $control
+ * @param resource  $control
+ * @param list<int> $rechazados
  */
-function atender($control, string $raiz, string $clave, int $cortarCada, int $fallarCada, int &$subidas): void
+function atender($control, string $raiz, string $clave, int $cortarCada, int $fallarCada, array $rechazados, int &$subidas): void
 {
     $responder = function (string $linea) use ($control): void {
         fwrite($control, "{$linea}\r\n");
@@ -92,11 +96,13 @@ function atender($control, string $raiz, string $clave, int $cortarCada, int $fa
                     : "229 Modo pasivo extendido (|||{$puerto}|)");
                 break;
             case 'STOR':
+            case 'APPE':
                 $conexion = $datos();
                 $responder('150 Adelante');
-                $contenido = stream_get_contents($conexion);
+                $contenido = (string) stream_get_contents($conexion);
                 fclose($conexion);
                 $subidas++;
+                $modo = $orden === 'APPE' ? FILE_APPEND : 0;
 
                 if ($cortarCada > 0 && $subidas % $cortarCada === 0) {
                     fclose($control);
@@ -104,13 +110,13 @@ function atender($control, string $raiz, string $clave, int $cortarCada, int $fa
                     return;
                 }
 
-                if ($fallarCada > 0 && $subidas % $fallarCada === 0) {
-                    file_put_contents($ruta, substr((string) $contenido, 0, intdiv(strlen((string) $contenido), 2)));
+                if (($fallarCada > 0 && $subidas % $fallarCada === 0) || in_array(strlen($contenido), $rechazados, true)) {
+                    file_put_contents($ruta, substr($contenido, 0, intdiv(strlen($contenido), 2)), $modo);
                     $responder('426 Failure reading network stream.');
                 } elseif (!is_dir(dirname($ruta))) {
                     $responder('553 No existe la carpeta');
                 } else {
-                    file_put_contents($ruta, $contenido);
+                    file_put_contents($ruta, $contenido, $modo);
                     $responder('226 Recibido');
                 }
                 break;

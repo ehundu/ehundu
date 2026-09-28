@@ -636,21 +636,93 @@ final class LectorPrueba extends TestCase
         );
     }
 
+    /**
+     * Fechas que YAML no llega a leer: sin comillas, Symfony falla en lugar
+     * de dar otra fecha, como con el 31 de febrero (decisión 88).
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function fechasQueYamlNoPuedeLeer(): iterable
+    {
+        yield 'mes 13' => ['2026-13-01'];
+        yield 'día 32' => ['2026-01-32'];
+    }
+
     #[Test]
-    public function unaFechaQueYamlNoPuedeLeerAvisaYNoDetieneLaLectura(): void
+    #[DataProvider('fechasQueYamlNoPuedeLeer')]
+    public function unaFechaQueYamlNoPuedeLeerEnElFrontMatterAvisaYNoDetieneLaLectura(string $fecha): void
     {
         $this->crearSitioMinimo();
-        $this->crearFichero('contenido/blog/_datos.yml', "publicar: 2026-01-32\n");
-        $this->crearFichero('contenido/blog/uno.md', "---\ntitulo: Uno\nfecha: 2026-13-01\n---\n");
+        $this->crearFichero('contenido/a.md', "---\ntitulo: A\nfecha: {$fecha}\npublicar: {$fecha}\n---\n");
+        $this->crearFichero('contenido/b.md', "---\ntitulo: B\nfecha: \"{$fecha}\"\npublicar: '{$fecha}'\n---\n");
+        $this->crearFichero('contenido/c.md', "---\ntitulo: C\ndate: {$fecha} # alias y comentario\n---\n");
 
         $lectura = $this->leer();
 
+        self::assertSame(
+            [['titulo' => 'A'], ['titulo' => 'B'], ['titulo' => 'C']],
+            array_map(fn (Pagina $pagina) => $pagina->campos, $lectura->paginas),
+        );
         self::assertSame([
-            'contenido/blog/uno.md:3: «fecha» no es una fecha posible: 2026-13-01',
-            'contenido/blog/_datos.yml:1: «publicar» no es una fecha posible: 2026-01-32',
+            "contenido/a.md:3: «fecha» no es una fecha posible: {$fecha}",
+            "contenido/a.md:4: «publicar» no es una fecha posible: {$fecha}",
+            "contenido/b.md:3: «fecha» no es una fecha posible: {$fecha}",
+            "contenido/b.md:4: «publicar» no es una fecha posible: {$fecha}",
+            "contenido/c.md:3: «date» no es una fecha posible: {$fecha}",
         ], $this->avisos($lectura));
-        self::assertArrayNotHasKey('fecha', $lectura->paginas[0]->campos);
-        self::assertArrayNotHasKey('publicar', $lectura->paginas[0]->campos);
+    }
+
+    #[Test]
+    #[DataProvider('fechasQueYamlNoPuedeLeer')]
+    public function unaFechaQueYamlNoPuedeLeerEnUnDatosYmlAvisaYNoDetieneLaLectura(string $fecha): void
+    {
+        $this->crearSitioMinimo();
+        $this->crearFichero('contenido/_datos.yml', "fecha: {$fecha}\npublicar: '{$fecha}'\n");
+        $this->crearFichero('contenido/blog/_datos.yml', "etiquetas: [blog]\nfecha: \"{$fecha}\"\npublicar: {$fecha}\n");
+        $this->crearFichero('contenido/blog/uno.md', "---\ntitulo: Uno\n---\n");
+
+        $lectura = $this->leer();
+
+        self::assertSame(['etiquetas' => ['blog'], 'titulo' => 'Uno'], $lectura->paginas[0]->campos);
+        self::assertSame([
+            "contenido/_datos.yml:1: «fecha» no es una fecha posible: {$fecha}",
+            "contenido/_datos.yml:2: «publicar» no es una fecha posible: {$fecha}",
+            "contenido/blog/_datos.yml:2: «fecha» no es una fecha posible: {$fecha}",
+            "contenido/blog/_datos.yml:3: «publicar» no es una fecha posible: {$fecha}",
+        ], $this->avisos($lectura));
+    }
+
+    #[Test]
+    #[DataProvider('fechasQueYamlNoPuedeLeer')]
+    public function unaFechaQueYamlNoPuedeLeerEnLosCamposComunesDeUnaPaginaAvisaYNoDetieneLaLectura(string $fecha): void
+    {
+        $this->crearSitioMinimo();
+        $this->crearFichero('contenido/servicios.yml', "fecha: {$fecha}\npublicar: \"{$fecha}\"\n");
+        $this->crearFichero('contenido/servicios.md', "---\ntitulo: Servicios\n---\n");
+
+        $lectura = $this->leer();
+
+        self::assertSame(['titulo' => 'Servicios'], $lectura->paginas[0]->campos);
+        self::assertSame([
+            "contenido/servicios.yml:1: «fecha» no es una fecha posible: {$fecha}",
+            "contenido/servicios.yml:2: «publicar» no es una fecha posible: {$fecha}",
+        ], $this->avisos($lectura));
+    }
+
+    #[Test]
+    #[DataProvider('fechasQueYamlNoPuedeLeer')]
+    public function unaFechaQueYamlNoPuedeLeerEnDatosYEnCamposPropiosLlegaComoTexto(string $fecha): void
+    {
+        $this->crearSitioMinimo();
+        $this->crearFichero('datos/agenda.yml', "inicio: {$fecha}\nfechas: [\n  2026-05-01,\n  {$fecha}\n]\n");
+        $this->crearFichero('contenido/a.md', "---\ntitulo: A\nevento: {$fecha}\n---\n");
+
+        $lectura = $this->leer();
+
+        self::assertSame($fecha, $lectura->datos['agenda']['inicio']);
+        self::assertSame($fecha, $lectura->datos['agenda']['fechas'][1]);
+        self::assertSame(['titulo' => 'A', 'evento' => $fecha], $lectura->paginas[0]->campos);
+        self::assertSame([], $this->avisos($lectura));
     }
 
     #[Test]

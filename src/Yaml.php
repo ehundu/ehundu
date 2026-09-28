@@ -65,32 +65,68 @@ final class Yaml
 
     /**
      * Symfony lee como fecha lo que lo parece, y si la fecha no existe, falla
-     * y no lee nada más. Pone entre comillas esa fecha, en su línea, para
-     * volver a leer el texto. Null si el error no es ese o no la encuentra.
+     * y no lee nada más. Pone entre comillas esa fecha para volver a leer el
+     * texto. Null si el error no es ese o no la encuentra.
      */
     private static function entrecomillarFechaImposible(string $texto, ParseException $error): ?string
     {
-        if (!self::esFechaImposible($error) || preg_match('/The date "([^"]+)" could not be parsed/', $error->getMessage(), $partes) !== 1) {
+        $fecha = self::fechaImposible($error);
+
+        if ($fecha === null) {
             return null;
         }
 
+        // Symfony da la línea de la fecha o, en una lista o un mapa entre
+        // corchetes que ocupa varias, la del cierre: se busca de ahí hacia
+        // arriba. La misma fecha puede estar también dentro de un texto, así
+        // que se prueba cada una hasta dar con la que falla.
         $lineas = explode("\n", $texto);
-        $indice = $error->getParsedLine() - 1;
 
-        if (!isset($lineas[$indice])) {
-            return null;
+        for ($indice = min($error->getParsedLine(), count($lineas)) - 1; $indice >= 0; $indice--) {
+            for ($posicion = strpos($lineas[$indice], $fecha); $posicion !== false; $posicion = strpos($lineas[$indice], $fecha, $posicion + 1)) {
+                if (self::esLaQueFalla($lineas, $indice, $posicion, $fecha)) {
+                    $lineas[$indice] = substr_replace($lineas[$indice], "'{$fecha}'", $posicion, strlen($fecha));
+
+                    return implode("\n", $lineas);
+                }
+            }
         }
 
-        // Sin comillas: ni pegada a una palabra ni a unas comillas
-        $patron = '/(?<![\w"\'.:-])' . preg_quote($partes[1], '/') . '(?![\w"\'])/u';
-        $lineas[$indice] = (string) preg_replace($patron, "'{$partes[1]}'", $lineas[$indice], 1, $cuantas);
-
-        return $cuantas === 1 ? implode("\n", $lineas) : null;
+        return null;
     }
 
-    private static function esFechaImposible(ParseException $error): bool
+    /**
+     * Si la fecha de esa posición es la que Symfony no puede leer: con otro
+     * año sigue sin existir, y el error tiene que pasar a ser ese.
+     *
+     * @param list<string> $lineas
+     */
+    private static function esLaQueFalla(array $lineas, int $indice, int $posicion, string $fecha): bool
     {
-        return $error->getPrevious() instanceof \DateMalformedStringException;
+        $otra = (str_starts_with($fecha, '0000') ? '0001' : '0000') . substr($fecha, 4);
+        $lineas[$indice] = substr_replace($lineas[$indice], $otra, $posicion, strlen($fecha));
+
+        try {
+            SymfonyYaml::parse(implode("\n", $lineas), self::OPCIONES);
+        } catch (ParseException $error) {
+            return self::fechaImposible($error) === $otra;
+        }
+
+        // Solo falla esa, y con otro año existe
+        return true;
+    }
+
+    /**
+     * La fecha que Symfony no ha podido leer, o null si el error es otro.
+     */
+    private static function fechaImposible(ParseException $error): ?string
+    {
+        if (!$error->getPrevious() instanceof \DateMalformedStringException
+            || preg_match('/The date "([^"]+)" could not be parsed/', $error->getMessage(), $partes) !== 1) {
+            return null;
+        }
+
+        return $partes[1];
     }
 
     /**

@@ -43,6 +43,29 @@ final class YamlPrueba extends TestCase
     }
 
     #[Test]
+    public function tambienEnUnaListaOUnMapaEntreCorchetesQueOcupaVariasLineas(): void
+    {
+        // Symfony da la línea del cierre; la misma fecha dentro de un texto no se toca
+        $campos = Yaml::leerCampos(<<<'YAML'
+            lista: [
+              2026-05-01,
+              2026-13-01,
+              "no el 2026-13-01",
+              otro 2026-13-01 suelto
+            ]
+            mapa: {
+              inicio: 2026-01-32,
+              fin: 2026-05-01
+            }
+            YAML, 'a.yml');
+
+        self::assertInstanceOf(\DateTimeImmutable::class, $campos['lista'][0]);
+        self::assertSame(['2026-13-01', 'no el 2026-13-01', 'otro 2026-13-01 suelto'], array_slice($campos['lista'], 1));
+        self::assertSame('2026-01-32', $campos['mapa']['inicio']);
+        self::assertInstanceOf(\DateTimeImmutable::class, $campos['mapa']['fin']);
+    }
+
+    #[Test]
     public function unTextoVacioSonCeroCampos(): void
     {
         self::assertSame([], Yaml::leerCampos('', 'a.yml'));

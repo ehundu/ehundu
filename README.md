@@ -169,8 +169,8 @@ servidor no lo toca nunca. Con `--simular` dice qué haría sin hacerlo.
   (`contacto.md`, `contacto.eu.md`): cada idioma con su prefijo en la URL, las
   traducciones enlazadas entre sí para los `hreflang` y el selector de
   idioma, colecciones y datos de cada idioma, y las fechas en castellano,
-  euskera o inglés. Traducir solo parte del sitio es lo normal, no una
-  excepción.
+  euskera, inglés o alemán. Traducir solo parte del sitio es lo normal, no
+  una excepción.
 - **El CSS y el JavaScript de cada página**, reunidos e incrustados en ella:
   cada plantilla declara lo que necesita donde lo usa.
 - **Un `sitemap.xml`**, y un feed Atom si se pide.
@@ -179,8 +179,9 @@ servidor no lo toca nunca. Con `--simular` dice qué haría sin hacerlo.
   contraseñas van en un fichero aparte que no se versiona.
 
 Lo que no hace, a propósito, en esta versión: procesar imágenes, compilar CSS o
-JavaScript, paginar listados o ejecutar código propio de cada sitio. El formato está pensado para que lo que llegue después no
-obligue a cambiarlo, y ya reserva lo que necesitará.
+JavaScript, paginar listados o ejecutar código propio de cada sitio. El formato
+está pensado para que lo que llegue después no obligue a cambiarlo, y ya
+reserva lo que necesitará.
 
 ## Documentación
 
@@ -246,9 +247,9 @@ Ehundu is a static site generator written in PHP, designed to build sites both
 from the command line and from within a web process on ordinary shared PHP
 hosting. The current version is 0.3: it builds Markdown and Twig sites,
 multilingual ones included, previews them with incremental rebuilds, and
-deploys them to a folder, FTP, SFTP or any S3-compatible storage. It needs PHP 8.4 or later and nothing else,
-and ships as a single `ehundu.phar` or as the Composer package
-`ehundu/ehundu`.
+deploys them to a folder, FTP, SFTP or any S3-compatible storage. It needs
+PHP 8.4 or later and nothing else, and ships as a single `ehundu.phar` or as
+the Composer package `ehundu/ehundu`.
 
 Its project format is deliberately in Spanish (folder names, front matter
 fields), as a commitment to Spanish-speaking web developers; the usual English

@@ -714,6 +714,11 @@ porque un lector de feeds no sabe de qué sitio vienen. Una página de la
 colección sin fecha no entra, y se avisa: Atom exige una fecha en cada
 entrada.
 
+La fecha del feed es la de su entrada más reciente. Un feed sin entradas
+lleva siempre el 1 de enero de 1970, en la zona horaria del sitio: Atom exige
+una fecha también ahí, y con una fija el feed no cambia de una compilación a
+otra, ni se vuelve a escribir ni a subir mientras siga vacío.
+
 En un sitio en varios idiomas hay un feed por idioma (§15.10).
 
 ---
@@ -1052,6 +1057,9 @@ un sitio de la v1 no debe usarlo como campo propio.
 89. **Cerrada.** El motor trae también el alemán para `fecha()`: meses y días
     con mayúscula, como se escriben, y «18. März 2025» por defecto (§15.9).
     Amplía la decisión 79.
+90. **Cerrada.** Un feed sin entradas lleva como fecha el 1 de enero de 1970
+    en la zona del sitio, y no el momento de la compilación: así no cambia de
+    una compilación a otra (§10.2).
 
 ---
 

@@ -17,16 +17,19 @@ final class Feed
     public const int LIMITE_POR_DEFECTO = 20;
 
     /**
+     * La fecha de un feed sin entradas, en la zona del sitio: siempre la
+     * misma, para que no cambie de una compilación a otra (formato §10.2).
+     */
+    private const string SIN_ENTRADAS = '1970-01-01 00:00:00';
+
+    /**
      * @param \Closure(Pagina): string     $cuerpo  da el contenido de una página ya en HTML
-     * @param \DateTimeImmutable           $ahora   el momento de la construcción: es el `updated` de un
-     *                                               feed sin entradas, para que dos construcciones con el
-     *                                               mismo momento den el mismo feed
      * @param (\Closure(string): bool)|null $ocupado si el proyecto ya tiene algo en ese fichero de
      *                                               salida; entonces gana lo suyo
      *
      * @return array<string, string> cada feed, por su fichero en `salida/`; ninguno si el sitio no tiene
      */
-    public static function generar(Sitio $sitio, Colecciones $colecciones, \Closure $cuerpo, Avisos $avisos, \DateTimeImmutable $ahora, ?\Closure $ocupado = null): array
+    public static function generar(Sitio $sitio, Colecciones $colecciones, \Closure $cuerpo, Avisos $avisos, ?\Closure $ocupado = null): array
     {
         $configuracion = self::configuracion($sitio, $avisos);
 
@@ -43,7 +46,7 @@ final class Feed
                 continue;
             }
 
-            $feed = self::deUnIdioma($sitio, $idioma, $configuracion, $colecciones, $cuerpo, $avisos, $ahora);
+            $feed = self::deUnIdioma($sitio, $idioma, $configuracion, $colecciones, $cuerpo, $avisos);
 
             if ($feed !== null) {
                 $feeds[$fichero] = $feed;
@@ -59,7 +62,7 @@ final class Feed
      *
      * @return string|null null si no es el idioma predeterminado y no tiene entradas
      */
-    private static function deUnIdioma(Sitio $sitio, string $idioma, array $configuracion, Colecciones $colecciones, \Closure $cuerpo, Avisos $avisos, \DateTimeImmutable $ahora): ?string
+    private static function deUnIdioma(Sitio $sitio, string $idioma, array $configuracion, Colecciones $colecciones, \Closure $cuerpo, Avisos $avisos): ?string
     {
         [$coleccion, $limite, $titulo] = $configuracion;
         $entradas = [];
@@ -84,7 +87,7 @@ final class Feed
 
         $entradas = Coleccion::limite(Coleccion::orden($entradas, 'fecha desc'), $limite);
         $inicio = $sitio->absoluta($sitio->idiomas->raiz($idioma));
-        $actualizado = $entradas === [] ? $ahora : $entradas[0]->campos['fecha'];
+        $actualizado = $entradas === [] ? new \DateTimeImmutable(self::SIN_ENTRADAS, $sitio->zonaHoraria) : $entradas[0]->campos['fecha'];
 
         $xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
             . '<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="' . self::escapar($idioma) . "\">\n"

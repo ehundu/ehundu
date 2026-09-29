@@ -121,7 +121,7 @@ final class Constructor
             $escritos['sitemap.xml'] = Sitemap::generar($lectura->sitio, $colecciones->coleccion(Colecciones::TODO));
         }
 
-        $feeds = Feed::generar($lectura->sitio, $colecciones, $maquetador->cuerpo(...), $avisos, $ahora, $destinos->ocupado(...));
+        $feeds = Feed::generar($lectura->sitio, $colecciones, $maquetador->cuerpo(...), $avisos, $destinos->ocupado(...));
 
         foreach ($feeds as $fichero => $feed) {
             $escritos[$fichero] = $feed;

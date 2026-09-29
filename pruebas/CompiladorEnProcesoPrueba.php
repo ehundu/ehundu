@@ -273,20 +273,24 @@ final class CompiladorEnProcesoPrueba extends TestCase
     }
 
     /**
-     * Sin entradas, `updated` es el momento de la compilación, el mismo con
-     * el que se decide qué está publicado, y no la hora del reloj: dos
-     * compilaciones con el mismo momento dan el mismo feed.
+     * Sin entradas, `updated` es siempre el 1 de enero de 1970 en la zona del
+     * sitio, y no el momento de la compilación: el feed no cambia de una
+     * compilación a otra (decisión 90).
      */
     #[Test]
-    public function unFeedSinEntradasLlevaElMomentoDeLaCompilacion(): void
+    public function unFeedSinEntradasLlevaSiempreLaMismaFecha(): void
     {
         $this->crearFichero('sitio.yml', "nombre: Prueba\nurl: https://www.ejemplo.com\nzonaHoraria: Europe/Madrid\nfeed:\n  coleccion: blog\n");
         $this->crearFichero('contenido/.gitkeep', '');
+        $feeds = [];
 
-        $ahora = new \DateTimeImmutable('2025-03-18 11:30:52', new \DateTimeZone('UTC'));
-        (new CompiladorEnProceso($ahora))->compilar(Proyecto::abrir($this->carpetaTemporal()));
+        foreach (['2025-03-18 11:30:52', '2026-09-29 08:00:00'] as $ahora) {
+            (new CompiladorEnProceso(new \DateTimeImmutable($ahora)))->compilar(Proyecto::abrir($this->carpetaTemporal()));
+            $feeds[] = $this->leerFichero('salida/feed.xml');
+        }
 
-        self::assertStringContainsString("  <updated>2025-03-18T12:30:52+01:00</updated>\n", $this->leerFichero('salida/feed.xml'));
+        self::assertStringContainsString("  <updated>1970-01-01T00:00:00+01:00</updated>\n", $feeds[0]);
+        self::assertSame($feeds[0], $feeds[1]);
     }
 
     #[Test]

@@ -30,7 +30,7 @@ final class Campos
 
     private const array TEXTOS = ['titulo', 'subtitulo', 'descripcion', 'imagen', 'imagenAlt', 'icono'];
     private const array FECHAS = ['fecha', 'publicar'];
-    private const array SI_NO = ['borrador', 'listada'];
+    private const array SI_NO = ['borrador', 'listada', 'pdf'];
     private const array LISTAS = ['etiquetas', 'css', 'js'];
 
     /**

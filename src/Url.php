@@ -92,6 +92,27 @@ final class Url
     }
 
     /**
+     * El fichero de `salida/` del PDF de una página, que sale de su URL con la
+     * barra final cambiada por `.pdf` (formato §10.3): '/menu/' da 'menu.pdf',
+     * '/' da 'index.pdf' y '/a/b.html' da 'a/b.pdf'. Null si la URL no acaba en
+     * '/' ni en '.html'.
+     */
+    public static function ficheroPdf(string $url): ?string
+    {
+        $relativa = ltrim($url, '/');
+
+        if ($relativa === '') {
+            return 'index.pdf';
+        }
+
+        if (str_ends_with($relativa, '/')) {
+            return rtrim($relativa, '/') . '.pdf';
+        }
+
+        return preg_match('/^(.+)\.html$/i', $relativa, $partes) === 1 ? "{$partes[1]}.pdf" : null;
+    }
+
+    /**
      * @param list<Pagina> $paginas
      *
      * @throws ErrorDeProyecto si dos páginas que se publican van al mismo fichero

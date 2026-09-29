@@ -11,6 +11,7 @@ use Ehundu\Lectura;
 use Ehundu\Markdown\Conversor;
 use Ehundu\Markdown\ResolutorDeAtajos;
 use Ehundu\Pagina;
+use Ehundu\Pdf\GeneradorDePdf;
 use Ehundu\Proyecto;
 use Twig\Environment;
 use Twig\Error\Error;
@@ -43,6 +44,7 @@ final class Maquetador
     private Atajos $atajos;
     private Recursos $recursos;
     private Registros $registros;
+    private ?GeneradorDePdf $generadorDePdf = null;
 
     /** @var array<string, array{html: string, registro: Registro}> cuerpos ya convertidos, por ruta */
     private array $cuerpos = [];
@@ -54,7 +56,7 @@ final class Maquetador
     private array $enCurso = [];
 
     public function __construct(
-        Proyecto $proyecto,
+        private readonly Proyecto $proyecto,
         private readonly Lectura $lectura,
         Colecciones $colecciones,
         private readonly Avisos $avisos,
@@ -121,6 +123,73 @@ final class Maquetador
         $this->registrosDePaginas[$pagina->ruta] = $registro;
 
         return $html;
+    }
+
+    /**
+     * El PDF de una página con `pdf: sí` (formato §10.3): su plantilla, que es
+     * la de la página con `.pdf` antes de la extensión, convertida a PDF. Lo
+     * que usa y los avisos que da se suman al registro de la página, que se
+     * rehace cuando cambia algo de lo que usan ella o su PDF. El CSS que
+     * declara el campo `css` de la página no cuenta: es el de la web.
+     *
+     * Hay que llamarlo después de `maquetar()` de la misma página.
+     *
+     * @throws ErrorDeProyecto si falta la plantilla, hay un error en ella o no se puede generar el PDF
+     */
+    public function generarPdf(Pagina $pagina): string
+    {
+        $fichero = Proyecto::CONTENIDO . "/{$pagina->ruta}";
+        $plantilla = $pagina->campos['plantilla'] ?? self::PLANTILLA_POR_DEFECTO;
+
+        if ($plantilla === false) {
+            throw new ErrorDeProyecto(
+                'La página pide su PDF con «pdf: sí», pero lleva «plantilla: false» y no hay una plantilla de la que sacar la del PDF',
+                $fichero,
+            );
+        }
+
+        $nombre = Proyecto::PLANTILLAS . "/{$plantilla}.pdf.twig";
+        $this->registros->abrir();
+
+        try {
+            if (!$this->twig->getLoader()->exists($nombre)) {
+                throw new ErrorDeProyecto("La página pide su PDF con «pdf: sí», pero no existe {$nombre}", $fichero);
+            }
+
+            $html = $this->conTwig(fn () => $this->twig->render($nombre, $this->variables($pagina)));
+            $actual = $this->registros->actual() ?? new Registro();
+
+            foreach ($actual->css as $ruta) {
+                $this->registros->anotar('publico', $ruta);
+            }
+
+            $html = $this->recursos->insertar($html, ['css' => $actual->css, 'js' => []]);
+            $html = str_replace(Recursos::MARCA_JS, '', $html);
+
+            $fecha = $pagina->campos['fecha'] ?? null;
+
+            try {
+                [$pdf, $avisos, $ficheros] = ($this->generadorDePdf ??= new GeneradorDePdf($this->proyecto, $this->lectura->sitio->zonaHoraria))
+                    ->generar($html, (string) ($pagina->campos['titulo'] ?? ''), $fecha instanceof \DateTimeImmutable ? $fecha : null);
+            } catch (ErrorDeProyecto $error) {
+                throw new ErrorDeProyecto($error->descripcion, $error->fichero ?? $fichero, $error->linea, $error);
+            }
+
+            foreach ($avisos as $aviso) {
+                $this->avisos->registrar("PDF: {$aviso}", $nombre);
+            }
+
+            // Lo que el PDF lee de publico/, además de lo que pide la plantilla con Twig
+            foreach ($ficheros as $ruta) {
+                $this->registros->anotar('publico', $ruta);
+            }
+        } finally {
+            $registro = $this->registros->cerrar();
+        }
+
+        ($this->registrosDePaginas[$pagina->ruta] ??= new Registro())->absorber($registro);
+
+        return $pdf;
     }
 
     /**

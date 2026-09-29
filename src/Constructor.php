@@ -8,8 +8,9 @@ use Ehundu\Plantillas\Maquetador;
 use Ehundu\Plantillas\Registro;
 
 /**
- * Construye un sitio en memoria: las páginas, el sitemap y el feed, y la
- * lista de ficheros que se copian tal cual. No escribe nada en disco.
+ * Construye un sitio en memoria: las páginas, el PDF de las que lo piden, el
+ * sitemap y el feed, y la lista de ficheros que se copian tal cual. No escribe
+ * nada en disco.
  *
  * Un constructor incremental recuerda la última construcción que salió bien
  * y en la siguiente rehace solo las páginas y los cuerpos afectados por lo
@@ -71,7 +72,10 @@ final class Constructor
         /** @var array<string, string> $escritos */
         $escritos = [];
 
-        /** @var array<string, array{html: string, registro: Registro}> $hechas */
+        /** @var array<string, string> $documentos los PDF, por ruta en salida/ */
+        $documentos = [];
+
+        /** @var array<string, array{html: string, pdf: string|null, registro: Registro}> $hechas */
         $hechas = [];
         $rehechas = 0;
 
@@ -83,6 +87,12 @@ final class Constructor
             $fichero = Url::fichero($pagina->url);
             $destinos->anotar($fichero, Proyecto::CONTENIDO . "/{$pagina->ruta}");
 
+            $ficheroPdf = $pagina->urlPdf() === null ? null : Url::ficheroPdf($pagina->url);
+
+            if ($ficheroPdf !== null) {
+                $destinos->anotar($ficheroPdf, Proyecto::CONTENIDO . "/{$pagina->ruta}");
+            }
+
             if ($anterior !== null && isset($aprovechables[$pagina->ruta])) {
                 $hecha = $anterior->paginas[$pagina->ruta];
 
@@ -91,15 +101,22 @@ final class Constructor
                 }
             } else {
                 $html = $maquetador->maquetar($pagina);
-                $hecha = ['html' => $html, 'registro' => $maquetador->registroDe($pagina->ruta) ?? new Registro()];
+                $pdf = $ficheroPdf === null ? null : $maquetador->generarPdf($pagina);
+                $hecha = ['html' => $html, 'pdf' => $pdf, 'registro' => $maquetador->registroDe($pagina->ruta) ?? new Registro()];
                 $rehechas++;
             }
 
             $escritos[$fichero] = $hecha['html'];
+
+            if ($ficheroPdf !== null && $hecha['pdf'] !== null) {
+                $documentos[$ficheroPdf] = $hecha['pdf'];
+            }
+
             $hechas[$pagina->ruta] = $hecha;
         }
 
         $paginas = count($escritos);
+        $escritos = [...$escritos, ...$documentos];
 
         /** @var array<string, string> $copias */
         $copias = [];
@@ -110,6 +127,7 @@ final class Constructor
 
         foreach ($proyecto->ficherosDe(Proyecto::PUBLICO) as $fichero) {
             $origen = Proyecto::PUBLICO . "/{$fichero}";
+            FicherosPhp::comprobar($origen);
             $destinos->anotar($fichero, $origen);
             $copias[$fichero] = $origen;
         }

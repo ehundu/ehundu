@@ -28,9 +28,11 @@
         "twig/twig": "^3.30"
     },
     "require-dev": {
+        "dompdf/dompdf": "^3.1",
         "phpunit/phpunit": "^12.5"
     },
     "suggest": {
+        "dompdf/dompdf": "Para generar el PDF de las páginas con pdf: sí (necesita también ext-dom); el ehundu.phar no lo trae",
         "ext-ftp": "Para desplegar por FTP o FTPS (destino: ftp)"
     },
     "autoload": {

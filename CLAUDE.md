@@ -76,7 +76,9 @@ documentación son inventados.
    argumentos, `#[\NoDiscard]`).
 2. **Dependencias mínimas.** Previstas: `twig/twig`, `league/commonmark`,
    `symfony/yaml`, y PHPUnit para pruebas. Cualquier otra, justifícala y
-   pregunta antes de añadirla.
+   pregunta antes de añadirla. La única opcional es `dompdf/dompdf`, para el
+   PDF de una página (decisión 96 del formato): va en `suggest` y en
+   `require-dev`, nunca en `require`, y el motor funciona sin ella.
 3. **Todo lo que afecta al resultado vive en la carpeta del proyecto.** El
    motor solo lee de ella y solo escribe en `salida/`.
 4. **El Markdown no pasa por Twig.** Los atajos (`[imagen ...]`) son un
@@ -108,6 +110,8 @@ documentación son inventados.
 No implementes nada de esto aunque parezca fácil: catálogo de componentes con
 parámetros, tokens de estilo, generación de imágenes, paginación,
 procesadores sobre el HTML generado, pasos posteriores al build, búsqueda.
+El PDF de una página (§10.3 del formato) no es un procesador: es una salida
+más de la página, con su propia plantilla.
 
 El multiidioma entra en la 0.3, tal como lo define el §15 del formato
 (decisiones 72 a 81).

@@ -40,4 +40,19 @@ final class Registro
 
     /** @var list<Aviso> */
     public array $avisos = [];
+
+    /**
+     * Suma a este registro lo que usó y avisó otro: el PDF de una página se
+     * construye aparte, pero la página se rehace cuando cambia algo de lo que
+     * usa cualquiera de los dos. El CSS y el JS no se suman: los del PDF no
+     * son los de la página.
+     */
+    public function absorber(self $otro): void
+    {
+        foreach (['plantillas', 'publico', 'colecciones', 'contenidos', 'traducciones'] as $conjunto) {
+            $this->{$conjunto} += $otro->{$conjunto};
+        }
+
+        array_push($this->avisos, ...$otro->avisos);
+    }
 }

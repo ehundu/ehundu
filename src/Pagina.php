@@ -42,8 +42,9 @@ final readonly class Pagina
     /**
      * El valor de un campo tal como lo ven las plantillas y los filtros de
      * colección (formato §6.2 y §7.2): `url` es la URL ya resuelta, o null
-     * en un fragmento; `ruta`, la del fichero; `idioma`, el de la página, y
-     * los demás salen de los campos. `contenido` y `traducciones` no están
+     * en un fragmento; `ruta`, la del fichero; `idioma`, el de la página;
+     * `pdf`, la dirección de su PDF o null (formato §10.3), y los demás salen
+     * de los campos. `contenido` y `traducciones` no están
      * aquí: los dan las plantillas.
      */
     public function valor(string $campo): mixed
@@ -52,8 +53,25 @@ final readonly class Pagina
             'url' => $this->url === false ? null : $this->url,
             'ruta' => $this->ruta,
             'idioma' => $this->idioma,
+            'pdf' => $this->urlPdf(),
             default => $this->campos[$campo] ?? null,
         };
+    }
+
+    /**
+     * La dirección de su PDF (formato §10.3): la de la página con la barra
+     * final cambiada por `.pdf`. Null si no lo pide con `pdf: sí` o no puede
+     * tenerlo, porque es un fragmento o su URL no acaba en `/` ni en `.html`.
+     */
+    public function urlPdf(): ?string
+    {
+        if (($this->campos['pdf'] ?? false) !== true || $this->url === false) {
+            return null;
+        }
+
+        $fichero = Url::ficheroPdf($this->url);
+
+        return $fichero === null ? null : "/{$fichero}";
     }
 
     /**

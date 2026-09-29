@@ -9,7 +9,8 @@ use Twig\Markup;
 
 /**
  * Una página tal como la ven las plantillas (formato §7 y §15.8): sus campos,
- * más `url`, `ruta`, `idioma`, `contenido` y `traducciones`. Se lee como un
+ * más `url`, `ruta`, `idioma`, `pdf` (la dirección de su PDF, si lo tiene),
+ * `contenido` y `traducciones`. Se lee como un
  * array: `pagina.titulo`, `articulo.url`. No se puede modificar desde una
  * plantilla.
  *
@@ -42,6 +43,7 @@ final class VistaDePagina implements \ArrayAccess
     {
         return match ($clave) {
             'url', 'ruta', 'idioma', 'traducciones' => true,
+            'pdf' => $this->pagina->urlPdf() !== null,
             'contenido' => $this->renderizar !== null,
             default => isset($this->pagina->campos[$clave]),
         };

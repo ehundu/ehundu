@@ -70,6 +70,33 @@ final class PaginaPrueba extends TestCase
     /**
      * @param array<array-key, mixed> $campos
      */
+    #[Test]
+    public function laDireccionDelPdfSaleDeLaUrlSiLaPaginaLoPide(): void
+    {
+        $conPdf = new Pagina('menu.md', 'md', ['pdf' => true], '/menu/', '', 1);
+
+        self::assertSame('/menu.pdf', $conPdf->urlPdf());
+        self::assertSame('/menu.pdf', $conPdf->valor('pdf'));
+    }
+
+    #[Test]
+    public function sinPdfSiEsNoHayDireccionDePdf(): void
+    {
+        foreach ([[], ['pdf' => false]] as $campos) {
+            $pagina = new Pagina('menu.md', 'md', $campos, '/menu/', '', 1);
+
+            self::assertNull($pagina->urlPdf());
+            self::assertNull($pagina->valor('pdf'));
+        }
+    }
+
+    #[Test]
+    public function unFragmentoOUnaUrlSinBarraNiHtmlNoTienenPdf(): void
+    {
+        self::assertNull((new Pagina('a.md', 'md', ['pdf' => true], false, '', 1))->urlPdf());
+        self::assertNull((new Pagina('robots.twig', 'twig', ['pdf' => true], '/robots.txt', '', 1))->urlPdf());
+    }
+
     private function pagina(array $campos): Pagina
     {
         return new Pagina('a.md', 'md', $campos, '/a/', '', 1);

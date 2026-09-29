@@ -60,6 +60,10 @@ FTP, además, la extensión `ftp`, que viene con PHP aunque a veces está
 desactivada; y para FTPS o S3, `openssl`, que traen casi todas las
 instalaciones.
 
+Para generar el PDF de una página (`pdf: sí`) hace falta además dompdf, que es
+PHP puro y necesita la extensión `dom`: `composer require dompdf/dompdf`. Es
+opcional, y el `ehundu.phar` no lo trae.
+
 **Un solo fichero.** Descarga `ehundu.phar` de la [página de
 versiones](https://github.com/ehundu/ehundu/releases) y úsalo con PHP:
 
@@ -173,6 +177,9 @@ servidor no lo toca nunca. Con `--simular` dice qué haría sin hacerlo.
   una excepción.
 - **El CSS y el JavaScript de cada página**, reunidos e incrustados en ella:
   cada plantilla declara lo que necesita donde lo usa.
+- **PDF** de las páginas que lo piden con `pdf: sí`, con su propia plantilla
+  (`menu.pdf.twig`) y sin programas externos. El mismo proyecto da siempre los
+  mismos bytes, así que un PDF que no cambia no se vuelve a subir.
 - **Un `sitemap.xml`**, y un feed Atom si se pide.
 - **Despliegue** a una carpeta, por FTP o FTPS, por SFTP (comprobando la
   huella del servidor) o a cualquier servicio compatible con S3. Las

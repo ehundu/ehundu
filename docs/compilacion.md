@@ -17,7 +17,12 @@ plantillas y parciales carga (también los que busca y no existen), qué
 ficheros de `publico/` mira, incrusta o comprueba, qué colecciones recorre,
 de qué otras páginas muestra el contenido y de qué páginas mira las
 traducciones. Apunta también el CSS y el JS que
-declara y los avisos que da. Lo mismo hace con el cuerpo de cada página, que
+declara y los avisos que da. El PDF de una página (`pdf: sí`, formato §10.3) se
+construye aparte, pero su registro se suma al de la página: se rehace todo
+junto cuando cambia algo de lo que usaron la página o su PDF. Del PDF se anota
+también lo que dompdf lee de `publico/` por su cuenta (imágenes, tipografías,
+CSS que carga), y lo que el HTML pide aunque no exista todavía, para que un
+fichero que aparece rehaga el PDF. Lo mismo hace con el cuerpo de cada página, que
 se convierte una vez y se reutiliza donde se muestre. Lo que usa un cuerpo lo
 usa también la página que lo muestra, así que cada registro está completo
 por sí solo.

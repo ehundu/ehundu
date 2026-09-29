@@ -229,6 +229,29 @@ final class UrlPrueba extends TestCase
     }
 
     /**
+     * @return iterable<string, array{string, string|null}>
+     */
+    public static function direccionesDePdf(): iterable
+    {
+        yield 'una carpeta' => ['/menu-del-dia/', 'menu-del-dia.pdf'];
+        yield 'una carpeta anidada' => ['/blog/uno/', 'blog/uno.pdf'];
+        yield 'la portada' => ['/', 'index.pdf'];
+        yield 'la raíz de un idioma' => ['/eu/', 'eu.pdf'];
+        yield 'un html' => ['/informes/anual.html', 'informes/anual.pdf'];
+        yield 'un html en mayúsculas' => ['/informes/ANUAL.HTML', 'informes/ANUAL.pdf'];
+        yield 'el 404' => ['/404.html', '404.pdf'];
+        yield 'un fichero de texto' => ['/robots.txt', null];
+        yield 'un xml' => ['/feed.xml', null];
+    }
+
+    #[Test]
+    #[DataProvider('direccionesDePdf')]
+    public function elPdfSaleEnLaDireccionDeLaPaginaConPdfEnLugarDeLaBarraFinal(string $url, ?string $esperado): void
+    {
+        self::assertSame($esperado, Url::ficheroPdf($url));
+    }
+
+    /**
      * @param array<array-key, mixed> $campos
      */
     private function resolver(array $campos, string $ruta = 'blog/uno.md'): string|false

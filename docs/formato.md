@@ -171,6 +171,7 @@ página, que son sus campos comunes (§15.7). Lo que empieza por punto
 `.liquid`, `.vto`, `.webc`, `.11ty.js`, `.11tydata.js`, `.11tydata.json`) no
 se copian nunca, y se avisa: publicar el código de una plantilla no es lo que
 se quiere, y en una migración es fácil que alguno se quede atrás.
+Los ficheros PHP tampoco se copian, y detienen el build (§9).
 
 El front matter va entre `---`, en YAML. Si no es YAML válido, el build se
 detiene con un error que indica fichero y línea: seguir sin esa página haría
@@ -196,6 +197,7 @@ Campos reservados:
 | `orden`       | número  | Orden manual dentro de una colección.                     |
 | `borrador`    | sí/no   | Si es `sí`, no se publica.                                |
 | `publicar`    | fecha   | No se publica antes de esa fecha.                         |
+| `pdf`         | sí/no   | Si es `sí`, la página sale además en PDF (§10.3).         |
 
 `idioma` también está reservado, pero no se escribe: sale del nombre del
 fichero (`contacto.eu.md`, §15.2).
@@ -616,6 +618,16 @@ nombre en `parciales/atajos/`, que recibe las mismas variables.
 que empiezan por punto, como un `.htaccess`. Sin pipeline: el CSS y el JS
 llegan ya escritos y, si hace falta, minificados fuera del motor.
 
+**Lo que no se copia.** Ni de `publico/` ni de `contenido/` se copia un
+fichero PHP: uno cuyo nombre tenga como extensión `.php`, de `.php3` a
+`.php8`, `.pht`, `.phtml` o `.phar`, en mayúsculas o en minúsculas, y aunque no
+sea la última (`foto.php.jpg`: un servidor con `AddHandler` la ejecuta igual).
+El build se detiene con un error que nombra el fichero. Un sitio de Ehundu es
+estático y ese fichero no lo ha escrito el motor: lo normal es que sea un
+resto de otro gestor de contenidos, o algo que alguien dejó en una carpeta de
+imágenes, y publicarlo lo pondría a ejecutarse en el servidor. En la v1 no hay
+forma de permitirlo.
+
 Las imágenes no se procesan durante el build. Si hacen falta varios tamaños,
 los genera otra herramienta (por ejemplo, un editor al subir la imagen) y deja
 los ficheros en `publico/`.
@@ -663,10 +675,11 @@ el campo `js`.
 ## 10. Salida
 
 En `salida/` van las páginas, lo que se copia de `publico/` y de
-`contenido/`, y dos ficheros que genera el motor: `sitemap.xml` y, si el
-sitio lo pide, `feed.xml`. Nada más: los añadidos van como ficheros normales
-dentro de `contenido/` o de `publico/`. Una página con `url: /404.html` se
-escribe como `404.html`, igual que cualquier otra.
+`contenido/`, el PDF de las páginas que lo piden (§10.3) y dos ficheros que
+genera el motor: `sitemap.xml` y, si el sitio lo pide, `feed.xml`. Nada más:
+los añadidos van como ficheros normales dentro de `contenido/` o de
+`publico/`. Una página con `url: /404.html` se escribe como `404.html`, igual
+que cualquier otra.
 
 Si dos cosas van al mismo fichero de salida (dos páginas, una página y un
 fichero, un fichero de `publico/` y otro de `contenido/`), el build se detiene
@@ -720,6 +733,65 @@ una fecha también ahí, y con una fija el feed no cambia de una compilación a
 otra, ni se vuelve a escribir ni a subir mientras siga vacío.
 
 En un sitio en varios idiomas hay un feed por idioma (§15.10).
+
+### 10.3 PDF
+
+Una página con `pdf: sí` sale además como PDF. Es una salida más de esa misma
+página, con su propia plantilla, y no una conversión de su HTML: un PDF se
+maqueta distinto de una web, y las dos comparten los datos, no el marcado. Se
+pide página a página, y no para todo el sitio, porque cada PDF cuesta unas
+décimas de segundo.
+
+- **La plantilla** es la de la página con `.pdf` antes de la extensión: con
+  `plantilla: menu`, `plantillas/menu.pdf.twig`. Recibe las mismas variables
+  que la de la página (`sitio`, `datos` y `pagina`, §7.2) y escribe un
+  documento HTML completo. Si no existe, el build se detiene, como con la de la
+  página (§7.1).
+- **La dirección** es la de la página con la barra final cambiada por `.pdf`:
+  `/menu-del-dia/` da `/menu-del-dia.pdf`, y la portada, `/index.pdf`. Si la
+  URL acaba en `.html`, esa extensión pasa a `.pdf`. Una página cuya URL no
+  acaba en `/` ni en `.html`, o que es un fragmento (`url: false`), no puede
+  tener PDF: se avisa y se ignora el campo. Si el fichero coincide con otro de
+  la salida, el build se detiene (§10). Las plantillas lo enlazan con
+  `pagina.pdf`, que es su dirección o queda vacío; también
+  `pagina.traducciones.eu.pdf`.
+- **Cada idioma** da su PDF, en su idioma, con la plantilla y los datos de su
+  página. En un sitio en varios idiomas, `pdf: sí` se escribe una vez, en el
+  `.yml` común de la página (§15.7).
+- **Lo que admite.** CSS 2.1 con algo de CSS3, y nada de `flex` ni de rejilla.
+  La hoja es A4 salvo que el CSS diga otra cosa con `@page { size: … }`. El CSS
+  se declara con `css('…')` y `{{ css() }}` en la plantilla del PDF y en sus
+  parciales, como en una página (§9.1); el campo `css` del front matter no
+  cuenta, porque es el de la web. Las direcciones que empiezan por `/` se leen
+  de `publico/`; nada remoto se carga, y lo que dompdf no entiende (una
+  propiedad de CSS, una imagen que no encuentra) sale como aviso, con la
+  plantilla como fichero. Las imágenes pueden ser SVG, JPEG o PNG: los SVG no necesitan ninguna extensión de PHP, y las PNG con
+  transparencia, GD. Las tipografías son las tres básicas de un PDF,
+  `sans-serif` (Helvetica), `serif` (Times) y `monospace` (Courier), que cubren
+  el juego de caracteres de Windows-1252 (castellano, euskera, inglés y
+  alemán); las propias quedan para más adelante.
+- **Reproducible.** El PDF lleva como fecha de creación y de modificación la
+  `fecha` de la página, a medianoche en la zona horaria del sitio, o el 1 de
+  enero de 1970 si no la tiene (como el feed vacío, §10.2); su título es el
+  `titulo` de la página, y su identificador sale de su contenido. La misma
+  página, con la misma versión de la biblioteca, da los mismos bytes: si no,
+  cada compilación cambiaría todos los PDF y el despliegue volvería a subirlos.
+  Vale lo de §7.3 para `random()` y la fecha del momento.
+- **Si falla.** Si un PDF no se puede generar, el build se detiene con el error
+  y la plantilla, por lo mismo que con un front matter roto (§4): seguir sin él
+  haría que el despliegue borrara el que estaba publicado.
+- **La biblioteca** es dompdf, que es PHP puro, sin binarios, y necesita las
+  extensiones `dom` y `mbstring`. Es una dependencia opcional: un sitio sin
+  `pdf: sí` no la necesita, y con `pdf: sí` y sin ella el build se detiene y
+  dice cómo instalarla. El `ehundu.phar` no la trae: para generar PDF hay que
+  usar el motor con Composer. Su caché de tipografías va a la carpeta temporal del
+  sistema, no junto a su código: el motor no escribe en `vendor/` ni en el
+  proyecto fuera de `salida/`.
+
+En la previsualización, un PDF se rehace cuando cambia algo de lo que usó su
+plantilla o de lo que lee de `publico/`, igual que su página
+(`compilacion.md`). El sitemap no lleva PDF
+(§10.1).
 
 ---
 
@@ -817,7 +889,8 @@ contenido, o `agencia`, para quien lo desarrolla. Los campos de agencia solo
 aparecen en el modo avanzado.
 
 Tipos de campo en la v1: `texto`, `parrafo`, `markdown`, `numero`, `fecha`,
-`booleano`, `imagen`, `enlace`, `lista-texto`, `lista` y `grupo`.
+`booleano`, `imagen`, `enlace`, `lista-texto`, `seleccion-multiple`, `lista` y
+`grupo`.
 
 - `enlace` es una dirección: completa, con `http://` o `https://`, o una ruta
   del propio sitio que empieza por `/`. El editor la comprueba, y puede
@@ -826,7 +899,9 @@ Tipos de campo en la v1: `texto`, `parrafo`, `markdown`, `numero`, `fecha`,
 - `grupo` es un conjunto de campos con nombre, un mapa en el front matter, y
   `lista` es una lista de grupos, que se pueden añadir, quitar y ordenar. Los
   dos declaran lo que llevan en su propio `campos`, con la misma forma que los
-  del tipo. Ahí dentro solo caben campos simples: ni listas ni grupos.
+  del tipo. Dentro de un `grupo` solo caben campos simples, que son todos
+  menos `lista` y `grupo`. Dentro de una `lista` caben campos simples y otra
+  `lista` de campos simples, y nada más hondo (§11.1).
 
 Con el esquema de arriba, las presentaciones de un libro son:
 
@@ -834,6 +909,200 @@ Con el esquema de arriba, las presentaciones de un libro son:
       - dia: 2026-10-15
         lugar: Biblioteca municipal
       - dia: 2026-11-02
+
+### 11.1 Una lista dentro de una lista
+
+Una `lista` puede llevar dentro otra `lista`, y no más: dos niveles. Sirve para
+lo que se agrupa en dos pasos, como un menú con sus apartados y, en cada uno,
+sus platos. Los campos de la lista de dentro son simples, y un `grupo` sigue
+sin admitir ni listas ni grupos. En el YAML es lo que se espera: una lista de
+mapas que lleva, en uno de sus campos, otra lista de mapas.
+
+    {
+      "nombre": "menu",
+      "titulo": "Menú",
+      "carpeta": "contenido/menus",
+      "cuerpo": "ninguno",
+      "campos": [
+        { "nombre": "titulo", "titulo": "Nombre del menú", "tipo": "texto", "requerido": true },
+        { "nombre": "precio", "titulo": "Precio", "tipo": "texto", "traducible": true },
+        {
+          "nombre": "grupos",
+          "titulo": "Grupos de platos",
+          "tipo": "lista",
+          "campos": [
+            { "nombre": "titulo", "titulo": "Título del grupo", "tipo": "texto", "traducible": true },
+            { "nombre": "alternativas", "titulo": "Son alternativas", "tipo": "booleano" },
+            {
+              "nombre": "platos",
+              "titulo": "Platos",
+              "tipo": "lista",
+              "recuerda": { "clave": "nombre", "en": "datos/platos.yml" },
+              "campos": [
+                { "nombre": "nombre", "titulo": "Plato", "tipo": "texto", "traducible": true, "requerido": true },
+                { "nombre": "alergenos", "titulo": "Alérgenos", "tipo": "seleccion-multiple", "opciones": "datos/alergenos.yml", "requerido": true }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+
+Con ese esquema, los campos comunes de un menú (`contenido/menus/del-dia.yml`,
+§15.7) son:
+
+    precio:
+      es: "20,50 €"
+      eu: "20,50 €"
+    grupos:
+      - titulo: { es: Primer plato, eu: Lehen platera, en: Starter }
+        alternativas: false
+        platos:
+          - nombre: { es: Sopa de pescado, eu: Arrain zopa, en: Fish soup }
+            alergenos: [4, 12]
+          - nombre: { es: Flan, eu: Flana }
+            alergenos: []
+      - alternativas: true
+        platos:
+          - nombre: { es: Pan, eu: Ogia, en: Bread }
+            alergenos: [1]
+
+Un grupo sin `titulo` es un grupo sin título, y el editor no obliga a ponerlo.
+
+### 11.2 Campos traducibles
+
+`traducible: true` en un campo `texto` o `parrafo`, también dentro de una
+`lista`, dice que su valor cambia según el idioma. El valor es un mapa con el
+código de cada idioma del sitio (§15.1): `nombre: { es: Flan, eu: Flana }`. Un
+idioma sin escribir falta del mapa, y uno vacío cuenta como si faltara; el
+editor no escribe los vacíos. Con `requerido`, hace falta el texto en al menos
+un idioma. En un sitio de un solo idioma, `traducible` no hace nada y el campo
+es un texto.
+
+El motor no valida estos campos: llegan a la plantilla como cualquier otro
+valor, y es la plantilla la que elige el idioma y decide qué hacer si falta.
+Con el de la página y, si falta, el del idioma predeterminado (`sitio.idioma`,
+§15.1):
+
+    {{ plato.nombre[pagina.idioma]|default(plato.nombre[sitio.idioma]) }}
+
+Un texto suelto, sin mapa (lo que había en el campo antes de hacerlo
+traducible), lo lee el editor como el del idioma predeterminado y lo guarda como
+mapa la próxima vez. Hasta entonces la plantilla ve un texto y no un mapa, y
+esa forma de leerlo no le vale.
+
+**Dónde se guardan los campos.** En un sitio con `idiomas`, una página tiene un
+fichero por idioma (§15.2). Lo que es de cada traducción va en su fichero: el
+cuerpo y los campos `titulo`, `subtitulo`, `descripcion`, `imagenAlt`, `url`,
+`borrador` y `publicar`. Todo lo demás, traducible o no, va en el `.yml` común
+de la página (§15.7), así que el texto de todos los idiomas queda junto y dos
+traducciones no pueden contradecirse en lo que no cambia, como los alérgenos de
+un plato. El editor lee cada campo donde esté, con la precedencia del motor, y
+lo escribe donde ya estaba; los campos que aún no existen los pone en el `.yml`
+común. Al crear una página, pregunta en qué idiomas y crea un fichero por cada
+uno, con su `titulo` y su `url`, más el `.yml` común. En un sitio de un solo
+idioma todo va en el front matter, como siempre.
+
+Los campos reservados de texto (`titulo`, `subtitulo`, `descripcion`,
+`imagenAlt`) no pueden ser traducibles: ya llevan su traducción en el fichero
+de cada idioma.
+
+### 11.3 Selección múltiple
+
+`seleccion-multiple` es un campo cuyo valor es una lista de elecciones entre
+unas opciones fijas, como los alérgenos de un plato. Las opciones van en
+`opciones`, de una de estas dos formas: la ruta de un `.yml` en la raíz de
+`datos/` (`"opciones": "datos/alergenos.yml"`), o la lista escrita en el propio
+esquema. El fichero es un fichero de datos como los demás, así que las
+plantillas lo ven como `datos.alergenos`, para escribir la leyenda o el nombre
+de cada opción.
+
+Cada opción tiene un `id`, texto o número, que no se repite y es lo que se
+guarda; un `titulo`, que es el rótulo, con la forma de un campo traducible si
+el sitio tiene varios idiomas; y, si hace falta, un `icono`, un SVG relativo a
+`publico/`, como el campo reservado del mismo nombre (§4):
+
+    - id: 1
+      titulo: { es: Gluten, eu: Glutena, en: Gluten }
+      icono: img/alergenos/gluten.svg
+    - id: 4
+      titulo: { es: Pescado, eu: Arraina, en: Fish }
+
+Las opciones son las mismas para todos los idiomas: cada título lleva sus
+traducciones dentro. El valor, en el front matter, es la lista de los `id`
+elegidos, en el orden de las opciones, para que la misma elección se escriba
+siempre igual: `alergenos: [4, 12]`. Un `id` que ya no está entre las opciones
+se conserva, y el editor lo avisa.
+
+**Una lista vacía es una respuesta, y un campo que falta, no.** `alergenos: []`
+dice que se ha mirado y no hay ninguno; sin el campo, no se ha mirado. Con
+`requerido`, el editor no guarda hasta que haya respuesta, y una lista vacía lo
+es: quien edita marca «Ninguno». Así un dato que importa, como los alérgenos,
+no se queda sin revisar por descuido. Las plantillas ven en los dos casos una
+lista sin elementos.
+
+### 11.4 Recordar lo escrito
+
+`recuerda`, en una `lista`, hace que el editor recuerde lo que se escribe en
+ella para no escribirlo dos veces, como los platos de un menú, que se repiten
+de un día a otro:
+
+    "recuerda": { "clave": "nombre", "en": "datos/platos.yml" }
+
+`clave` es un campo simple de la lista, el que se escribe para identificar un
+elemento, y `en`, un `.yml` en la raíz de `datos/`. El fichero es una lista de
+los elementos recordados, cada uno con sus campos simples; los de una lista de
+dentro no se recuerdan, aunque la haya. El editor lo usa así:
+
+- Al escribir en `clave`, sugiere los elementos recordados que coinciden, sin
+  distinguir mayúsculas ni tildes y, si la clave es traducible, en el idioma en
+  que escribe quien edita.
+- Al elegir uno, copia sus campos al elemento y lo dice, para que se revisen.
+- Al guardar, añade los elementos nuevos y, si han cambiado los de uno
+  recordado, pregunta si recordar el cambio.
+
+Lo recordado se copia, no se enlaza: cada página lleva sus propios datos
+completos, y cambiar el fichero no cambia lo que ya está escrito. El motor no
+lee `recuerda`, pero el fichero es un fichero de `datos/` como los demás, así
+que las plantillas pueden leerlo (`datos.platos`), y cambiarlo cuenta como
+cambiar `datos/` para la compilación incremental (`compilacion.md`), aunque
+ninguna plantilla lo lea.
+
+### 11.5 Datos editables
+
+Además de las páginas de sus tipos, un esquema puede declarar ficheros de
+`datos/` que también se editan, como el horario o un aviso:
+
+    {
+      "tipos": [ … ],
+      "datos": [
+        {
+          "nombre": "aviso",
+          "titulo": "Aviso de interés",
+          "fichero": "datos/aviso.yml",
+          "campos": [
+            { "nombre": "activo", "titulo": "Mostrar el aviso", "tipo": "booleano" },
+            { "nombre": "texto", "titulo": "Texto", "tipo": "parrafo", "traducible": true }
+          ]
+        }
+      ]
+    }
+
+`nombre` identifica el fichero, `titulo` es como lo llama el editor y
+`fichero`, aquí una ruta y no un patrón, dice cuál es: un `.yml` en la raíz de
+`datos/`. `campos` es como el de un tipo, con los mismos tipos de campo,
+`traducible`, `recuerda` y lo demás. No hay `carpeta` ni `cuerpo`: es un solo
+fichero, que el editor no crea ni quita, y que escribe la primera vez que se
+guarda si aún no existe. Conserva las claves que el esquema no declara, como
+con una página, y no toca un fichero sin cambios. También sirve para el
+`cliente.yml` (§3), en los campos que el titular puede cambiar.
+
+Un fichero de datos editable es uno solo, sin variantes por idioma
+(`aviso.eu.yml`, §15.6): lo que cambia de idioma va dentro, con `traducible`. Si
+junto al declarado hay variantes por idioma, el editor lo avisa y no las toca.
+Para quien edita, un fichero de datos es un formulario más de la lista de lo
+que puede cambiar: no le importa si sus campos viven en una página o en
+`datos/`.
 
 ---
 
@@ -854,7 +1123,9 @@ Con el esquema de arriba, las presentaciones de un libro son:
 Catálogo de componentes con parámetros y consultas, tokens de estilo por sitio,
 generación de imágenes en varios tamaños, paginación de listados, procesadores
 sobre el HTML ya generado, pasos posteriores al build y búsqueda. El
-multiidioma estuvo aquí hasta la 0.3 (§15).
+multiidioma estuvo aquí hasta la 0.3 (§15). El PDF de una página (§10.3) no
+es un procesador sobre el HTML ya generado: es una salida más de la página,
+con su propia plantilla, que no toca el HTML de nadie.
 
 Ninguna de estas cosas debería obligar a cambiar lo de arriba cuando llegue.
 Si al añadirlas hay que romper el contrato, el contrato estaba mal.
@@ -1060,6 +1331,35 @@ un sitio de la v1 no debe usarlo como campo propio.
 90. **Cerrada.** Un feed sin entradas lleva como fecha el 1 de enero de 1970
     en la zona del sitio, y no el momento de la compilación: así no cambia de
     una compilación a otra (§10.2).
+91. **Cerrada.** Una `lista` puede llevar dentro otra `lista` de campos
+    simples, con dos niveles como máximo; un `grupo` sigue admitiendo solo
+    campos simples. Amplía la 83 (§11, §11.1).
+92. **Cerrada.** `traducible` en los campos `texto` y `parrafo`: el valor es un
+    mapa por código de idioma, y elegir idioma y qué hacer si falta es cosa de
+    la plantilla. En un sitio con idiomas, el editor guarda lo de cada
+    traducción en su fichero y todo lo demás en el `.yml` común de la página;
+    los campos reservados de texto no pueden ser traducibles (§11.2).
+93. **Cerrada.** Nuevo tipo de campo `seleccion-multiple`, con `opciones` en un
+    fichero de `datos/` o en el esquema. Guarda la lista de `id` elegidos; una
+    lista vacía es una respuesta y un campo que falta no lo es, y `requerido`
+    pide una respuesta (§11.3).
+94. **Cerrada.** `recuerda` en una `lista`: un fichero de `datos/` con los campos
+    simples de sus elementos, por una clave, que el editor completa al guardar
+    y usa para sugerir. Se copia, no se enlaza, y el motor no lo lee (§11.4).
+95. **Cerrada.** El esquema puede declarar ficheros de `datos/` editables, con
+    la sección `datos`; un solo fichero por entrada, sin variantes por idioma
+    (§11.5).
+96. **Cerrada.** `pdf: sí` hace que una página salga también como PDF, con su
+    plantilla `<plantilla>.pdf.twig`, en la dirección de la página con `.pdf`.
+    Es una salida más de la página y no un procesador del HTML; se genera con
+    dompdf, una dependencia opcional (§4, §10.3, §13).
+97. **Cerrada.** El PDF es reproducible: lleva la fecha de la página (o el 1 de
+    enero de 1970) y un identificador sacado de su contenido, y su caché va a
+    la carpeta temporal del sistema. Si no se puede generar, el build se
+    detiene (§10.3).
+98. **Cerrada.** Los ficheros PHP no se copian: uno en `publico/` o en
+    `contenido/` detiene el build, también si `.php` no es la última extensión
+    (§4, §9).
 
 ---
 
@@ -1230,7 +1530,8 @@ que obligue a que coincidan. Vale también en un sitio de un solo idioma.
 
 Ese `.yml` no se copia a `salida/`: es parte de la página, no un fichero
 publicado. Un `.yml` sin una página con su nombre en la misma carpeta se copia
-como cualquier otro fichero (§4).
+como cualquier otro fichero (§4). Es también donde un editor guarda los
+campos de una página que no son de cada traducción (§11.2).
 
 ### 15.8 Plantillas
 

@@ -34,7 +34,7 @@ final class ConstructorIncrementalPrueba extends TestCase
         $ahora = new \DateTimeImmutable(self::AHORA);
 
         $pasos = [
-            'primera construcción' => [fn () => null, 5],
+            'primera construcción' => [fn () => null, 6],
             'nada cambia' => [fn () => null, 0],
             'cambia el cuerpo de un artículo: el artículo y la portada, que lo muestra' => [
                 fn () => $this->cambiar('contenido/blog/uno.md', 'Primer artículo.', 'Primer artículo, revisado.'),
@@ -69,7 +69,7 @@ final class ConstructorIncrementalPrueba extends TestCase
             ],
             'aparece un atajo: todas las páginas con Markdown' => [
                 fn () => $this->poner('parciales/atajos/aviso.twig', '<aside>{{ contenido }}</aside>'),
-                5,
+                6,
             ],
             'cambia el atajo: la página que lo usa' => [
                 fn () => $this->cambiar('parciales/atajos/aviso.twig', '<aside>', '<aside class="aviso">'),
@@ -79,10 +79,48 @@ final class ConstructorIncrementalPrueba extends TestCase
                 fn () => $this->cambiar('contenido/avisos/cierre.md', 'agosto', 'septiembre'),
                 1,
             ],
-            'cambian los datos: todo' => [fn () => $this->cambiar('datos/menu.yml', 'Inicio', 'Portada'), 6],
-            'cambia sitio.yml: todo' => [fn () => $this->cambiar('sitio.yml', 'nombre: Prueba', 'nombre: Otra prueba'), 6],
+            'cambia la plantilla del PDF: solo el informe' => [
+                fn () => $this->cambiar('plantillas/informe.pdf.twig', '<h1>', '<h1 class="titulo">'),
+                1,
+            ],
+            'cambia el parcial del pie del PDF: solo el informe' => [
+                fn () => $this->cambiar('parciales/pie-pdf.twig', 'Escríbenos', 'Llámanos'),
+                1,
+            ],
+            'cambia el CSS que declara el PDF: solo el informe' => [
+                fn () => $this->cambiar('publico/pdf.css', '20pt', '22pt'),
+                1,
+            ],
+            'cambia el sello que el PDF lee por su cuenta: solo el informe' => [
+                fn () => $this->cambiar('publico/sello.svg', 'r="4"', 'r="3"'),
+                1,
+            ],
+            'aparece la imagen que el PDF pedía y no existía: solo el informe' => [
+                fn () => $this->poner('publico/marca.svg', '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="8" height="8"/></svg>'),
+                1,
+            ],
+            'el informe deja de pedir su PDF: solo él' => [
+                fn () => $this->cambiar('contenido/informe.md', "pdf: sí
+", ''),
+                1,
+            ],
+            'y vuelve a pedirlo' => [fn () => $this->cambiar('contenido/informe.md', 'etiquetas: [informes]', "etiquetas: [informes]
+pdf: sí"), 1],
+            'aparece otro informe: él y el primero, que lista los de su colección en el PDF' => [
+                fn () => $this->poner('contenido/informe-2.md', "---
+titulo: Informe 2
+plantilla: informe
+etiquetas: [informes]
+pdf: sí
+---
+Otro.
+"),
+                2,
+            ],
+            'cambian los datos: todo' => [fn () => $this->cambiar('datos/menu.yml', 'Inicio', 'Portada'), 8],
+            'cambia sitio.yml: todo' => [fn () => $this->cambiar('sitio.yml', 'nombre: Prueba', 'nombre: Otra prueba'), 8],
             'un error en la cabecera' => [fn () => $this->cambiar('parciales/cabecera.twig', '</header>', '{% if %}</header>'), null],
-            'tras el error, todo' => [fn () => $this->cambiar('parciales/cabecera.twig', '{% if %}</header>', '</header>'), 6],
+            'tras el error, todo' => [fn () => $this->cambiar('parciales/cabecera.twig', '{% if %}</header>', '</header>'), 8],
             'cambia la cascada de los artículos: ellos y la portada' => [
                 fn () => $this->cambiar('contenido/blog/_datos.yml', 'etiquetas: [blog]', "etiquetas: [blog]\nautor: Ane"),
                 4,
@@ -237,10 +275,10 @@ final class ConstructorIncrementalPrueba extends TestCase
         self::assertSame(0, $constructor->construir($proyecto, $ahora)->rehechas);
 
         $constructor->olvidar();
-        self::assertSame(5, $constructor->construir($proyecto, $ahora)->rehechas);
+        self::assertSame(6, $constructor->construir($proyecto, $ahora)->rehechas);
 
         $conBorradores = $constructor->construir($proyecto, $ahora, conBorradores: true);
-        self::assertSame(7, $conBorradores->rehechas);
+        self::assertSame(8, $conBorradores->rehechas);
         self::assertSame((new Constructor())->construir($proyecto, $ahora, conBorradores: true)->escritos, $conBorradores->escritos);
     }
 
@@ -253,7 +291,7 @@ final class ConstructorIncrementalPrueba extends TestCase
 
         $constructor->construir($proyecto);
 
-        self::assertSame(5, $constructor->construir($proyecto, new \DateTimeImmutable(self::AHORA))->rehechas);
+        self::assertSame(6, $constructor->construir($proyecto, new \DateTimeImmutable(self::AHORA))->rehechas);
     }
 
     /**
@@ -303,7 +341,9 @@ final class ConstructorIncrementalPrueba extends TestCase
      * otra cosa: plantillas que heredan e incluyen, un SVG incrustado, CSS y
      * JS por página, colecciones, contenidos de otras páginas, fragmentos,
      * atajos que miran `publico/`, datos, un artículo programado y un
-     * borrador. Salen cinco páginas.
+     * borrador, y un informe que sale también en PDF, con su plantilla, su
+     * parcial, su CSS y unas imágenes que lee dompdf por su cuenta, una de
+     * ellas ausente al principio. Salen seis páginas.
      */
     private function crearSitio(): void
     {
@@ -351,6 +391,30 @@ final class ConstructorIncrementalPrueba extends TestCase
             'publico/logo.svg' => "<?xml version=\"1.0\"?>\n<svg><circle r=\"1\"/></svg>\n",
             'publico/foto.jpg' => 'JPEG',
             'publico/doc.pdf' => str_repeat('PDF', 500),
+            'contenido/informe.md' => "---
+titulo: Informe
+plantilla: informe
+etiquetas: [informes]
+pdf: sí
+---
+Resumen del año.
+",
+            'plantillas/informe.twig' => "<html><body>{{ pagina.contenido }}<a href=\"{{ pagina.pdf }}\">PDF</a></body></html>
+",
+            'plantillas/informe.pdf.twig' => <<<'TWIG'
+                <html><head><style>{{ css() }}</style></head><body>{{ css('pdf.css') }}
+                <h1>{{ pagina.titulo }}</h1>{{ pagina.contenido }}
+                <img src="/sello.svg" width="20" height="20"><img src="/marca.svg" width="20" height="20">
+                <ul>{% for informe in coleccion('informes') %}<li>{{ informe.titulo }}</li>{% endfor %}</ul>
+                {% include 'parciales/pie-pdf.twig' %}
+                </body></html>
+
+                TWIG,
+            'parciales/pie-pdf.twig' => "<footer>Escríbenos</footer>
+",
+            'publico/pdf.css' => "h1 { font-size: 20pt }
+",
+            'publico/sello.svg' => '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><circle cx="5" cy="5" r="4"/></svg>',
         ];
 
         foreach ($this->ficheros as $ruta => $contenido) {
@@ -436,6 +500,28 @@ final class ConstructorIncrementalPrueba extends TestCase
                     : str_replace('</header>', '{% if %}</header>', $texto));
             },
             'datos' => fn () => $this->poner('datos/menu.yml', "- texto: {$palabra()}\n  url: /\n"),
+            'sello del PDF' => fn () => $this->poner('publico/sello.svg', '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><circle cx="5" cy="5" r="' . $aleatorio->getInt(1, 9) . '"/></svg>'),
+            'imagen del PDF que va y viene' => function () use ($aleatorio): void {
+                isset($this->ficheros['publico/marca.svg'])
+                    ? $this->quitar('publico/marca.svg')
+                    : $this->poner('publico/marca.svg', '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="' . $aleatorio->getInt(1, 9) . '" height="8"/></svg>');
+            },
+            'parcial del PDF' => fn () => $this->poner('parciales/pie-pdf.twig', '<footer>' . $palabra() . "</footer>
+"),
+            'plantilla del PDF' => fn () => $this->poner('plantillas/informe.pdf.twig', $this->ficheros['plantillas/informe.pdf.twig'] . '{# ' . $palabra() . " #}
+"),
+            'pdf sí o no' => function () use ($paginas, $una): void {
+                $ruta = $una($paginas());
+                $texto = $this->ficheros[$ruta];
+                $this->poner($ruta, str_contains($texto, "pdf: sí
+")
+                    ? str_replace("pdf: sí
+", '', $texto)
+                    : (string) preg_replace('/^---
+/', "---
+pdf: sí
+", $texto));
+            },
             'nada' => fn () => null,
         ];
     }

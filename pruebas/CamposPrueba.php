@@ -87,6 +87,21 @@ final class CamposPrueba extends TestCase
 
     #[Test]
     #[DataProvider('valoresDeSiNo')]
+    public function pdfTambienEsUnCampoDeSiNo(string $escrito, bool $esperado): void
+    {
+        self::assertSame(['pdf' => $esperado], $this->normalizar("pdf: {$escrito}"));
+        self::assertSame([], $this->avisos());
+    }
+
+    #[Test]
+    public function unPdfQueNoEsSiNoAvisaYSeDescarta(): void
+    {
+        self::assertSame([], $this->normalizar('pdf: quizá'));
+        self::assertSame(['contenido/a.md:2: «pdf» tiene que ser sí o no'], $this->avisos());
+    }
+
+    #[Test]
+    #[DataProvider('valoresDeSiNo')]
     public function listadaTambienEsUnCampoDeSiNo(string $escrito, bool $esperado): void
     {
         self::assertSame(['listada' => $esperado], $this->normalizar("listada: {$escrito}"));

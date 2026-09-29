@@ -315,6 +315,7 @@ final class Lector
                         Proyecto::CONTENIDO . "/{$ruta}",
                     );
                 } elseif (!str_starts_with($nombre, '_')) {
+                    FicherosPhp::comprobar(Proyecto::CONTENIDO . "/{$ruta}");
                     $ficheros[] = $ruta;
                 } elseif (str_starts_with($nombre, '_datos.') && $nombre !== Cascada::FICHERO && str_ends_with($nombre, '.yml')) {
                     $nombreEIdioma = self::nombreEIdioma(substr($nombre, 0, -4), $idiomas);
@@ -397,6 +398,12 @@ final class Lector
         // robots.txt no lo necesitan.
         if ($url !== false && str_ends_with(Url::fichero($url), '.html') && ($campos['titulo'] ?? '') === '') {
             $avisos->registrar('Falta «titulo», el título de la página', $fichero);
+        }
+
+        // El PDF sale en una dirección que sale de la de la página (formato §10.3).
+        if (($campos['pdf'] ?? false) === true && ($url === false || Url::ficheroPdf($url) === null)) {
+            $avisos->registrar('«pdf» solo vale en una página cuya URL acaba en / o en .html; no se genera el PDF', $fichero);
+            $campos['pdf'] = false;
         }
 
         return new Pagina(

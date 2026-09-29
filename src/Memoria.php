@@ -23,7 +23,7 @@ final readonly class Memoria
      *                                                                               y `publico/` (ver `Huellas`)
      * @param array<string, true>                                     $publicadas    rutas de las páginas publicadas
      * @param array<string, array{html: string, registro: Registro}> $cuerpos       cuerpos convertidos, por ruta
-     * @param array<string, array{html: string, registro: Registro}> $paginas       HTML de cada página escrita, por ruta
+     * @param array<string, array{html: string, pdf: string|null, registro: Registro}> $paginas HTML y PDF, si lo tiene, de cada página escrita, por ruta
      */
     public function __construct(
         public string $raiz,

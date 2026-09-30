@@ -923,6 +923,12 @@ número entre el de sus vecinas y un solo fichero cambiado; las páginas sin
 `orden` van al final, como en las colecciones (§6.1). Un tipo que se ordena
 por fecha, como un blog, no declara `orden` y no se arrastra.
 
+**Página fija.** Un tipo con `"unico": true` es una página que se edita y no
+se multiplica, como el menú del día de un restaurante: mientras su carpeta
+tenga una, el editor no ofrece añadir otra ni quitar la que hay. Un tipo así
+puede no declarar `titulo`: el editor no lo enseña y el que llevan los ficheros
+de la página se conserva tal cual.
+
 ### 11.1 Una lista dentro de una lista
 
 Una `lista` puede llevar dentro otra `lista`, y no más: dos niveles. Sirve para
@@ -1376,6 +1382,9 @@ un sitio de la v1 no debe usarlo como campo propio.
 99. **Cerrada.** Un tipo del esquema que declara `orden`, de tipo `numero`, se
     ordena a mano: el editor lo cambia arrastrando en el listado y no lo
     enseña en el formulario (§11). No cambia nada en el motor.
+100. **Cerrada.** Un tipo del esquema con `"unico": true` es una página fija:
+    el editor no deja añadir otra en su carpeta mientras haya una, ni quitar
+    la que hay (§11). No cambia nada en el motor.
 
 ---
 

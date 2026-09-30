@@ -929,6 +929,24 @@ tenga una, el editor no ofrece añadir otra ni quitar la que hay. Un tipo así
 puede no declarar `titulo`: el editor no lo enseña y el que llevan los ficheros
 de la página se conserva tal cual.
 
+**El menú lateral.** El editor agrupa lo que se edita en secciones. Cada tipo
+lleva la suya, con el plural del tipo por nombre, y los ficheros de datos
+(§11.5) van en «Ajustes». Tres claves, todas opcionales, lo cambian:
+
+- `"grupo": "Menús"`, en un tipo o en un fichero de datos, dice en qué
+  sección va. Los que llevan el mismo `grupo` comparten sección, y en ella
+  salen primero las carpetas de los tipos y después los ficheros de datos: así
+  un tipo de menús y otro de servicios van juntos, aunque cada uno tenga su
+  formulario, y un aviso puede ir en una sección «Avisos» con otros.
+- `"rotulo": "Contenidos"`, en un tipo con una sola carpeta (sin `/*`), es
+  cómo se llama esa carpeta en el menú lateral, en lugar del título de la
+  página que la rotula (arriba, §11). Sirve, por ejemplo, para la carpeta
+  `contenido`, cuyo `index.md` es la portada y no un título de sección.
+- `"excluir": ["404", "aviso-legal"]`, en un tipo, son páginas de sus
+  carpetas que el editor no enseña, no cuenta ni abre, aunque estén en ellas:
+  su nombre, sin carpeta, idioma ni extensión. Sirve para las páginas que solo
+  toca quien desarrolla el sitio.
+
 ### 11.1 Una lista dentro de una lista
 
 Una `lista` puede llevar dentro otra `lista`, y no más: dos niveles. Sirve para
@@ -1385,6 +1403,10 @@ un sitio de la v1 no debe usarlo como campo propio.
 100. **Cerrada.** Un tipo del esquema con `"unico": true` es una página fija:
     el editor no deja añadir otra en su carpeta mientras haya una, ni quitar
     la que hay (§11). No cambia nada en el motor.
+101. **Cerrada.** El menú lateral del editor se ordena en secciones: `grupo`
+    en un tipo o en un fichero de datos, `rotulo` en un tipo de una sola
+    carpeta y `excluir` en un tipo, todos opcionales (§11). No cambia nada en
+    el motor.
 
 ---
 

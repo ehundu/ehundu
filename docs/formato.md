@@ -910,6 +910,17 @@ Con el esquema de arriba, las presentaciones de un libro son:
         lugar: Biblioteca municipal
       - dia: 2026-11-02
 
+**Orden manual.** Un tipo cuyo esquema declara un campo `orden` de tipo
+`numero` se ordena a mano: es el campo reservado `orden` (§4), el mismo que
+usan `orden('orden, titulo')` y las colecciones. El editor no lo enseña en el
+formulario de la página: lo cambia el propio listado del tipo, arrastrando las
+páginas, y escribe el número de cada una en el mismo sitio en que estaría a
+mano, que en un sitio en varios idiomas es el `.yml` común de la página
+(§15.7). Los números van de 10 en 10, para que al mover una página basten un
+número entre el de sus vecinas y un solo fichero cambiado; las páginas sin
+`orden` van al final, como en las colecciones (§6.1). Un tipo que se ordena
+por fecha, como un blog, no declara `orden` y no se arrastra.
+
 ### 11.1 Una lista dentro de una lista
 
 Una `lista` puede llevar dentro otra `lista`, y no más: dos niveles. Sirve para
@@ -1360,6 +1371,9 @@ un sitio de la v1 no debe usarlo como campo propio.
 98. **Cerrada.** Los ficheros PHP no se copian: uno en `publico/` o en
     `contenido/` detiene el build, también si `.php` no es la última extensión
     (§4, §9).
+99. **Cerrada.** Un tipo del esquema que declara `orden`, de tipo `numero`, se
+    ordena a mano: el editor lo cambia arrastrando en el listado y no lo
+    enseña en el formulario (§11). No cambia nada en el motor.
 
 ---
 

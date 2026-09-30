@@ -859,7 +859,9 @@ Cuando un tipo tiene más de una carpeta, el editor agrupa sus páginas por
 carpeta y pregunta en cuál crear una nueva. Cada carpeta se rotula con el
 título de la página que se llama como ella a su lado
 (`contenido/libros/novela.md` para `contenido/libros/novela/`) o, si no la
-hay, con el de su `index.md`; si tampoco, con su nombre. El editor no crea
+hay, con el de su `index.md`; si tampoco, con su nombre. Un tipo con una sola
+carpeta y sin ninguna de esas páginas se rotula con el plural del tipo.
+El editor no crea
 carpetas: una categoría nueva lleva su `_datos.yml`, y eso es trabajo de
 quien desarrolla el sitio.
 

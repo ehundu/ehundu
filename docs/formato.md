@@ -936,9 +936,22 @@ páginas a borrador y las vuelva a publicar: escribe o quita el campo reservado
 no genera fichero ni sale en las colecciones (§5, §6). Un tipo así solo deja
 quitar los borradores: primero se pasa la página a borrador, que se puede
 deshacer, y después se quita. Un tipo sin `borradores` no ofrece nada de esto y
-se comporta como siempre. El editor no ofrece programar con `publicar`: el
-sitio es estático y haría falta una tarea que lo recompile y lo publique el día
-en que llega la fecha.
+se comporta como siempre. Programar la publicación con `publicar` es otra
+clave, `programar` (abajo), y no depende de esta.
+
+**Programar.** Un tipo con `"programar": true` deja que el editor fije cuándo
+se publican sus páginas: escribe o quita el campo reservado `publicar` (§4) en
+cada fichero de la página, en todos los idiomas a la vez (§15), con una fecha
+de hoy en adelante. Una página con `publicar` en el futuro no genera fichero ni
+sale en las colecciones, el sitemap ni el feed hasta que llega ese día (§4, §5,
+§6, §10). Si los ficheros de una página tienen fechas distintas, el editor
+enseña la más próxima y no toca ninguna hasta que se cambie. `borrador` manda
+sobre `publicar`: una página que lleva las dos es un borrador. Con `unico` no se
+ofrece, porque una página fija no tiene que desaparecer hasta una fecha. Un
+tipo sin `programar` no ofrece nada de esto. El sitio es estático: la página
+aparece cuando el sitio se vuelve a compilar y a publicar después de esa fecha,
+y de eso tiene que encargarse quien aloje el editor, por ejemplo con una tarea
+programada.
 
 **El menú lateral.** El editor agrupa lo que se edita en secciones. Cada tipo
 lleva la suya, con el plural del tipo por nombre, y los ficheros de datos
@@ -1422,6 +1435,10 @@ un sitio de la v1 no debe usarlo como campo propio.
     editor pase sus páginas a borrador y las vuelva a publicar, en todos los
     idiomas a la vez, y solo deja quitar las que son borradores (§11). No
     cambia nada en el motor.
+103. **Cerrada.** Un tipo del esquema con `"programar": true` deja que el
+    editor fije la fecha de `publicar` de sus páginas, en todos los idiomas a
+    la vez; `borrador` manda sobre `publicar` y con `unico` no se ofrece
+    (§11). No cambia nada en el motor.
 
 ---
 

@@ -44,7 +44,7 @@ final readonly class Pagina
      * colección (formato §6.2 y §7.2): `url` es la URL ya resuelta, o null
      * en un fragmento; `ruta`, la del fichero; `idioma`, el de la página;
      * `pdf`, la dirección de su PDF o null (formato §10.3), y los demás salen
-     * de los campos. `contenido` y `traducciones` no están
+     * de los campos. `contenido`, `markdown` y `traducciones` no están
      * aquí: los dan las plantillas.
      */
     public function valor(string $campo): mixed

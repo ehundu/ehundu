@@ -85,6 +85,41 @@ final class ExtensionTwigPrueba extends TestCase
     }
 
     #[Test]
+    public function elMarkdownEsElCuerpoSinConvertirYSeEscapaComoCualquierTexto(): void
+    {
+        self::assertSame('Cuerpo de dos', $this->render('{{ pagina.markdown }}', ['pagina' => $this->vista('blog/b.md')]));
+        self::assertSame(
+            'Cuerpo de uno|Cuerpo de dos|Cuerpo de tres|',
+            $this->render("{% for a in coleccion('blog') %}{{ a.markdown }}|{% endfor %}"),
+        );
+
+        $markdown = new Pagina('blog/d.md', 'md', ['titulo' => 'Cuatro'], '/blog/cuatro/', "Con *énfasis* y <b>HTML</b> & [imagen fichero=\"a.jpg\"]\n", 5);
+        $extension = new ExtensionTwig(new Colecciones([$markdown], new \DateTimeImmutable('2026-01-01')));
+        $vista = $extension->vistaDe($markdown);
+
+        self::assertSame("Con *énfasis* y <b>HTML</b> & [imagen fichero=\"a.jpg\"]\n", $vista['markdown']);
+        self::assertSame(
+            'Con *énfasis* y &lt;b&gt;HTML&lt;/b&gt; &amp; [imagen fichero=&quot;a.jpg&quot;]',
+            trim($this->render('{{ pagina.markdown }}', ['pagina' => $vista])),
+        );
+        self::assertSame(
+            'Con *énfasis* y <b>HTML</b> & [imagen fichero="a.jpg"]',
+            trim($this->render('{{ pagina.markdown|raw }}', ['pagina' => $vista])),
+        );
+    }
+
+    #[Test]
+    public function unaPaginaEnTwigNoTieneMarkdown(): void
+    {
+        $twig = new Pagina('contacto.twig', 'twig', ['titulo' => 'Contacto'], '/contacto/', '<p>{{ pagina.titulo }}</p>', 5);
+        $vista = (new ExtensionTwig(new Colecciones([$twig], new \DateTimeImmutable('2026-01-01'))))->vistaDe($twig);
+
+        self::assertFalse(isset($vista['markdown']));
+        self::assertNull($vista['markdown']);
+        self::assertSame('sin', $this->render("{{ pagina.markdown ?? 'sin' }}", ['pagina' => $vista]));
+    }
+
+    #[Test]
     public function losCamposQueFaltanSonNulosYSeEscapanLosDemas(): void
     {
         self::assertSame('sin imagen', $this->render("{{ pagina.imagen ?? 'sin imagen' }}", ['pagina' => $this->vista('blog/a.md')]));

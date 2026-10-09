@@ -249,6 +249,41 @@ Otro.
     }
 
     #[Test]
+    public function elMarkdownDeOtraPaginaRehaceLaQueLoMuestra(): void
+    {
+        $this->ficheros = [
+            'sitio.yml' => "nombre: Prueba\nurl: https://ejemplo.com\n",
+            'plantillas/pagina.twig' => "{{ pagina.contenido }}\n",
+            // Solo lee el Markdown de los artículos, no su contenido.
+            'contenido/todo.twig' => "---\ntitulo: Todo\nurl: /todo.txt\nplantilla: false\n---\n{% for a in coleccion('blog') %}{{ a.markdown|raw }}|{% endfor %}\n",
+            'contenido/blog/_datos.yml' => "etiquetas: [blog]\n",
+            'contenido/blog/uno.md' => "---\ntitulo: Uno\nfecha: 2024-01-01\n---\nPrimero, con **negrita**.\n",
+            'contenido/blog/dos.md' => "---\ntitulo: Dos\nfecha: 2024-02-01\n---\nSegundo.\n",
+        ];
+
+        foreach ($this->ficheros as $ruta => $contenido) {
+            $this->crearFichero($ruta, $contenido);
+        }
+
+        $constructor = new Constructor(incremental: true);
+        $ahora = new \DateTimeImmutable(self::AHORA);
+
+        $primera = $this->comprobar($constructor, $ahora, 'primera construcción');
+        self::assertSame(3, $primera?->rehechas);
+        self::assertSame("Primero, con **negrita**.\n|Segundo.\n|", $primera->escritos['todo.txt'] ?? null);
+
+        $this->cambiar('contenido/blog/uno.md', 'con **negrita**', 'con *cursiva*');
+        $cambio = $this->comprobar($constructor, $ahora, 'cambia el Markdown de un artículo: él y la página que lo muestra');
+        self::assertSame(2, $cambio?->rehechas);
+        self::assertSame("Primero, con *cursiva*.\n|Segundo.\n|", $cambio->escritos['todo.txt'] ?? null);
+
+        $this->poner('contenido/blog/tres.md', "---\ntitulo: Tres\nfecha: 2024-03-01\n---\nTercero.\n");
+        $nuevo = $this->comprobar($constructor, $ahora, 'aparece un artículo: él y la página que lo muestra');
+        self::assertSame(2, $nuevo?->rehechas);
+        self::assertSame("Primero, con *cursiva*.\n|Segundo.\n|Tercero.\n|", $nuevo->escritos['todo.txt'] ?? null);
+    }
+
+    #[Test]
     public function losAvisosDeLoQueSeAprovechaSeRepiten(): void
     {
         $this->crearSitio();

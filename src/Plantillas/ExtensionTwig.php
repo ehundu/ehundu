@@ -107,7 +107,18 @@ final class ExtensionTwig extends AbstractExtension
      */
     public function vistaDe(Pagina $pagina): VistaDePagina
     {
-        return $this->vistas[$pagina->ruta] ??= new VistaDePagina($pagina, $this->renderizar, $this->traducciones(...));
+        return $this->vistas[$pagina->ruta] ??= new VistaDePagina($pagina, $this->renderizar, $this->traducciones(...), $this->markdown(...));
+    }
+
+    /**
+     * El Markdown de una página sin convertir. Quien lo pide depende del
+     * fichero de esa página, igual que con su contenido.
+     */
+    private function markdown(Pagina $pagina): string
+    {
+        $this->registros?->anotar('contenidos', $pagina->ruta);
+
+        return $pagina->cuerpo;
     }
 
     /**

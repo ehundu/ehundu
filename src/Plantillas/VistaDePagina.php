@@ -10,7 +10,8 @@ use Twig\Markup;
 /**
  * Una página tal como la ven las plantillas (formato §7 y §15.8): sus campos,
  * más `url`, `ruta`, `idioma`, `pdf` (la dirección de su PDF, si lo tiene),
- * `contenido` y `traducciones`. Se lee como un
+ * `contenido`, `markdown` (su cuerpo sin convertir, solo en Markdown) y
+ * `traducciones`. Se lee como un
  * array: `pagina.titulo`, `articulo.url`. No se puede modificar desde una
  * plantilla.
  *
@@ -26,11 +27,14 @@ final class VistaDePagina implements \ArrayAccess
      *                                                 página que lo reutiliza
      * @param \Closure(Pagina): array<string, VistaDePagina>|null $traducciones da sus versiones
      *                                                 publicadas, por idioma
+     * @param \Closure(Pagina): string|null $markdown  da el cuerpo sin convertir, y apunta que
+     *                                                 quien lo pide depende de esa página
      */
     public function __construct(
         private readonly Pagina $pagina,
         private readonly ?\Closure $renderizar = null,
         private readonly ?\Closure $traducciones = null,
+        private readonly ?\Closure $markdown = null,
     ) {
     }
 
@@ -45,6 +49,7 @@ final class VistaDePagina implements \ArrayAccess
             'url', 'ruta', 'idioma', 'traducciones' => true,
             'pdf' => $this->pagina->urlPdf() !== null,
             'contenido' => $this->renderizar !== null,
+            'markdown' => $this->tieneMarkdown(),
             default => isset($this->pagina->campos[$clave]),
         };
     }
@@ -53,6 +58,7 @@ final class VistaDePagina implements \ArrayAccess
     {
         return match ($clave) {
             'contenido' => $this->contenido(),
+            'markdown' => $this->tieneMarkdown() ? ($this->markdown)($this->pagina) : null,
             'traducciones' => $this->traducciones === null ? [] : ($this->traducciones)($this->pagina),
             default => $this->pagina->valor((string) $clave),
         };
@@ -66,6 +72,11 @@ final class VistaDePagina implements \ArrayAccess
     public function offsetUnset(mixed $clave): never
     {
         throw new \LogicException('Una página no se puede modificar desde una plantilla');
+    }
+
+    private function tieneMarkdown(): bool
+    {
+        return $this->markdown !== null && $this->pagina->formato === 'md';
     }
 
     private function contenido(): ?Markup

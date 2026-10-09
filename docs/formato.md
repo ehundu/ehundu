@@ -391,7 +391,7 @@ campos del front matter, con la cascada, y además `url`, la URL ya resuelta
 `donde('url', '/contacto/')` encuentra la página aunque su URL salga de la
 ruta y no esté escrita en el front matter. `contenido` no cuenta: para
 filtrar u ordenar por él habría que convertir el cuerpo de todas las páginas
-de la lista.
+de la lista. Tampoco cuenta `markdown` (§7.2).
 
 Como `orden` respeta el orden previo en los empates, `orden('fecha desc')` no
 es lo mismo que `invertir` cuando hay páginas con la misma fecha: la primera
@@ -450,6 +450,16 @@ convierte la primera vez que alguien lo pide. Si una página acaba necesitando
 su propio contenido para construirse (una página `.twig` que lista una
 colección en la que está ella misma y pide el contenido de cada una), el build
 se detiene con un error que muestra la cadena de páginas.
+
+`pagina.markdown` es el cuerpo de una página en Markdown tal como está
+escrito: sin el front matter y sin convertir, con los atajos sin resolver.
+Las páginas de una colección la tienen también (`articulo.markdown`). Es lo
+que necesita un `llms-full.txt`, que reúne el texto de varios artículos. Twig
+la escapa como cualquier texto: en un fichero que no es HTML se escribe con
+`|raw`. No existe en una página `.twig`, cuyo cuerpo es una plantilla. Quien
+la lee depende del fichero de esa página: si cambia, se rehace la que la
+muestra. Como `contenido`, tapa un campo del front matter que se llame igual,
+y no sirve para filtrar ni ordenar (§6.2).
 
 Un campo que falta sale vacío, como en Nunjucks: `{% if pagina.imagen %}`
 funciona sin comprobar antes si existe. Twig escapa el HTML de todo lo que
@@ -1439,6 +1449,10 @@ un sitio de la v1 no debe usarlo como campo propio.
     editor fije la fecha de `publicar` de sus páginas, en todos los idiomas a
     la vez; `borrador` manda sobre `publicar` y con `unico` no se ofrece
     (§11). No cambia nada en el motor.
+104. **Cerrada.** `pagina.markdown` da el Markdown de una página sin el front
+    matter y sin convertir, también en las páginas de una colección. Es lo que
+    necesitan ficheros como `llms-full.txt`, que reúnen el texto de varios
+    artículos. No existe en las páginas `.twig` (§7.2).
 
 ---
 

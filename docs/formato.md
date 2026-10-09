@@ -197,6 +197,7 @@ Campos reservados:
 | `orden`       | número  | Orden manual dentro de una colección.                     |
 | `borrador`    | sí/no   | Si es `sí`, no se publica.                                |
 | `publicar`    | fecha   | No se publica antes de esa fecha.                         |
+| `publicarEnSuFecha` | sí/no | Si es `sí`, no se publica antes de su `fecha` (abajo). |
 | `pdf`         | sí/no   | Si es `sí`, la página sale además en PDF (§10.3).         |
 | `agrupar`     | mapa    | La página es una plantilla que se repite por cada valor de un campo (§6.3). |
 
@@ -236,6 +237,30 @@ Detalles de los tipos:
   como una lista de un elemento: `etiquetas: servicio` es lo mismo que
   `etiquetas: [servicio]`.
 - **`plantilla`** vacía (`plantilla: ""`) es lo mismo que `plantilla: false`.
+
+**Publicar en su fecha.** Una `fecha` futura no oculta nada: es una fecha más,
+como la de un evento en una agenda. Para un blog que se escribe por adelantado
+está `publicarEnSuFecha: sí`, que hace que la página no se publique antes de
+su `fecha`: es lo mismo que escribir `publicar` con esa fecha, sin repetirla.
+Se pone donde se pondría cualquier valor común, en el `_datos.yml` de la
+carpeta (§3), y una subcarpeta lo quita con `publicarEnSuFecha: no`. Una
+página sin `fecha`, o con la `fecha` ya pasada, no se ve afectada.
+
+- **Quién manda.** Si la página lleva `publicar`, manda `publicar`, también
+  cuando es anterior a la `fecha`: una fecha escrita a propósito no se
+  contradice con otra deducida. `borrador` manda sobre las dos.
+- **A qué hora.** Como `publicar`: desde la medianoche del día de la `fecha`
+  en la zona horaria del sitio (§2). El sitio es estático, así que la página
+  sale cuando el sitio se vuelve a compilar después de ese momento (§11,
+  *Programar*).
+- **Lo demás.** Todo lo que este documento dice de una página con `publicar`
+  en el futuro (§5.3, §6, §10, §15.8) vale también para una con
+  `publicarEnSuFecha` y su `fecha` en el futuro: no genera fichero ni sale
+  en colecciones, sitemap, feed ni traducciones. En un sitio en varios idiomas
+  cada traducción mira su propia `fecha`, que normalmente es la del `.yml`
+  común de la página (§15.7), así que salen el mismo día.
+- **La previsualización con borradores** (`ehundu servir --borradores`) lo
+  trata como a `publicar`: lo enseña todo.
 
 Se aceptan como alias los nombres ingleses habituales en Eleventy y Lume
 (`title`, `subtitle`, `description`, `date`, `tags`, `layout`, `permalink`),
@@ -1068,7 +1093,9 @@ ofrece, porque una página fija no tiene que desaparecer hasta una fecha. Un
 tipo sin `programar` no ofrece nada de esto. El sitio es estático: la página
 aparece cuando el sitio se vuelve a compilar y a publicar después de esa fecha,
 y de eso tiene que encargarse quien aloje el editor, por ejemplo con una tarea
-programada.
+programada. `programar` no depende de `publicarEnSuFecha` (§4), que es cosa de
+quien desarrolla el sitio: el editor ni lo escribe ni lo lee, y un `publicar`
+que escriba sigue mandando sobre él.
 
 **El menú lateral.** El editor agrupa lo que se edita en secciones. Cada tipo
 lleva la suya, con el plural del tipo por nombre, y los ficheros de datos
@@ -1567,6 +1594,10 @@ un sitio de la v1 no debe usarlo como campo propio.
     `slug`, da `grupo` (la variante más usada) y `paginas`, no genera página
     para un grupo sin páginas publicadas y no es paginación, que sigue fuera de
     la v1. Es declarativa: no ejecuta código del sitio (§6.3).
+106. **Cerrada.** `publicarEnSuFecha: sí`, que se hereda por la cascada, hace
+    que una página no se publique antes de su `fecha`, como si llevara
+    `publicar` con ella. Por defecto una `fecha` futura sigue sin ocultar nada.
+    Un `publicar` explícito manda sobre él, y `borrador` sobre los dos (§4).
 
 ---
 

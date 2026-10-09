@@ -88,7 +88,9 @@ final readonly class Pagina
 
     /**
      * Si la página está publicada en ese momento: no es un borrador y su
-     * fecha de `publicar`, si la tiene, ya ha llegado. Vale también para los
+     * fecha de `publicar`, si la tiene, ya ha llegado. Con `publicarEnSuFecha`
+     * y sin `publicar`, la que cuenta es su `fecha` (formato §4); un `publicar`
+     * explícito manda, también si es anterior. Vale también para los
      * fragmentos, que se publican aunque no generen fichero. Con borradores
      * (la previsualización con `--borradores`), todo cuenta como publicado.
      */
@@ -104,6 +106,12 @@ final readonly class Pagina
 
         $publicar = $this->campos['publicar'] ?? null;
 
-        return !$publicar instanceof \DateTimeImmutable || $publicar <= $ahora;
+        if ($publicar instanceof \DateTimeImmutable) {
+            return $publicar <= $ahora;
+        }
+
+        $fecha = $this->campos['fecha'] ?? null;
+
+        return !(($this->campos['publicarEnSuFecha'] ?? false) === true && $fecha instanceof \DateTimeImmutable && $fecha > $ahora);
     }
 }

@@ -175,6 +175,18 @@ final class CamposPrueba extends TestCase
     }
 
     #[Test]
+    public function publicarEnSuFechaEsUnSiONo(): void
+    {
+        self::assertSame(['publicarEnSuFecha' => true], $this->normalizar('publicarEnSuFecha: sí'));
+        self::assertSame(['publicarEnSuFecha' => false], $this->normalizar('publicarEnSuFecha: no'));
+        self::assertSame(['publicarEnSuFecha' => true], $this->normalizar('publicarEnSuFecha: true'));
+        self::assertSame([], $this->avisos());
+
+        self::assertSame([], $this->normalizar('publicarEnSuFecha: pronto'));
+        self::assertSame(['contenido/a.md:2: «publicarEnSuFecha» tiene que ser sí o no'], $this->avisos());
+    }
+
+    #[Test]
     public function aceptaOrdenesNumericos(): void
     {
         self::assertSame(['orden' => 3], $this->normalizar('orden: 3'));

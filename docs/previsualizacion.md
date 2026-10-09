@@ -29,7 +29,8 @@ día con las plantillas.
   se arregla. Los ficheros de `publico/` se siguen sirviendo. Los avisos salen
   en la terminal.
 - **Con `--borradores`** enseña también los borradores y las páginas con
-  `publicar` en el futuro. Sin la opción, enseña lo mismo que se publicaría.
+  `publicar` en el futuro, o con `publicarEnSuFecha` y su `fecha` en el
+  futuro. Sin la opción, enseña lo mismo que se publicaría.
 - **Sirve como un alojamiento corriente.** `/blog` redirige a `/blog/`, una
   dirección que no existe devuelve el `404.html` del sitio con código 404, y
   cada fichero lleva su tipo.

@@ -34,6 +34,67 @@ final class PaginaPrueba extends TestCase
     }
 
     #[Test]
+    public function conPublicarEnSuFechaUnaPaginaSePublicaDesdeSuFecha(): void
+    {
+        $utc = new \DateTimeZone('UTC');
+        $programada = fn (string $fecha): Pagina => $this->pagina(['publicarEnSuFecha' => true, 'fecha' => new \DateTimeImmutable($fecha, $utc)]);
+
+        self::assertTrue($programada('2026-09-24')->estaPublicada($this->ahora()));
+        self::assertTrue($programada('2026-09-25')->estaPublicada($this->ahora()));
+        self::assertFalse($programada('2026-09-26')->estaPublicada($this->ahora()));
+        self::assertTrue($programada('2026-09-26')->estaPublicada(new \DateTimeImmutable('2026-09-26', $utc)));
+    }
+
+    #[Test]
+    public function unaFechaFuturaNoOcultaNadaSinPublicarEnSuFecha(): void
+    {
+        $futura = new \DateTimeImmutable('2030-01-01', new \DateTimeZone('UTC'));
+
+        self::assertTrue($this->pagina(['fecha' => $futura])->estaPublicada($this->ahora()));
+        self::assertTrue($this->pagina(['fecha' => $futura, 'publicarEnSuFecha' => false])->estaPublicada($this->ahora()));
+    }
+
+    #[Test]
+    public function sinFechaPublicarEnSuFechaNoOcultaNada(): void
+    {
+        self::assertTrue($this->pagina(['publicarEnSuFecha' => true])->estaPublicada($this->ahora()));
+    }
+
+    #[Test]
+    public function unPublicarExplicitoMandaSobrePublicarEnSuFecha(): void
+    {
+        $utc = new \DateTimeZone('UTC');
+        $pasado = new \DateTimeImmutable('2020-01-01', $utc);
+        $futuro = new \DateTimeImmutable('2030-01-01', $utc);
+
+        // Publicar antes que la fecha, a propósito.
+        self::assertTrue($this->pagina(['publicarEnSuFecha' => true, 'fecha' => $futuro, 'publicar' => $pasado])->estaPublicada($this->ahora()));
+        // Y después.
+        self::assertFalse($this->pagina(['publicarEnSuFecha' => true, 'fecha' => $pasado, 'publicar' => $futuro])->estaPublicada($this->ahora()));
+    }
+
+    #[Test]
+    public function unBorradorNoSePublicaAunqueLleguePublicarEnSuFecha(): void
+    {
+        $pagina = $this->pagina([
+            'publicarEnSuFecha' => true,
+            'borrador' => true,
+            'fecha' => new \DateTimeImmutable('2020-01-01', new \DateTimeZone('UTC')),
+        ]);
+
+        self::assertFalse($pagina->estaPublicada($this->ahora()));
+    }
+
+    #[Test]
+    public function conBorradoresTodoCuentaComoPublicado(): void
+    {
+        $futura = $this->pagina(['publicarEnSuFecha' => true, 'fecha' => new \DateTimeImmutable('2030-01-01', new \DateTimeZone('UTC'))]);
+
+        self::assertFalse($futura->estaPublicada($this->ahora()));
+        self::assertTrue($futura->estaPublicada($this->ahora(), conBorradores: true));
+    }
+
+    #[Test]
     public function elValorDeUnCampoEsElQueVenLasPlantillas(): void
     {
         $pagina = new Pagina('blog/hola.md', 'md', ['titulo' => 'Hola', 'url' => '/blog/{{ titulo|slug }}/'], '/blog/hola/', '', 1);

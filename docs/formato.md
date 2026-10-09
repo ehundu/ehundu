@@ -198,6 +198,7 @@ Campos reservados:
 | `borrador`    | sí/no   | Si es `sí`, no se publica.                                |
 | `publicar`    | fecha   | No se publica antes de esa fecha.                         |
 | `pdf`         | sí/no   | Si es `sí`, la página sale además en PDF (§10.3).         |
+| `agrupar`     | mapa    | La página es una plantilla que se repite por cada valor de un campo (§6.3). |
 
 `idioma` también está reservado, pero no se escribe: sale del nombre del
 fichero (`contacto.eu.md`, §15.2).
@@ -295,6 +296,9 @@ ingleses (`title`, `slugify`).
 Si el patrón usa un campo que la página no tiene, o que no es un texto o un
 número, si un `slug` sale vacío, o si entre las llaves hay otra cosa, se avisa
 y se usa la URL que sale de la ruta.
+
+En una página con `agrupar` (§6.3) vale además `{{ grupo }}`, el valor del
+grupo de cada página que genera, y el patrón tiene que usarlo.
 
 ### 5.2 El filtro `slug`
 
@@ -399,6 +403,95 @@ las deja por ruta y la segunda, al revés. Lo que en Eleventy es
 `collections.blog | reverse | head(6)` es aquí
 `coleccion('blog')|invertir|limite(6)`.
 
+### 6.3 Una página por cada valor
+
+Un blog con etiquetas abiertas no puede tener una página escrita a mano por
+cada etiqueta: la siguiente entrada puede traer una nueva. Para eso, una página
+con `agrupar` no es una página sino una plantilla de páginas: el motor la
+repite una vez por cada valor distinto de un campo de las páginas de una
+colección.
+
+    ---
+    plantilla: etiqueta
+    agrupar:
+      coleccion: blog       # de dónde salen las páginas; obligatorio
+      campo: etiquetas      # el campo por el que se agrupan; obligatorio
+      excluir: [blog]       # valores que no generan página; opcional
+    url: "/etiqueta/{{ grupo|slug }}/"
+    etiquetas: [temas]
+    ---
+
+La página con `agrupar` no genera fichero, ni sale en colecciones ni en el
+sitemap. Cada página que genera lleva los campos de la que la define (con la
+cascada del §3, como cualquier otra) y además:
+
+- `grupo`: el nombre del grupo, en texto;
+- `paginas`: las páginas del grupo, con la forma de las que da `coleccion()`
+  (§7.2) y en su mismo orden, así que los filtros del §6.2 valen:
+  `pagina.paginas|orden('fecha desc')`.
+
+Reglas:
+
+- **Qué entra.** Las páginas de la colección, tal como las da `coleccion()`
+  (§6): sin borradores, sin las de `publicar` en el futuro y sin las de
+  `listada: no`, y en el idioma de la página que define el grupo (§15.5). Por
+  eso un valor que solo usan páginas que aún no se publican no tiene página
+  hasta que sale la primera, y nunca hay un grupo vacío.
+- **Los valores.** `campo` es un campo de las páginas de la colección, tal como
+  llega a la plantilla (§7.2), con la cascada. Una lista da un valor por
+  elemento; un texto suelto, uno, como en `etiquetas` (§4). Un valor que no es
+  texto ni número, o que está en blanco, se ignora y se avisa. Si el campo es
+  `etiquetas` hay que acordarse de `excluir`: la carpeta pone a cada artículo
+  el nombre de su colección (§3), y sin `excluir: [blog]` habría un grupo con
+  todo el blog.
+- **Variantes.** Los valores se agrupan por su `slug` (§5.2): `Cultura pop`,
+  `cultura-pop` y `Cultura Pop` son un grupo. Es la única regla coherente,
+  porque la URL sale del `slug` y dos grupos con la misma saldrían al mismo
+  fichero. `grupo` es la variante que más páginas usan y, a igualdad, la
+  primera en el orden de `orden` (§6.2). `excluir` también compara por `slug`.
+  Un valor cuyo `slug` sale vacío se ignora y se avisa.
+- **La URL.** Tiene que usar `{{ grupo|slug }}` (§5.1). Sin `url`, o con una
+  que no lo use, todas las páginas irían al mismo fichero: se avisa y no se
+  genera ninguna. El resto del §5 vale: el prefijo de idioma (§15.3) y el
+  error si dos páginas van al mismo fichero.
+- **El título.** Si la página que define el grupo no tiene `titulo`, el de
+  cada página generada es su `grupo`, y no avisa. Cualquier otro campo se pasa
+  como está: lo que hay que componer con el grupo (`Etiqueta: …`) se escribe
+  en la plantilla con `pagina.grupo`.
+- **El orden.** Las páginas generadas no tienen `fecha` salvo que la herede la
+  que las define; en una colección van, como cualquier página sin fecha, al
+  final, y entre ellas por `slug` de su grupo. Con `etiquetas: [temas]`, el
+  índice de todos los grupos es `coleccion('temas')` y su recuento,
+  `tema.paginas|length`, sin repetir en un fichero de datos lo que ya dicen
+  las páginas.
+- **Idiomas.** Cada idioma tiene su propia página con `agrupar` (`etiqueta.md`,
+  `etiqueta.eu.md`) y agrupa las páginas de ese idioma. Una página generada no
+  tiene traducciones (§15.8): los grupos de un idioma no se corresponden con
+  los de otro.
+- **Los avisos y los errores.** Un `agrupar` al que le falta `coleccion` o
+  `campo` avisa y no genera nada. Una colección sin páginas no es un error: no
+  hay grupos. `excluir` admite, como `etiquetas`, un texto suelto.
+- **Sin vueltas.** Una página con `agrupar` no puede depender de las páginas
+  que genera ella misma ni otra (`coleccion: todo`, o una colección a la que
+  pertenecen las generadas): el build se detiene con un error que muestra la
+  cadena, como en el §7.2.
+- **No es paginación.** Parte un conjunto en grupos; no parte una lista larga
+  en trozos. La paginación de listados sigue fuera de la v1 (§13).
+
+`grupo` y `paginas` los tienen también las páginas generadas cuando salen de
+`coleccion()` (§7.2), que es lo que hace posible el índice de arriba.
+
+La compilación incremental trata la página con `agrupar` como una que consulta
+la colección y lee ese campo: se rehace cuando se añade, se quita o se cambia
+cualquiera de las páginas de la colección, y cada página generada, cuando
+cambia alguna de las de su grupo. Cómo se consigue es cosa de
+`docs/compilacion.md`.
+
+El esquema (§11) no sabe de `agrupar`. Es cosa de quien desarrolla el sitio, y
+un editor ni la enseña ni la toca; lo que sí hace es que el editor pueda
+escribir una etiqueta nueva en una entrada sin que nadie tenga que crear antes
+su página.
+
 ---
 
 ## 7. Plantillas
@@ -460,6 +553,10 @@ la escapa como cualquier texto: en un fichero que no es HTML se escribe con
 la lee depende del fichero de esa página: si cambia, se rehace la que la
 muestra. Como `contenido`, tapa un campo del front matter que se llame igual,
 y no sirve para filtrar ni ordenar (§6.2).
+
+Una página que genera otra con `agrupar` (§6.3) tiene además `pagina.grupo`,
+el valor, y `pagina.paginas`, las páginas del grupo. Las páginas generadas
+las tienen también cuando salen de `coleccion()`.
 
 Un campo que falta sale vacío, como en Nunjucks: `{% if pagina.imagen %}`
 funciona sin comprobar antes si existe. Twig escapa el HTML de todo lo que
@@ -1194,7 +1291,8 @@ que puede cambiar: no le importa si sus campos viven en una página o en
 Catálogo de componentes con parámetros y consultas, tokens de estilo por sitio,
 generación de imágenes en varios tamaños, paginación de listados, procesadores
 sobre el HTML ya generado, pasos posteriores al build y búsqueda. El
-multiidioma estuvo aquí hasta la 0.3 (§15). El PDF de una página (§10.3) no
+multiidioma estuvo aquí hasta la 0.3 (§15). Una página por cada valor de un
+campo (`agrupar`, §6.3) no es paginación y no está aquí. El PDF de una página (§10.3) no
 es un procesador sobre el HTML ya generado: es una salida más de la página,
 con su propia plantilla, que no toca el HTML de nadie.
 
@@ -1453,6 +1551,12 @@ un sitio de la v1 no debe usarlo como campo propio.
     matter y sin convertir, también en las páginas de una colección. Es lo que
     necesitan ficheros como `llms-full.txt`, que reúnen el texto de varios
     artículos. No existe en las páginas `.twig` (§7.2).
+105. **Cerrada.** Una página con `agrupar` es una plantilla que el motor repite
+    por cada valor de un campo de las páginas de una colección: una página por
+    etiqueta sin escribirla a mano, para vocabularios abiertos. Agrupa por
+    `slug`, da `grupo` (la variante más usada) y `paginas`, no genera página
+    para un grupo sin páginas publicadas y no es paginación, que sigue fuera de
+    la v1. Es declarativa: no ejecuta código del sitio (§6.3).
 
 ---
 
@@ -1572,7 +1676,8 @@ Otro idioma se pide con un segundo argumento, que es un código o `todos`:
     {% for articulo in coleccion('blog', idioma: 'todos') %} {# todos #}
 
 Un código que el sitio no declara avisa y da una lista vacía. `orden` y `donde`
-ven también `idioma` (§6.2).
+ven también `idioma` (§6.2). Una página con `agrupar` (§6.3) agrupa las del
+idioma de su fichero.
 
 ### 15.6 Datos por idioma
 

@@ -929,6 +929,17 @@ tenga una, el editor no ofrece añadir otra ni quitar la que hay. Un tipo así
 puede no declarar `titulo`: el editor no lo enseña y el que llevan los ficheros
 de la página se conserva tal cual.
 
+**Borradores.** Un tipo con `"borradores": true` deja que el editor pase sus
+páginas a borrador y las vuelva a publicar: escribe o quita el campo reservado
+`borrador` (§4) en cada fichero de la página, en todos los idiomas a la vez
+(§15). Una página es un borrador cuando todos sus ficheros lo dicen, y entonces
+no genera fichero ni sale en las colecciones (§5, §6). Un tipo así solo deja
+quitar los borradores: primero se pasa la página a borrador, que se puede
+deshacer, y después se quita. Un tipo sin `borradores` no ofrece nada de esto y
+se comporta como siempre. El editor no ofrece programar con `publicar`: el
+sitio es estático y haría falta una tarea que lo recompile y lo publique el día
+en que llega la fecha.
+
 **El menú lateral.** El editor agrupa lo que se edita en secciones. Cada tipo
 lleva la suya, con el plural del tipo por nombre, y los ficheros de datos
 (§11.5) van en «Ajustes». Tres claves, todas opcionales, lo cambian:
@@ -1407,6 +1418,10 @@ un sitio de la v1 no debe usarlo como campo propio.
     en un tipo o en un fichero de datos, `rotulo` en un tipo de una sola
     carpeta y `excluir` en un tipo, todos opcionales (§11). No cambia nada en
     el motor.
+102. **Cerrada.** Un tipo del esquema con `"borradores": true` deja que el
+    editor pase sus páginas a borrador y las vuelva a publicar, en todos los
+    idiomas a la vez, y solo deja quitar las que son borradores (§11). No
+    cambia nada en el motor.
 
 ---
 

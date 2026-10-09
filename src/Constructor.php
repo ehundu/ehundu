@@ -45,7 +45,10 @@ final class Constructor
         $this->memoria = null;
         $avisos = new Avisos();
 
-        $lectura = (new Lector())->leer($proyecto);
+        // Las plantillas de páginas (`agrupar`) se sustituyen por las que generan
+        // antes de nada más: desde aquí, y en la memoria de la incremental, son
+        // páginas como las demás.
+        $lectura = (new Agrupador())->expandir((new Lector())->leer($proyecto), $ahora, $conBorradores);
         Url::comprobarColisiones($lectura->paginas, $ahora, $conBorradores);
 
         /** @var array<string, true> $publicadas */

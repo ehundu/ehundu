@@ -430,6 +430,9 @@ cascada del §3, como cualquier otra) y además:
   (§7.2) y en su mismo orden, así que los filtros del §6.2 valen:
   `pagina.paginas|orden('fecha desc')`.
 
+Como `contenido` (§7.2), las dos tapan un campo del front matter que se
+llame igual, solo en las páginas generadas.
+
 Reglas:
 
 - **Qué entra.** Las páginas de la colección, tal como las da `coleccion()`
@@ -448,7 +451,9 @@ Reglas:
   `cultura-pop` y `Cultura Pop` son un grupo. Es la única regla coherente,
   porque la URL sale del `slug` y dos grupos con la misma saldrían al mismo
   fichero. `grupo` es la variante que más páginas usan y, a igualdad, la
-  primera en el orden de `orden` (§6.2). `excluir` también compara por `slug`.
+  primera en el orden de `orden` (§6.2); si aun así empatan (`Ideas` e
+  `ideas`), la de menor código de carácter, para que el nombre no dependa del
+  orden en que llegan las páginas. `excluir` también compara por `slug`.
   Un valor cuyo `slug` sale vacío se ignora y se avisa.
 - **La URL.** Tiene que usar `{{ grupo|slug }}` (§5.1). Sin `url`, o con una
   que no lo use, todas las páginas irían al mismo fichero: se avisa y no se
@@ -469,8 +474,12 @@ Reglas:
   tiene traducciones (§15.8): los grupos de un idioma no se corresponden con
   los de otro.
 - **Los avisos y los errores.** Un `agrupar` al que le falta `coleccion` o
-  `campo` avisa y no genera nada. Una colección sin páginas no es un error: no
-  hay grupos. `excluir` admite, como `etiquetas`, un texto suelto.
+  `campo` avisa, con su línea, y no genera nada. Una clave que no admite se
+  avisa y se ignora. Si ni siquiera es un mapa (`agrupar: sí`), se avisa, se
+  ignora y la página es una más. Una colección sin páginas no es un error: no
+  hay grupos. `excluir` admite, como `etiquetas`, un texto suelto. `agrupar` no
+  se hereda: en un `_datos.yml` se avisa y se ignora, porque todas las páginas
+  de la carpeta serían plantillas de páginas y ninguna saldría.
 - **Sin vueltas.** Una página con `agrupar` no puede depender de las páginas
   que genera ella misma ni otra (`coleccion: todo`, o una colección a la que
   pertenecen las generadas): el build se detiene con un error que muestra la
@@ -481,10 +490,11 @@ Reglas:
 `grupo` y `paginas` los tienen también las páginas generadas cuando salen de
 `coleccion()` (§7.2), que es lo que hace posible el índice de arriba.
 
-La compilación incremental trata la página con `agrupar` como una que consulta
-la colección y lee ese campo: se rehace cuando se añade, se quita o se cambia
-cualquiera de las páginas de la colección, y cada página generada, cuando
-cambia alguna de las de su grupo. Cómo se consigue es cosa de
+La compilación incremental da siempre lo mismo que la completa. Una página
+generada se rehace cuando entra o sale una página de su grupo o cambian los
+campos de alguna; si solo cambia el cuerpo de una de ellas, no, salvo que la
+plantilla lo muestre. Las páginas que se generan, o dejan de generarse, se
+deciden de nuevo en cada compilación. Cómo se consigue es cosa de
 `docs/compilacion.md`.
 
 El esquema (§11) no sabe de `agrupar`. Es cosa de quien desarrolla el sitio, y

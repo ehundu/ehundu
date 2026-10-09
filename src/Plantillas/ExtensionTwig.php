@@ -107,7 +107,33 @@ final class ExtensionTwig extends AbstractExtension
      */
     public function vistaDe(Pagina $pagina): VistaDePagina
     {
-        return $this->vistas[$pagina->ruta] ??= new VistaDePagina($pagina, $this->renderizar, $this->traducciones(...), $this->markdown(...));
+        return $this->vistas[$pagina->ruta] ??= new VistaDePagina(
+            $pagina,
+            $this->renderizar,
+            $this->traducciones(...),
+            $this->markdown(...),
+            $this->paginasDelGrupo(...),
+        );
+    }
+
+    /**
+     * Las páginas del grupo de una página generada por `agrupar`, en el orden
+     * de su colección (formato §6.3). Quien las pide depende de los campos de
+     * cada una: si cambian, se rehace. Que entre o salga una ya cambia la
+     * página generada (`Pagina::$miembros`), y el contenido de una solo
+     * cuenta si se pide, como el de cualquier página.
+     *
+     * @return list<VistaDePagina>
+     */
+    private function paginasDelGrupo(Pagina $pagina): array
+    {
+        $miembros = $this->colecciones->paginas($pagina->miembros ?? []);
+
+        foreach ($miembros as $miembro) {
+            $this->registros?->anotar('campos', $miembro->ruta);
+        }
+
+        return $this->vistas($miembros);
     }
 
     /**

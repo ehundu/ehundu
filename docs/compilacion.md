@@ -59,8 +59,27 @@ cualquier `_datos.yml`. Si aparece o desaparece un atajo del sitio, cambian todo
 los cuerpos en Markdown, porque cambia cómo se lee el texto. El sitemap y el
 feed se generan siempre de nuevo, y la lista de ficheros que se copian también.
 
+Las páginas que genera una página con `agrupar` (formato §6.3) no tienen nada
+de especial para todo esto. Se deciden en cada compilación, justo después de
+leer el proyecto y antes de nada más, y lo que se recuerda es la lectura ya
+con ellas: la página que define los grupos no está y en su lugar están las
+generadas, cada una con su ruta (`etiqueta.md#ideas`) y las páginas de su
+grupo. Por eso una etiqueta nueva es una página nueva y la última página de una
+etiqueta, una página que desaparece, y quien lista las generadas a través de
+una colección se entera como con cualquier otra. Una página generada se rehace
+cuando cambia lo que la define (el fichero de la plantilla de grupos, que ellas
+copian) o su grupo (`Pagina::$miembros`: que entre, salga o cambie de sitio una
+página). Que cambien los campos de una de las páginas del grupo se anota
+aparte, página por página (`Registro::$campos`): la generada se rehace si
+cambia el título de uno de sus artículos, pero no si solo cambia su cuerpo. El
+grupo cuenta también como un campo de la página generada para las colecciones:
+si gana o pierde una página, se rehace quien lee el recuento a través de
+`coleccion()`.
+
 Lo que no se rehace se aprovecha tal cual, y sus avisos se repiten, para que
-la terminal diga lo mismo que diría una compilación completa.
+la terminal diga lo mismo que diría una compilación completa. Los avisos de
+`agrupar` (un valor en blanco, una `url` sin `grupo`) no son de una página sino
+de la lectura, y salen siempre.
 
 Las comparaciones de rutas no distinguen mayúsculas ni cuentan las barras
 repetidas, porque Windows tampoco lo hace. Lo que una plantilla pida fuera de

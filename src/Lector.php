@@ -392,6 +392,15 @@ final class Lector
 
         $campos = Cascada::combinar($campos, $propios);
         $extension = pathinfo($ruta, PATHINFO_EXTENSION);
+
+        // Una página con `agrupar` no es una página sino una plantilla de páginas
+        // (formato §6.3): su `url` es un patrón con el grupo, que solo se puede
+        // resolver cuando se sabe qué grupos hay. `Agrupador` la sustituye por
+        // las que genera, así que aquí no tiene URL ni se comprueba nada de ella.
+        if (is_array($campos['agrupar'] ?? null)) {
+            return new Pagina($ruta, $extension, $campos, false, $frontMatter->cuerpo, $frontMatter->lineaCuerpo, $idioma);
+        }
+
         $url = Url::resolver("{$clave}.{$extension}", $campos, $fichero, $avisos, $sitio->idiomas->prefijo($idioma));
 
         // Obligatorio en las páginas HTML, por su <title>; un fragmento o un

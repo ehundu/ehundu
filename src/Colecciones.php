@@ -30,6 +30,9 @@ final class Colecciones
     /** @var array<string, array<string, Pagina>> páginas publicadas, por clave e idioma */
     private array $porClave = [];
 
+    /** @var array<string, Pagina> páginas publicadas, por ruta */
+    private array $porRuta = [];
+
     /**
      * @param list<Pagina> $paginas
      * @param bool         $conBorradores si los borradores y las páginas futuras cuentan como publicados
@@ -50,6 +53,7 @@ final class Colecciones
             }
 
             $this->porClave[$pagina->clave()][$pagina->idioma] = $pagina;
+            $this->porRuta[$pagina->ruta] = $pagina;
 
             if (($pagina->campos['listada'] ?? true) === false) {
                 continue;
@@ -87,6 +91,27 @@ final class Colecciones
             $paginas,
             fn (Pagina $pagina) => $pagina->idioma === $idioma,
         ));
+    }
+
+    /**
+     * Las páginas publicadas con esas rutas, en el orden en que se piden. Una
+     * ruta que no es de una página publicada se salta.
+     *
+     * @param list<string> $rutas
+     *
+     * @return list<Pagina>
+     */
+    public function paginas(array $rutas): array
+    {
+        $paginas = [];
+
+        foreach ($rutas as $ruta) {
+            if (isset($this->porRuta[$ruta])) {
+                $paginas[] = $this->porRuta[$ruta];
+            }
+        }
+
+        return $paginas;
     }
 
     /**

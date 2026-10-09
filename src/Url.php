@@ -41,6 +41,32 @@ final class Url
 
         $url ??= self::derivada($ruta, $fichero, $avisos);
 
+        return self::conPrefijo($url, $prefijo, $fichero, $avisos);
+    }
+
+    /**
+     * La URL de una página que genera `agrupar` (formato §6.3): el patrón del
+     * generador con el `grupo` de esa página. Si el patrón no vale no hay
+     * una URL de respaldo, porque todas las páginas del generador irían a
+     * ella: se avisa y no se genera la página.
+     *
+     * @param array<array-key, mixed> $campos  los de la página generada, con `grupo`
+     * @param string                  $fichero ruta relativa a la raíz del proyecto, para los avisos
+     * @param string                  $prefijo el del idioma de la página: '' o '/eu'
+     *
+     * @return string|null null si la URL no vale; ya se ha avisado
+     */
+    public static function resolverDeGrupo(string $patron, array $campos, string $fichero, Avisos $avisos, string $prefijo = ''): ?string
+    {
+        $sinPagina = 'no se genera esta página';
+        $url = self::aplicarPatron($patron, $campos, $fichero, $avisos, $sinPagina);
+        $url = $url === null ? null : self::normalizar($url, $fichero, $avisos, $sinPagina);
+
+        return $url === null ? null : self::conPrefijo($url, $prefijo, $fichero, $avisos);
+    }
+
+    private static function conPrefijo(string $url, string $prefijo, string $fichero, Avisos $avisos): string
+    {
         if ($prefijo === '') {
             return $url;
         }
@@ -150,11 +176,17 @@ final class Url
      * Sustituye `{{ campo }}` y `{{ campo|slug }}` (formato §5.1).
      *
      * @param array<array-key, mixed> $campos
+     * @param string                  $respaldo lo que se hace si el patrón no vale, para el aviso
      *
      * @return string|null null si el patrón no vale; ya se ha avisado
      */
-    private static function aplicarPatron(string $patron, array $campos, string $fichero, Avisos $avisos): ?string
-    {
+    private static function aplicarPatron(
+        string $patron,
+        array $campos,
+        string $fichero,
+        Avisos $avisos,
+        string $respaldo = 'se usa la URL que sale de la ruta',
+    ): ?string {
         $problema = str_contains($patron, '{%') ? '«url» no admite etiquetas {% %}' : null;
 
         $url = preg_replace_callback('/\{\{(.*?)\}\}/s', function (array $llaves) use ($campos, &$problema): string {
@@ -202,7 +234,7 @@ final class Url
         }
 
         if ($problema !== null) {
-            $avisos->registrar("{$problema}; se usa la URL que sale de la ruta", $fichero);
+            $avisos->registrar("{$problema}; {$respaldo}", $fichero);
 
             return null;
         }
@@ -211,9 +243,11 @@ final class Url
     }
 
     /**
+     * @param string $respaldo lo que se hace si la URL no vale, para el aviso
+     *
      * @return string|null null si la URL no vale como ruta de fichero; ya se ha avisado
      */
-    private static function normalizar(string $url, string $fichero, Avisos $avisos): ?string
+    private static function normalizar(string $url, string $fichero, Avisos $avisos, string $respaldo = 'se usa la que sale de la ruta'): ?string
     {
         if (!str_starts_with($url, '/')) {
             $avisos->registrar("«url» tiene que empezar por /; se toma como /{$url}", $fichero);
@@ -225,7 +259,7 @@ final class Url
 
         foreach ($tramos as $tramo) {
             if ($tramo === '.' || $tramo === '..' || preg_match('/[\\\\?#:*"<>|\x00-\x1F]/', $tramo) === 1) {
-                $avisos->registrar("La URL {$url} no vale como ruta de fichero; se usa la que sale de la ruta", $fichero);
+                $avisos->registrar("La URL {$url} no vale como ruta de fichero; {$respaldo}", $fichero);
 
                 return null;
             }

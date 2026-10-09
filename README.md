@@ -169,6 +169,9 @@ servidor no lo toca nunca. Con `--simular` dice qué haría sin hacerlo.
   heredan todas sus páginas y subcarpetas.
 - **URL** que salen de la ruta del fichero o de un patrón con los campos de la
   página.
+- **Una página por cada valor** de un campo, como una por etiqueta, con una
+  sola página que declara `agrupar`: una etiqueta nueva tiene su página sin
+  que nadie la escriba.
 - **Varios idiomas**, con un fichero por idioma en el mismo árbol
   (`contacto.md`, `contacto.eu.md`): cada idioma con su prefijo en la URL, las
   traducciones enlazadas entre sí para los `hreflang` y el selector de

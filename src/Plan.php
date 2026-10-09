@@ -18,7 +18,9 @@ use Ehundu\Plantillas\Registro;
  * otra página que mostraron o las traducciones de una página que miraron.
  * Una colección cambia cuando entra, sale o cambia los campos alguna página
  * con su etiqueta, y las traducciones de una página, cuando lo hace alguna
- * de sus versiones. Si cambian `sitio.yml` o
+ * de sus versiones. Las páginas de un grupo de `agrupar` se miran una a una:
+ * la que las lista se rehace si cambian los campos de alguna, pero no si solo
+ * cambia su cuerpo. Si cambian `sitio.yml` o
  * `datos/`, que llegan a todas las plantillas, se rehace todo. Ante la duda,
  * también: el resultado tiene que ser siempre el de una construcción
  * completa.
@@ -73,7 +75,8 @@ final readonly class Plan
 
         // Páginas nuevas, borradas o con cualquier cambio en su fichero, y de
         // ellas las que cambian alguna colección: las que entran, salen o
-        // cambian de campos o de URL.
+        // cambian de campos o de URL. Los miembros de una página generada por
+        // `agrupar` son un campo más: una plantilla los lee como `paginas`.
         $cambiadas = [];
         $conOtrosCampos = [];
 
@@ -88,7 +91,7 @@ final readonly class Plan
             if (
                 $vieja === null || $nueva === null
                 || isset($anterior->publicadas[$ruta]) !== isset($publicadas[$ruta])
-                || serialize([$vieja->campos, $vieja->url]) !== serialize([$nueva->campos, $nueva->url])
+                || serialize([$vieja->campos, $vieja->url, $vieja->miembros]) !== serialize([$nueva->campos, $nueva->url, $nueva->miembros])
             ) {
                 $conOtrosCampos[$ruta] = true;
             }
@@ -134,7 +137,7 @@ final readonly class Plan
             $plantillas[Maquetador::ATAJOS] = true;
         }
 
-        $vale = function (Registro $registro) use ($cambiadas, $colecciones, $traducciones, $plantillas, $publico): bool {
+        $vale = function (Registro $registro) use ($cambiadas, $conOtrosCampos, $colecciones, $traducciones, $plantillas, $publico): bool {
             foreach (array_keys($registro->plantillas) as $nombre) {
                 if (isset($plantillas[self::normalizar((string) $nombre)])) {
                     return false;
@@ -158,6 +161,12 @@ final readonly class Plan
 
             foreach (array_keys($registro->contenidos) as $ruta) {
                 if (isset($cambiadas[$ruta])) {
+                    return false;
+                }
+            }
+
+            foreach (array_keys($registro->campos) as $ruta) {
+                if (isset($conOtrosCampos[$ruta])) {
                     return false;
                 }
             }

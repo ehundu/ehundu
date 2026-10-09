@@ -18,6 +18,11 @@ final readonly class Pagina
      * @param string                  $cuerpo      el fichero sin el front matter
      * @param int                     $lineaCuerpo línea del fichero en la que empieza el cuerpo
      * @param string                  $idioma      el código de su idioma, que sale del nombre (formato §15.2)
+     * @param list<string>|null       $miembros    si la ha generado una página con `agrupar` (formato §6.3), las rutas
+     *                                             de las páginas de su grupo, en el orden de la colección; su ruta es
+     *                                             entonces la de esa página seguida de `#` y el `slug` del grupo. Va
+     *                                             dentro de la página para que, al comparar dos construcciones, un
+     *                                             grupo que gana o pierde una página cuente como una página que cambia
      */
     public function __construct(
         public string $ruta,
@@ -27,15 +32,22 @@ final readonly class Pagina
         public string $cuerpo,
         public int $lineaCuerpo,
         public string $idioma = Idiomas::PREDETERMINADO,
+        public ?array $miembros = null,
     ) {
     }
 
     /**
      * Lo que comparte con sus traducciones: la ruta sin la extensión ni el
-     * código de idioma. `blog/uno.md` y `blog/uno.eu.md` dan `blog/uno`.
+     * código de idioma. `blog/uno.md` y `blog/uno.eu.md` dan `blog/uno`. Una
+     * página generada por `agrupar` no tiene traducciones: su clave es su
+     * ruta entera, que no comparte ninguna otra.
      */
     public function clave(): string
     {
+        if ($this->miembros !== null) {
+            return $this->ruta;
+        }
+
         return (string) preg_replace('#(\.[a-z]{2,3})?\.[^./]+$#', '', $this->ruta);
     }
 

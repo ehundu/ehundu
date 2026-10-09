@@ -85,6 +85,18 @@ final class Campos
             $linea = $lineas[$escrito[$nombre]] ?? null;
             $original = $linea === null ? '' : $textoDeLinea[$linea - $primeraLinea];
 
+            if ($nombre === 'agrupar') {
+                $agrupar = self::agrupar($valor, $escrito[$nombre], $fichero, $linea, $avisos);
+
+                if ($agrupar === null) {
+                    unset($normalizados[$nombre]);
+                } else {
+                    $normalizados[$nombre] = $agrupar;
+                }
+
+                continue;
+            }
+
             try {
                 $normalizados[$nombre] = self::comprobar((string) $nombre, $valor, $original, $zona);
             } catch (\UnexpectedValueException $problema) {
@@ -124,6 +136,57 @@ final class Campos
             $nombre === 'url' => self::url($valor),
             default => $valor,
         };
+    }
+
+    /**
+     * `agrupar` (formato §6.3): un mapa con `coleccion` y `campo`, y `excluir`
+     * si se quiere. Lo que falta o no vale se avisa aquí, con su línea, y se
+     * deja fuera; la página sigue siendo una plantilla de páginas que, sin
+     * `coleccion` o sin `campo`, no genera ninguna. Solo si el valor ni
+     * siquiera es un mapa se descarta el campo y la página es una más.
+     *
+     * @return array{coleccion?: string, campo?: string, excluir: list<string>}|null
+     */
+    private static function agrupar(mixed $valor, string $escrito, string $fichero, ?int $linea, Avisos $avisos): ?array
+    {
+        if (!is_array($valor) || array_is_list($valor)) {
+            $avisos->registrar("«{$escrito}» tiene que ser un mapa con «coleccion» y «campo»; se ignora", $fichero, $linea);
+
+            return null;
+        }
+
+        $agrupar = ['excluir' => []];
+        $que = [
+            'coleccion' => 'la colección de la que salen las páginas',
+            'campo' => 'el campo por el que se agrupan',
+        ];
+
+        foreach ($que as $clave => $descripcion) {
+            $dato = $valor[$clave] ?? null;
+            $dato = is_int($dato) || is_float($dato) ? (string) $dato : $dato;
+
+            if (is_string($dato) && trim($dato) !== '') {
+                $agrupar[$clave] = $dato;
+            } else {
+                $avisos->registrar("«{$escrito}» necesita «{$clave}», {$descripcion}; no se genera ninguna página", $fichero, $linea);
+            }
+        }
+
+        if (array_key_exists('excluir', $valor) && $valor['excluir'] !== null) {
+            try {
+                $agrupar['excluir'] = self::listaDeTextos($valor['excluir']);
+            } catch (\UnexpectedValueException) {
+                $avisos->registrar("«{$escrito}»: «excluir» tiene que ser un texto o una lista de textos; se ignora", $fichero, $linea);
+            }
+        }
+
+        foreach (array_keys($valor) as $clave) {
+            if (!in_array($clave, ['coleccion', 'campo', 'excluir'], true)) {
+                $avisos->registrar("«{$escrito}» no admite «{$clave}»; se ignora", $fichero, $linea);
+            }
+        }
+
+        return $agrupar;
     }
 
     private static function texto(mixed $valor): string

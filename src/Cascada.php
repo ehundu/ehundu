@@ -111,7 +111,20 @@ final class Cascada
                 $this->leidos[$fichero] = [];
             } else {
                 $yaml = $this->proyecto->leerTexto($fichero);
-                $this->leidos[$fichero] = Campos::normalizar(Yaml::leerCampos($yaml, $fichero), $yaml, 1, $fichero, $this->avisos, $this->zona);
+                $campos = Campos::normalizar(Yaml::leerCampos($yaml, $fichero), $yaml, 1, $fichero, $this->avisos, $this->zona);
+
+                // Heredado, todas las páginas de la carpeta serían plantillas de páginas y
+                // ninguna saldría (formato §6.3): `agrupar` solo vale en una página.
+                if (isset($campos['agrupar']) && str_starts_with(basename($fichero), '_datos')) {
+                    $this->avisos->registrar(
+                        '«agrupar» no se hereda: todas las páginas de la carpeta serían plantillas de páginas. Se escribe en la página que genera los grupos; se ignora',
+                        $fichero,
+                        Yaml::lineasDeClaves($yaml)['agrupar'] ?? null,
+                    );
+                    unset($campos['agrupar']);
+                }
+
+                $this->leidos[$fichero] = $campos;
             }
         }
 

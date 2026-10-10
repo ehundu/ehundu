@@ -91,13 +91,14 @@ final class Lector
         }
 
         $idiomas = self::leerIdiomas($campos, $lineas, $avisos);
+        $enlacesExternos = EnlacesExternos::leer($campos['enlacesExternos'] ?? null, $lineas['enlacesExternos'] ?? null, $idiomas, $avisos);
 
         $campos['url'] = rtrim($url, '/');
         $campos['idioma'] = $idiomas->predeterminado();
         $campos['idiomas'] = $idiomas->paraPlantillas();
         unset($campos['despliegue']);
 
-        return new Sitio($nombre, $campos['url'], $zonaHoraria, $campos, $idiomas);
+        return new Sitio($nombre, $campos['url'], $zonaHoraria, $campos, $idiomas, $enlacesExternos);
     }
 
     /**

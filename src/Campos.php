@@ -245,7 +245,7 @@ final class Campos
         throw new \UnexpectedValueException('%s tiene que ser un número');
     }
 
-    private static function siNo(mixed $valor): bool
+    public static function siNo(mixed $valor): bool
     {
         if (is_bool($valor)) {
             return $valor;

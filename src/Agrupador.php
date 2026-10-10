@@ -146,7 +146,7 @@ final class Agrupador
                 $campos['titulo'] = $nombre;
             }
 
-            $url = Url::resolverDeGrupo($patron, $campos, $fichero, $avisos, $prefijo);
+            $url = Url::resolverDeGrupo($patron, $campos, $fichero, $avisos, $prefijo, $plantilla->clave() . ".{$plantilla->formato}");
 
             if ($url === null) {
                 continue;

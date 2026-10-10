@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ehundu\Pruebas\Markdown;
 
 use Ehundu\Avisos;
+use Ehundu\EnlacesExternos;
 use Ehundu\Markdown\Conversor;
 use Ehundu\Markdown\ResolutorDeAtajos;
 use PHPUnit\Framework\Attributes\Test;
@@ -97,6 +98,74 @@ final class ConversorPrueba extends TestCase
         $this->convertir('[![Plano](/img/plano.png)](/img/plano-grande.png)');
 
         self::assertSame([['/img/plano.png', 'Plano', 'Plano', '/img/plano-grande.png', 1]], $this->figuras);
+    }
+
+    #[Test]
+    public function elAvisoSeAnadeSoloALosEnlacesExternosDelMarkdown(): void
+    {
+        $enlaces = new EnlacesExternos(['es' => '(abre en ventana nueva)']);
+        $html = $this->convertirConEnlaces(
+            $enlaces,
+            "[fuera](https://otro.com/a) [propio](https://www.ejemplo.com/b) [relativo](/d/) https://otro.com/suelta\n\n"
+            . '<a href="https://otro.com/html">escrito a mano</a>',
+        );
+
+        $aviso = '<span class="visually-hidden"> (abre en ventana nueva)</span>';
+
+        self::assertStringContainsString("<a rel=\"noopener\" target=\"_blank\" href=\"https://otro.com/a\">fuera{$aviso}</a>", $html);
+        self::assertStringContainsString("<a rel=\"noopener\" target=\"_blank\" href=\"https://otro.com/suelta\">https://otro.com/suelta{$aviso}</a>", $html);
+        self::assertStringContainsString('<a href="https://www.ejemplo.com/b">propio</a>', $html);
+        self::assertStringContainsString('<a href="/d/">relativo</a>', $html);
+        self::assertStringContainsString('<a href="https://otro.com/html">escrito a mano</a>', $html);
+        self::assertSame(2, substr_count($html, $aviso));
+    }
+
+    #[Test]
+    public function elAvisoLlevaLaClaveDelSitioYSuTextoEscapado(): void
+    {
+        $enlaces = new EnlacesExternos(['es' => '(abre <otra> pestaña & "ventana")'], clase: 'sr-only');
+        $html = $this->convertirConEnlaces($enlaces, '[fuera](https://otro.com/a)');
+
+        self::assertStringContainsString('fuera<span class="sr-only"> (abre &lt;otra&gt; pestaña &amp; "ventana")</span></a>', $html);
+    }
+
+    #[Test]
+    public function elAvisoEsElDelIdiomaDeLaPaginaYSinTextoEnEseIdiomaNoHayAviso(): void
+    {
+        $enlaces = new EnlacesExternos(['es' => '(nueva ventana)', 'eu' => '(leiho berria)']);
+
+        self::assertStringContainsString('<span class="visually-hidden"> (leiho berria)</span>', $this->convertirConEnlaces($enlaces, '[a](https://otro.com)', 'eu'));
+        self::assertStringNotContainsString('visually-hidden', $this->convertirConEnlaces($enlaces, '[a](https://otro.com)', 'en'));
+    }
+
+    #[Test]
+    public function noreferrerSeAnadeAlRelSoloSiElSitioLoPide(): void
+    {
+        self::assertStringContainsString(
+            '<a rel="noopener noreferrer" target="_blank" href="https://otro.com/a">fuera</a>',
+            $this->convertirConEnlaces(new EnlacesExternos(noreferrer: true), '[fuera](https://otro.com/a)'),
+        );
+        self::assertStringContainsString(
+            '<a rel="noopener" target="_blank" href="https://otro.com/a">fuera</a>',
+            $this->convertirConEnlaces(new EnlacesExternos(), '[fuera](https://otro.com/a)'),
+        );
+    }
+
+    #[Test]
+    public function unaFiguraEnlazadaAUnSitioExternoSigueSiendoUnaFiguraSinAviso(): void
+    {
+        $html = $this->convertirConEnlaces(new EnlacesExternos(['es' => '(abre en ventana nueva)']), '[![Plano](/img/plano.png)](https://otro.com/plano)');
+
+        self::assertSame("[figura]\n", $html);
+        self::assertSame([['/img/plano.png', 'Plano', 'Plano', 'https://otro.com/plano', 1]], $this->figuras);
+    }
+
+    #[Test]
+    public function unEnlaceExternoConUnaImagenYTextoSiLlevaAviso(): void
+    {
+        $html = $this->convertirConEnlaces(new EnlacesExternos(['es' => '(nueva ventana)']), 'Mira [![i](/i.svg) la web](https://otro.com)');
+
+        self::assertStringContainsString('la web<span class="visually-hidden"> (nueva ventana)</span></a>', $html);
     }
 
     #[Test]
@@ -206,6 +275,11 @@ final class ConversorPrueba extends TestCase
     private function convertir(string $markdown): string
     {
         return (new Conversor('https://www.ejemplo.com'))->convertir($markdown, $this->resolutor(), $this->avisos, 'contenido/a.md', 5);
+    }
+
+    private function convertirConEnlaces(EnlacesExternos $enlaces, string $markdown, string $idioma = 'es'): string
+    {
+        return (new Conversor('https://www.ejemplo.com', $enlaces))->convertir($markdown, $this->resolutor(), $this->avisos, 'contenido/a.md', 5, $idioma);
     }
 
     private function resolutor(): ResolutorDeAtajos

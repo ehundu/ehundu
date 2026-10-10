@@ -128,6 +128,45 @@ final class UrlPrueba extends TestCase
         self::assertSame('/libros/3/', $this->resolver($campos));
     }
 
+    #[Test]
+    public function elNombreDeFicheroSeUsaSinCarpetaNiExtension(): void
+    {
+        self::assertSame('/uno/', $this->resolver(['url' => '/{{ nombreDeFichero }}/']));
+        self::assertSame('/blog-uno/', $this->resolver(['url' => '/blog-{{ nombreDeFichero }}/'], 'blog/uno.md'));
+        self::assertSame('/contacto.html', $this->resolver(['url' => '/{{ nombreDeFichero }}.html'], 'a/b/contacto.twig'));
+        self::assertSame('/index/', $this->resolver(['url' => '/{{ nombreDeFichero }}/'], 'blog/index.md'));
+        self::assertSame([], $this->avisos());
+    }
+
+    #[Test]
+    public function elNombreDeFicheroAdmiteSlugYUsaElNombreTalComoEstaSinEl(): void
+    {
+        self::assertSame('/Quiénes-somos/', $this->resolver(['url' => '/{{ nombreDeFichero }}/'], 'Quiénes-somos.md'));
+        self::assertSame('/quienes-somos/', $this->resolver(['url' => '/{{ nombreDeFichero|slug }}/'], 'Quiénes-somos.md'));
+        self::assertSame([], $this->avisos());
+    }
+
+    #[Test]
+    public function elNombreDeFicheroMandaSobreUnCampoQueSeLlameIgual(): void
+    {
+        self::assertSame('/uno/', $this->resolver(['nombreDeFichero' => 'otro', 'url' => '/{{ nombreDeFichero }}/']));
+        self::assertSame([], $this->avisos());
+    }
+
+    #[Test]
+    public function enUnaPaginaConAgruparElNombreDeFicheroEsElDelGenerador(): void
+    {
+        self::assertSame(
+            '/tema/ideas/',
+            Url::resolverDeGrupo('/tema/{{ grupo|slug }}/', ['grupo' => 'ideas'], 'contenido/tema.md', $this->avisos, ruta: 'tema.md'),
+        );
+        self::assertSame(
+            '/tema/ideas/',
+            Url::resolverDeGrupo('/{{ nombreDeFichero }}/{{ grupo|slug }}/', ['grupo' => 'ideas'], 'contenido/tema.md', $this->avisos, ruta: 'tema.md'),
+        );
+        self::assertSame([], $this->avisos());
+    }
+
     /**
      * @return iterable<string, array{array<string, mixed>, string}>
      */

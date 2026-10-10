@@ -35,7 +35,7 @@ final class Url
         $url = null;
 
         if (is_string($escrita) && $escrita !== '') {
-            $url = self::aplicarPatron($escrita, $campos, $fichero, $avisos);
+            $url = self::aplicarPatron($escrita, $campos, $fichero, $avisos, nombreDeFichero: self::nombreDeFichero($ruta));
             $url = $url === null ? null : self::normalizar($url, $fichero, $avisos);
         }
 
@@ -53,13 +53,14 @@ final class Url
      * @param array<array-key, mixed> $campos  los de la página generada, con `grupo`
      * @param string                  $fichero ruta relativa a la raíz del proyecto, para los avisos
      * @param string                  $prefijo el del idioma de la página: '' o '/eu'
+     * @param string                  $ruta    la del fichero que genera las páginas, sin código de idioma, para `{{ nombreDeFichero }}`
      *
      * @return string|null null si la URL no vale; ya se ha avisado
      */
-    public static function resolverDeGrupo(string $patron, array $campos, string $fichero, Avisos $avisos, string $prefijo = ''): ?string
+    public static function resolverDeGrupo(string $patron, array $campos, string $fichero, Avisos $avisos, string $prefijo = '', string $ruta = ''): ?string
     {
         $sinPagina = 'no se genera esta página';
-        $url = self::aplicarPatron($patron, $campos, $fichero, $avisos, $sinPagina);
+        $url = self::aplicarPatron($patron, $campos, $fichero, $avisos, $sinPagina, self::nombreDeFichero($ruta));
         $url = $url === null ? null : self::normalizar($url, $fichero, $avisos, $sinPagina);
 
         return $url === null ? null : self::conPrefijo($url, $prefijo, $fichero, $avisos);
@@ -173,10 +174,22 @@ final class Url
     }
 
     /**
-     * Sustituye `{{ campo }}` y `{{ campo|slug }}` (formato §5.1).
+     * El nombre del fichero de una página para `{{ nombreDeFichero }}` (formato
+     * §5.1): sin carpeta, sin extensión y, como la ruta ya no lo lleva, sin
+     * código de idioma. Null si no se conoce la ruta.
+     */
+    private static function nombreDeFichero(string $ruta): ?string
+    {
+        return $ruta === '' ? null : pathinfo($ruta, PATHINFO_FILENAME);
+    }
+
+    /**
+     * Sustituye `{{ campo }}`, `{{ campo|slug }}` y `{{ nombreDeFichero }}`
+     * (formato §5.1).
      *
      * @param array<array-key, mixed> $campos
      * @param string                  $respaldo lo que se hace si el patrón no vale, para el aviso
+     * @param string|null             $nombreDeFichero el del fichero de la página, que manda sobre un campo que se llame igual
      *
      * @return string|null null si el patrón no vale; ya se ha avisado
      */
@@ -186,10 +199,11 @@ final class Url
         string $fichero,
         Avisos $avisos,
         string $respaldo = 'se usa la URL que sale de la ruta',
+        ?string $nombreDeFichero = null,
     ): ?string {
         $problema = str_contains($patron, '{%') ? '«url» no admite etiquetas {% %}' : null;
 
-        $url = preg_replace_callback('/\{\{(.*?)\}\}/s', function (array $llaves) use ($campos, &$problema): string {
+        $url = preg_replace_callback('/\{\{(.*?)\}\}/s', function (array $llaves) use ($campos, $nombreDeFichero, &$problema): string {
             if ($problema !== null) {
                 return '';
             }
@@ -202,7 +216,9 @@ final class Url
 
             $escrito = $partes[1];
             $filtro = $partes[2] ?? '';
-            $valor = $campos[Campos::ALIAS[$escrito] ?? $escrito] ?? null;
+            $valor = $escrito === 'nombreDeFichero'
+                ? $nombreDeFichero
+                : $campos[Campos::ALIAS[$escrito] ?? $escrito] ?? null;
 
             if ($filtro !== '' && !in_array($filtro, self::FILTROS_SLUG, true)) {
                 $problema = "«url» no conoce el filtro «{$filtro}»; solo existe «slug»";

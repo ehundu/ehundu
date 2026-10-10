@@ -15,6 +15,7 @@ final readonly class Sitio
      * @param array<array-key, mixed> $campos      todo `sitio.yml` salvo `despliegue`: es la
      *                                             variable `sitio` de las plantillas
      * @param Idiomas                 $idiomas     los de `idiomas`, o el de `idioma` (formato §15.1)
+     * @param EnlacesExternos         $enlacesExternos la sección del mismo nombre (formato §2)
      */
     public function __construct(
         public string $nombre,
@@ -22,6 +23,7 @@ final readonly class Sitio
         public \DateTimeZone $zonaHoraria,
         public array $campos,
         public Idiomas $idiomas = new Idiomas(),
+        public EnlacesExternos $enlacesExternos = new EnlacesExternos(),
     ) {
     }
 

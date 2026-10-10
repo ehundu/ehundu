@@ -70,7 +70,7 @@ final class Maquetador
         $this->registros = new Registros();
         $avisos->escuchar(fn (\Ehundu\Aviso $aviso) => $this->registros->aviso($aviso));
 
-        $this->markdown = new Conversor($lectura->sitio->url);
+        $this->markdown = new Conversor($lectura->sitio->url, $lectura->sitio->enlacesExternos);
         $cargador = new CargadorDePlantillas($proyecto, fn (string $nombre) => $this->registros->anotar('plantillas', $nombre));
         $this->twig = new Environment(new ChainLoader([$cargador, $incluidas]), [
             'autoescape' => 'html',
@@ -334,7 +334,7 @@ final class Maquetador
             }
         };
 
-        return $this->markdown->convertir($pagina->cuerpo, $resolutor, $this->avisos, $fichero, $pagina->lineaCuerpo);
+        return $this->markdown->convertir($pagina->cuerpo, $resolutor, $this->avisos, $fichero, $pagina->lineaCuerpo, $pagina->idioma);
     }
 
     private function cuerpoTwig(Pagina $pagina): string

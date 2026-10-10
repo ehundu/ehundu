@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace Ehundu\Markdown;
 
 use Ehundu\Avisos;
+use Ehundu\EnlacesExternos;
 use League\CommonMark\Environment\Environment;
+use League\CommonMark\Event\DocumentParsedEvent;
 use League\CommonMark\Extension\Autolink\AutolinkExtension;
 use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
 use League\CommonMark\Extension\CommonMark\Node\Block\ThematicBreak;
+use League\CommonMark\Extension\CommonMark\Node\Inline\HtmlInline;
 use League\CommonMark\Extension\CommonMark\Node\Inline\Image;
+use League\CommonMark\Extension\CommonMark\Node\Inline\Link;
 use League\CommonMark\Extension\CommonMark\Renderer\Block\ThematicBreakRenderer;
 use League\CommonMark\Extension\CommonMark\Renderer\Inline\ImageRenderer;
 use League\CommonMark\Extension\ExternalLink\ExternalLinkExtension;
@@ -39,9 +43,10 @@ final class Conversor
     private array $dominiosPropios;
 
     /**
-     * @param string $urlDelSitio la de `sitio.yml`, para saber qué enlaces son externos
+     * @param string          $urlDelSitio     la de `sitio.yml`, para saber qué enlaces son externos
+     * @param EnlacesExternos $enlacesExternos lo que llevan esos enlaces además de `noopener` (formato §2)
      */
-    public function __construct(string $urlDelSitio)
+    public function __construct(string $urlDelSitio, private readonly EnlacesExternos $enlacesExternos = new EnlacesExternos())
     {
         $dominio = (string) preg_replace('/^www\./i', '', (string) parse_url($urlDelSitio, PHP_URL_HOST));
         $this->dominiosPropios = [$dominio, "www.{$dominio}"];
@@ -50,6 +55,7 @@ final class Conversor
     /**
      * @param string $fichero      ruta del fichero relativa a la raíz del proyecto, para los avisos
      * @param int    $primeraLinea línea del fichero en la que empieza el Markdown
+     * @param string $idioma       el de la página, para el texto del aviso de los enlaces externos
      */
     public function convertir(
         string $markdown,
@@ -57,6 +63,7 @@ final class Conversor
         Avisos $avisos,
         string $fichero,
         int $primeraLinea = 1,
+        string $idioma = '',
     ): string {
         $contexto = new Contexto($atajos, $avisos, $fichero, $primeraLinea);
 
@@ -67,7 +74,7 @@ final class Conversor
                 'internal_hosts' => $this->dominiosPropios,
                 'open_in_new_window' => true,
                 'noopener' => 'external',
-                'noreferrer' => '',
+                'noreferrer' => $this->enlacesExternos->noreferrer ? 'external' : '',
             ],
         ]);
 
@@ -77,6 +84,13 @@ final class Conversor
         $entorno->addExtension(new StrikethroughExtension());
         $entorno->addExtension(new AutolinkExtension());
         $entorno->addExtension(new ExternalLinkExtension());
+
+        $aviso = $this->enlacesExternos->avisoDe($idioma);
+
+        if ($aviso !== null) {
+            // Después de ExternalLinkProcessor (prioridad -50), que es quien dice qué enlaces son externos.
+            $entorno->addEventListener(DocumentParsedEvent::class, $this->anadirAviso($aviso), -100);
+        }
 
         $entorno->addBlockStartParser(new ParserDeAtajosDeBloque($contexto, SintaxisDeAtajos::conCierre($markdown)), 100);
         $entorno->addInlineParser(new ParserDeAtajosEnLinea($contexto), 100);
@@ -90,5 +104,37 @@ final class Conversor
         $entorno->addRenderer(FootnoteContainer::class, Renderizadores::sinBarraFinal(new FootnoteContainerRenderer()), 10);
 
         return (new MarkdownConverter($entorno))->convert($markdown)->getContent();
+    }
+
+    /**
+     * Pone al final de cada enlace externo el aviso para lectores de pantalla,
+     * en un `<span>` con la clase del sitio y un espacio delante. Un enlace que
+     * solo envuelve una imagen es una figura (formato §8) y no lo lleva.
+     *
+     * @return \Closure(DocumentParsedEvent): void
+     */
+    private function anadirAviso(string $aviso): \Closure
+    {
+        $html = sprintf(
+            '<span class="%s"> %s</span>',
+            htmlspecialchars($this->enlacesExternos->clase, ENT_QUOTES | ENT_HTML5, 'UTF-8'),
+            htmlspecialchars($aviso, ENT_NOQUOTES | ENT_HTML5, 'UTF-8'),
+        );
+
+        return function (DocumentParsedEvent $evento) use ($html): void {
+            foreach ($evento->getDocument()->iterator() as $enlace) {
+                if (!$enlace instanceof Link || $enlace->data->get('external', false) !== true) {
+                    continue;
+                }
+
+                $primero = $enlace->firstChild();
+
+                if ($primero instanceof Image && $primero->next() === null) {
+                    continue;
+                }
+
+                $enlace->appendChild(new HtmlInline($html));
+            }
+        };
     }
 }

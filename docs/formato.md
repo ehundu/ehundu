@@ -81,6 +81,43 @@ avisa y se usa `es`. Un sitio en varios idiomas los declara en `idiomas`
 
 La sección `feed` pide un `feed.xml` y dice de qué colección sale (§10.2).
 
+La sección `enlacesExternos` ajusta cómo salen los enlaces a otros dominios
+que se escriben en Markdown (§8):
+
+    enlacesExternos:
+      aviso: (abre en ventana nueva)
+      clase: visually-hidden
+      noreferrer: sí
+
+Sin ella, esos enlaces llevan `target="_blank"` y `rel="noopener"` y nada más.
+Todos sus campos son opcionales:
+
+- `aviso` es un texto que se añade dentro del enlace, detrás del suyo, en un
+  `<span>`, para que los lectores de pantalla avisen de que se abre otra
+  pestaña. El motor pone un espacio delante; los paréntesis, si se quieren, van
+  en el texto. Un enlace que solo envuelve una imagen (una figura, §8) no lo
+  lleva. Un sitio con varios idiomas (§15.1) da un texto por idioma, con su
+  código como clave:
+
+      aviso:
+        es: (abre en ventana nueva)
+        eu: (leiho berrian irekitzen da)
+
+  Un idioma sin texto no lleva aviso, y se avisa de ello. Un texto suelto en un
+  sitio con varios idiomas se usa en todos y se avisa también, porque casi
+  nunca es lo que se quiere. Un código que el sitio no declara se avisa y se
+  ignora.
+- `clase` es la clase del `<span>`, y por defecto `visually-hidden`. El motor no
+  trae CSS: el sitio tiene que definirla de modo que oculte el texto a la vista
+  y no a los lectores de pantalla (el `.visually-hidden` o `.sr-only` de
+  siempre). Si no lo hace, el aviso se ve.
+- `noreferrer`, con `sí`, añade `noreferrer` a `rel` (`rel="noopener
+  noreferrer"`): el sitio de destino no sabe de qué página viene la visita.
+  Por defecto, no.
+
+Un valor que no vale en cualquiera de ellos se avisa y se ignora. Cambiar esta
+sección rehace todas las páginas, como cualquier otro cambio de `sitio.yml`.
+
 La sección `despliegue` dice adónde publica `ehundu desplegar` (ver
 `despliegue.md`). Destinos admitidos en la v1: `carpeta`, `ftp`, `sftp` y
 `s3`. Sus campos:
@@ -318,12 +355,29 @@ El vocabulario es cerrado: `{{ campo }}` pone el valor de un campo y
 expresiones, ni condiciones. Dentro del patrón se aceptan también los alias
 ingleses (`title`, `slugify`).
 
+Además de los campos, el patrón tiene `{{ nombreDeFichero }}`: el nombre del
+fichero de la página, sin carpeta, sin extensión y sin el código de idioma
+(`contenido/blog/un-articulo.eu.md` da `un-articulo`). Sirve para publicar las
+páginas de una carpeta sin la carpeta en la URL: con esto en el `_datos.yml`
+de `contenido/posts/`,
+
+    url: "/{{ nombreDeFichero }}/"
+
+`contenido/posts/mi-entrada.md` sale como `/mi-entrada/` y no como
+`/posts/mi-entrada/`, y una entrada nueva no tiene que escribir nada. No es un
+campo: el front matter y la cascada no lo cambian, y si una página tiene un
+campo con ese nombre, en el patrón manda el del fichero. Admite `|slug`, que
+conviene si los nombres de fichero pueden llevar mayúsculas o espacios, porque
+sin él se usan tal cual. Un `index` tiene `index` por nombre: quien quiera la
+URL de su carpeta, en una carpeta con este patrón, escribe su propio `url`.
+
 Si el patrón usa un campo que la página no tiene, o que no es un texto o un
 número, si un `slug` sale vacío, o si entre las llaves hay otra cosa, se avisa
 y se usa la URL que sale de la ruta.
 
 En una página con `agrupar` (§6.3) vale además `{{ grupo }}`, el valor del
-grupo de cada página que genera, y el patrón tiene que usarlo.
+grupo de cada página que genera, y el patrón tiene que usarlo. En ella,
+`{{ nombreDeFichero }}` es el del fichero que genera las páginas.
 
 ### 5.2 El filtro `slug`
 
@@ -666,7 +720,8 @@ Dos añadidos forman parte del contrato:
 - **Enlaces externos.** Un enlace escrito en Markdown a otro dominio recibe
   `target="_blank"` y `rel="noopener"`. El dominio del sitio es el de `url`
   en `sitio.yml`, con y sin `www.`. El HTML escrito a mano y los enlaces de
-  las plantillas no se tocan.
+  las plantillas no se tocan. La sección `enlacesExternos` de `sitio.yml`
+  (§2) añade `noreferrer` y un aviso para los lectores de pantalla.
 
 ### 8.1 Atajos
 
@@ -1598,6 +1653,17 @@ un sitio de la v1 no debe usarlo como campo propio.
     que una página no se publique antes de su `fecha`, como si llevara
     `publicar` con ella. Por defecto una `fecha` futura sigue sin ocultar nada.
     Un `publicar` explícito manda sobre él, y `borrador` sobre los dos (§4).
+107. **Cerrada.** El patrón de `url` tiene `{{ nombreDeFichero }}`, el nombre
+    del fichero sin carpeta, extensión ni código de idioma, para publicar las
+    páginas de una carpeta sin la carpeta en la URL con un solo `url` en su
+    `_datos.yml`. No es un campo, y manda sobre uno que se llame igual; se
+    llama así y no `archivo` porque `archivo` es un campo probable (§5.1).
+108. **Cerrada.** La sección `enlacesExternos` de `sitio.yml` añade a los
+    enlaces externos del Markdown `noreferrer` y un texto para lectores de
+    pantalla (`aviso`, uno por idioma en un sitio con varios, con una `clase`
+    que define el sitio). Sin ella, los enlaces salen como hasta ahora. No es
+    una plantilla: el vocabulario sigue cerrado, y el HTML y los enlaces de
+    las plantillas no se tocan (§2, §8).
 
 ---
 

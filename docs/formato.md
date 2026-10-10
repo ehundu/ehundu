@@ -118,6 +118,37 @@ Todos sus campos son opcionales:
 Un valor que no vale en cualquiera de ellos se avisa y se ignora. Cambiar esta
 sección rehace todas las páginas, como cualquier otro cambio de `sitio.yml`.
 
+La sección `encabezados` da un `id` a los encabezados del Markdown, para enlazar
+a un apartado de una página y para construir un índice con ellos (§7.2, §8):
+
+    encabezados:
+      niveles: [2]
+      enlace: ¶
+      clase: ancla
+      etiqueta: Enlace a «{texto}»
+
+Sin ella, los encabezados salen como hasta ahora, sin `id`. Todos sus campos son
+opcionales:
+
+- `niveles` es la lista de niveles de encabezado que reciben `id`, del 1 al 6.
+  Por defecto, del 2 al 6: el 1 suele ser el título de la página, y lo escribe
+  la plantilla.
+- `enlace` es el texto de un enlace permanente al apartado, que se añade al
+  final del encabezado. Sin él, no hay enlace.
+- `clase` es la clase de ese enlace, y por defecto `ancla`. El motor no trae
+  CSS: si el sitio quiere que el enlace solo se vea al pasar el ratón, lo
+  define él.
+- `etiqueta` es el nombre accesible del enlace (`aria-label`), y `{texto}` se
+  sustituye por el texto del encabezado. Un sitio con varios idiomas (§15.1)
+  da un texto por idioma, con las mismas reglas que `aviso` de
+  `enlacesExternos`. Sin ella, el enlace no lleva `aria-label` y un lector de
+  pantalla solo lee su símbolo.
+
+Un valor que no vale en cualquiera de ellos se avisa y se ignora. Una `clase` o
+una `etiqueta` sin `enlace` no tienen a qué aplicarse, y se ignoran sin aviso.
+Con `niveles: []` ningún encabezado recibe `id`. Cambiar esta sección rehace
+todas las páginas.
+
 La sección `despliegue` dice adónde publica `ehundu desplegar` (ver
 `despliegue.md`). Destinos admitidos en la v1: `carpeta`, `ftp`, `sftp` y
 `s3`. Sus campos:
@@ -643,6 +674,18 @@ la lee depende del fichero de esa página: si cambia, se rehace la que la
 muestra. Como `contenido`, tapa un campo del front matter que se llame igual,
 y no sirve para filtrar ni ordenar (§6.2).
 
+`pagina.encabezados` son los encabezados del cuerpo que reciben `id` (§2, §8),
+en el orden en que aparecen, cada uno con `nivel`, `texto` e `id`. El `texto` es
+texto plano, sin enlaces ni énfasis y sin el enlace permanente. Es lo que
+necesita un índice de apartados. Las páginas de una colección la tienen también
+(`articulo.encabezados`) y, como `contenido`, se calcula la primera vez que
+alguien la pide, con el mismo error si una página acaba necesitándose a sí
+misma. Sin la sección `encabezados` en `sitio.yml` está vacía; en una página
+`.twig`, cuyo cuerpo es una plantilla, también. Quien la lee depende del
+contenido de esa página: si cambia, se rehace la que la muestra. Como
+`contenido`, tapa un campo del front matter que se llame igual, y no sirve para
+filtrar ni ordenar (§6.2).
+
 Una página que genera otra con `agrupar` (§6.3) tiene además `pagina.grupo`,
 el valor, y `pagina.paginas`, las páginas del grupo. Las páginas generadas
 las tienen también cuando salen de `coleccion()`.
@@ -722,6 +765,21 @@ Dos añadidos forman parte del contrato:
   en `sitio.yml`, con y sin `www.`. El HTML escrito a mano y los enlaces de
   las plantillas no se tocan. La sección `enlacesExternos` de `sitio.yml`
   (§2) añade `noreferrer` y un aviso para los lectores de pantalla.
+
+Y un añadido opcional, que solo existe si el sitio lo pide con la sección
+`encabezados` de `sitio.yml` (§2):
+
+- **Encabezados con `id`.** Los encabezados del Markdown de los niveles que se
+  indiquen reciben un `id`: el `slug` (§5.2) de su texto plano, sin enlaces ni
+  énfasis. Si ya hay otro igual en la página, se le añade `-2`, `-3`… hasta el
+  primer número libre; y si el `slug` sale vacío, el `id` es `seccion`. Con
+  `enlace`, el encabezado termina en un enlace permanente, pegado a su texto:
+  `<h2 id="un-apartado">Un apartado<a class="ancla" href="#un-apartado"
+  aria-label="Enlace a «Un apartado»">¶</a></h2>`. Solo cuentan los
+  encabezados que escribe el Markdown del cuerpo: no los del HTML escrito a
+  mano, ni los de dentro de un atajo que envuelve contenido (§8.1), ni los que
+  pone una plantilla, que decide los suyos. Las plantillas leen la lista en
+  `pagina.encabezados` (§7.2).
 
 ### 8.1 Atajos
 
@@ -1386,7 +1444,9 @@ sobre el HTML ya generado, pasos posteriores al build y búsqueda. El
 multiidioma estuvo aquí hasta la 0.3 (§15). Una página por cada valor de un
 campo (`agrupar`, §6.3) no es paginación y no está aquí. El PDF de una página (§10.3) no
 es un procesador sobre el HTML ya generado: es una salida más de la página,
-con su propia plantilla, que no toca el HTML de nadie.
+con su propia plantilla, que no toca el HTML de nadie. Los `id` de los
+encabezados (§8) tampoco lo son: se escriben al convertir el Markdown, y el
+HTML ya convertido no se vuelve a recorrer.
 
 Ninguna de estas cosas debería obligar a cambiar lo de arriba cuando llegue.
 Si al añadirlas hay que romper el contrato, el contrato estaba mal.
@@ -1664,6 +1724,15 @@ un sitio de la v1 no debe usarlo como campo propio.
     que define el sitio). Sin ella, los enlaces salen como hasta ahora. No es
     una plantilla: el vocabulario sigue cerrado, y el HTML y los enlaces de
     las plantillas no se tocan (§2, §8).
+109. **Cerrada.** La sección `encabezados` de `sitio.yml` da un `id` (el `slug`
+    del texto, sin repetirse en la página) a los encabezados del Markdown de los
+    niveles que se indiquen, añade al final de cada uno un enlace permanente si
+    se pide (`enlace`, `clase`, `etiqueta`) y da a las plantillas
+    `pagina.encabezados`, con `nivel`, `texto` e `id`, para construir un índice.
+    Es opcional: sin la sección, el Markdown sale como hasta ahora. No es un
+    procesador sobre el HTML generado: actúa al convertir el Markdown, solo
+    sobre sus encabezados, y no toca los de un atajo, los del HTML escrito a
+    mano ni los de las plantillas (§2, §7.2, §8).
 
 ---
 

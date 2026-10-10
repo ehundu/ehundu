@@ -732,6 +732,23 @@ escribe, salvo `pagina.contenido` y lo que devuelve `svg()`.
   que salir tal cual se escapa
   con dos barras dentro de la plantilla, igual que con `date`:
   `fecha('j \\d\\e F')` da `18 de marzo`.
+- `markdown` convierte a HTML un texto en Markdown de línea, para los campos
+  del front matter o de `datos/` que llevan formato: un titular con una palabra
+  en cursiva, un resumen con una negrita. Con `titular: "Una cocina que *viaja*"`,
+  `{{ pagina.titular|markdown }}` da `Una cocina que <em>viaja</em>`. Es el
+  Markdown del §8 sin bloques: no hay `<p>`, ni encabezados, listas, citas,
+  tablas ni figuras, y los atajos (§8.1) no se reconocen, porque solo viven en
+  el cuerpo. Sí valen el énfasis, la negrita, el tachado, el código, los
+  enlaces (los externos se tratan como en el cuerpo, con su `target` y su
+  `rel`, y el aviso de `enlacesExternos`), los enlaces automáticos y el HTML
+  escrito a mano (`<mark>`, `<br>`). Un salto de línea con una barra invertida
+  o con dos espacios al final de la línea sale como `<br>`, seguido del salto
+  de línea del texto, como en el cuerpo; uno suelto, como un salto en el HTML,
+  que el navegador lee como un espacio. El resultado es HTML
+  ya hecho: Twig no lo escapa de nuevo, y lo escrito a mano pasa tal cual, como
+  en el cuerpo. Un valor vacío o que falta no da nada, sin aviso; un número se
+  toma como texto; una lista, un mapa o un booleano avisan y no dan nada. En un
+  texto sin formato, la plantilla sigue usando `{{ campo }}`, que sí escapa.
 
 Todas las fechas se escriben en la zona horaria del sitio (§2), también las
 del filtro `date` de Twig, que por sí solo usaría la de la máquina.
@@ -1215,6 +1232,9 @@ Tipos de campo en la v1: `texto`, `parrafo`, `markdown`, `numero`, `fecha`,
 - `enlace` es una dirección: completa, con `http://` o `https://`, o una ruta
   del propio sitio que empieza por `/`. El editor la comprueba, y puede
   completar el `https://` que falte.
+- `markdown` es un texto con Markdown de línea (§7.3). Como cuerpo de la
+  página no cambia (§8); como campo, la plantilla lo pinta con el filtro
+  `markdown`, y sin él sale como texto.
 - `lista-texto` es una lista de textos sueltos, como `etiquetas`.
 - `grupo` es un conjunto de campos con nombre, un mapa en el front matter, y
   `lista` es una lista de grupos, que se pueden añadir, quitar y ordenar. Los
@@ -1819,6 +1839,20 @@ un sitio de la v1 no debe usarlo como campo propio.
     pasar por `css()` (§7.3, §9.1). Se llama `version` y no `activo`, que ya es
     el del menú; y lleva la huella en la consulta y no en el nombre porque
     así funciona en cualquier alojamiento, sin reglas de reescritura.
+113. **Cerrada.** El filtro `markdown` convierte a HTML un texto en Markdown de
+    línea, para los campos con formato (§7.3, §8, §11). El esquema ya ofrecía
+    el tipo `markdown` para cualquier campo, pero solo el cuerpo se podía
+    convertir: un titular con una palabra en cursiva, o un resumen con una
+    negrita, no tenía forma de llegar a la plantilla como HTML. Es de línea y
+    no de bloque porque la plantilla ya pone el contenedor (`<h1>`, `<p>`,
+    `<li>`) y un campo no es un documento: lo que necesite párrafos, listas o
+    figuras es el cuerpo. No reconoce los atajos, para que el vocabulario
+    cerrado siga viviendo en un solo sitio y para que un campo no dependa de
+    plantillas. Admite HTML escrito a mano, como el cuerpo, porque quien lo
+    escribe es la misma persona. Un solo filtro y no dos (`markdown` y
+    `markdown_en_linea`): el de bloque ya es el cuerpo. No es un procesador
+    sobre el HTML generado: actúa sobre el texto de un campo, antes de que
+    llegue a la plantilla, y no cambia ningún sitio que no lo use.
 
 ---
 

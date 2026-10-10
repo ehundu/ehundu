@@ -482,7 +482,9 @@ un proyecto tiene que dar el mismo resultado en cualquiera.
   páginas a las que les falta el campo van al final en las dos direcciones.
   Los números se comparan como números, las fechas como fechas y los textos
   sin distinguir mayúsculas ni tildes, con la `ñ` después de la `n`, como en
-  el diccionario. A igualdad, las páginas quedan en el orden que tenían.
+  el diccionario, y sin contar los signos `¿` y `¡`: «¿Cómo llegar?» va entre
+  las «c», no antes de la «a». A igualdad, las páginas quedan en el orden que
+  tenían.
 - `limite(n)` deja las `n` primeras.
 - `invertir` da la vuelta a la lista.
 - `sin(pagina)` quita una página, normalmente la actual.
@@ -1733,6 +1735,12 @@ un sitio de la v1 no debe usarlo como campo propio.
     procesador sobre el HTML generado: actúa al convertir el Markdown, solo
     sobre sus encabezados, y no toca los de un atajo, los del HTML escrito a
     mano ni los de las plantillas (§2, §7.2, §8).
+110. **Cerrada.** Al ordenar textos (`orden`, §6.2), los signos de apertura `¿` y
+    `¡` no cuentan: el título «¿Cómo llegar?» se ordena como «Cómo llegar?», no
+    como un texto que empieza por un signo que va antes que cualquier letra.
+    En español esos signos solo abren una pregunta o una exclamación, y el
+    diccionario no los tiene en cuenta. El resto de la puntuación sigue contando
+    como hasta ahora. No cambia ningún texto, solo su posición en una lista.
 
 ---
 

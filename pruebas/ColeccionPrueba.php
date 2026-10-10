@@ -73,6 +73,35 @@ final class ColeccionPrueba extends TestCase
     }
 
     #[Test]
+    public function losSignosDeAperturaDeInterrogacionYExclamacionNoCuentanAlOrdenar(): void
+    {
+        $titulos = ['Zamora', '¿Sigue siendo Andorra el paraíso?', '¡Viva Madrid!', 'Burgos', 'Andorra', '¿Cómo llegar?', 'Cádiz'];
+        $paginas = array_map(fn (string $titulo) => $this->pagina($titulo, ['titulo' => $titulo]), $titulos);
+
+        self::assertSame(
+            ['Andorra', 'Burgos', 'Cádiz', '¿Cómo llegar?', '¿Sigue siendo Andorra el paraíso?', '¡Viva Madrid!', 'Zamora'],
+            $this->rutas(Coleccion::orden($paginas, 'titulo')),
+        );
+        self::assertSame(
+            ['Zamora', '¡Viva Madrid!', '¿Sigue siendo Andorra el paraíso?', '¿Cómo llegar?', 'Cádiz', 'Burgos', 'Andorra'],
+            $this->rutas(Coleccion::orden($paginas, 'titulo desc')),
+        );
+    }
+
+    #[Test]
+    public function conOSinSignoDeAperturaDosTextosIgualesEmpatan(): void
+    {
+        $paginas = [
+            $this->pagina('a', ['titulo' => 'Madrid: ¿merece la pena?']),
+            $this->pagina('b', ['titulo' => 'Madrid: merece la pena?']),
+            $this->pagina('c', ['titulo' => 'Madrid: ¿merece la pena?']),
+        ];
+
+        self::assertSame(['a', 'b', 'c'], $this->rutas(Coleccion::orden($paginas, 'titulo')));
+        self::assertSame(['a', 'b', 'c'], $this->rutas(Coleccion::orden($paginas, 'titulo desc')));
+    }
+
+    #[Test]
     public function ordenaPorVariosCamposYAceptaLosAlias(): void
     {
         $paginas = [

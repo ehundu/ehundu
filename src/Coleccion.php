@@ -184,8 +184,10 @@ final class Coleccion
     }
 
     /**
-     * El texto tal como se ordena: sin mayúsculas ni tildes y con la «ñ»
-     * después de la «n» (`{` va justo detrás de la `z` en ASCII).
+     * El texto tal como se ordena: sin mayúsculas ni tildes, con la «ñ»
+     * después de la «n» (`{` va justo detrás de la `z` en ASCII) y sin los
+     * signos de apertura «¿» y «¡», que en ASCII irían antes que cualquier
+     * letra y mandarían «¿Cómo llegar?» al principio de la lista.
      */
     private static function claveDeTexto(mixed $valor): string
     {
@@ -195,6 +197,8 @@ final class Coleccion
             is_bool($valor) => $valor ? '1' : '0',
             default => (string) $valor,
         };
+
+        $texto = str_replace(['¿', '¡'], '', $texto);
 
         return Slug::sinTildes(str_replace(['ñ', "ñ"], 'n{', mb_strtolower($texto, 'UTF-8')));
     }

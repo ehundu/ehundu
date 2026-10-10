@@ -39,6 +39,9 @@ final class ExtensionTwig extends AbstractExtension
      * @param Proyecto|null                 $proyecto   de donde lee `svg()`
      * @param \DateTimeZone|null            $zona       la del sitio, para `fecha`; UTC si falta
      * @param Idiomas                       $idiomas    los del sitio
+     * @param \Closure(Pagina): list<array{nivel: int, texto: string, id: string}>|null $encabezados da los encabezados del
+     *                                                  cuerpo de una página que han recibido `id`, y apunta que
+     *                                                  quien los pide depende de ese cuerpo
      */
     public function __construct(
         private readonly Colecciones $colecciones,
@@ -48,6 +51,7 @@ final class ExtensionTwig extends AbstractExtension
         private readonly \DateTimeZone $zona = new \DateTimeZone('UTC'),
         private readonly ?Registros $registros = null,
         private readonly Idiomas $idiomas = new Idiomas(),
+        private readonly ?\Closure $encabezados = null,
     ) {
     }
 
@@ -113,6 +117,7 @@ final class ExtensionTwig extends AbstractExtension
             $this->traducciones(...),
             $this->markdown(...),
             $this->paginasDelGrupo(...),
+            $this->encabezados,
         );
     }
 

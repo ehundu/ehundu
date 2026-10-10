@@ -259,6 +259,19 @@ final class Campos
     }
 
     /**
+     * El nombre de una clase de CSS, o varios separados por espacios, sin los
+     * espacios de los extremos; null si lo que se da no vale.
+     */
+    public static function claseDeCss(mixed $valor): ?string
+    {
+        if (is_string($valor) && preg_match('/^[A-Za-z_][A-Za-z0-9_-]*(?: [A-Za-z_][A-Za-z0-9_-]*)*$/', trim($valor)) === 1) {
+            return trim($valor);
+        }
+
+        return null;
+    }
+
+    /**
      * Un texto suelto cuenta como una lista de un elemento.
      *
      * @return list<string>

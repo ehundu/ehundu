@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Ehundu\Pruebas\Markdown;
 
 use Ehundu\Avisos;
+use Ehundu\Encabezados;
 use Ehundu\EnlacesExternos;
 use Ehundu\Markdown\Conversor;
+use Ehundu\Markdown\Convertido;
 use Ehundu\Markdown\ResolutorDeAtajos;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -270,6 +272,104 @@ final class ConversorPrueba extends TestCase
     public function noInterpretaTwig(): void
     {
         self::assertSame("<p>{{ datos.cliente.nombre }}</p>\n", $this->convertir('{{ datos.cliente.nombre }}'));
+    }
+
+    #[Test]
+    public function sinLaSeccionLosEncabezadosNoRecibenIdNiSeListan(): void
+    {
+        $convertido = $this->convertirConEncabezados(new Encabezados(), "## Uno\n\n### Dos\n");
+
+        self::assertSame("<h2>Uno</h2>\n<h3>Dos</h3>\n", $convertido->html);
+        self::assertSame([], $convertido->encabezados);
+    }
+
+    #[Test]
+    public function losEncabezadosDeLosNivelesPedidosRecibenIdYSeListanEnOrden(): void
+    {
+        $convertido = $this->convertirConEncabezados(
+            new Encabezados([2, 4]),
+            "# Título\n\n## Dos\n\n### Tres\n\n#### Cuatro\n\nSubtítulo\n---------\n",
+        );
+
+        self::assertSame(
+            "<h1>Título</h1>\n<h2 id=\"dos\">Dos</h2>\n<h3>Tres</h3>\n<h4 id=\"cuatro\">Cuatro</h4>\n<h2 id=\"subtitulo\">Subtítulo</h2>\n",
+            $convertido->html,
+        );
+        self::assertSame(
+            [
+                ['nivel' => 2, 'texto' => 'Dos', 'id' => 'dos'],
+                ['nivel' => 4, 'texto' => 'Cuatro', 'id' => 'cuatro'],
+                ['nivel' => 2, 'texto' => 'Subtítulo', 'id' => 'subtitulo'],
+            ],
+            $convertido->encabezados,
+        );
+    }
+
+    #[Test]
+    public function elIdSaleDelTextoPlanoYNoSeRepiteEnLaPagina(): void
+    {
+        $convertido = $this->convertirConEncabezados(
+            new Encabezados([2]),
+            "## Uno\n\n## Uno\n\n## Uno-2\n\n## **Uno**\n\n## ¡!\n\n## ?\n\n## [Enlace](/a/) con `código` y ![foto](/f.jpg) salto <b>HTML</b>\n",
+        );
+
+        self::assertSame(
+            ['uno', 'uno-2', 'uno-2-2', 'uno-3', 'seccion', 'seccion-2', 'enlace-con-codigo-y-salto-html'],
+            array_column($convertido->encabezados, 'id'),
+        );
+        self::assertSame('Enlace con código y salto HTML', $convertido->encabezados[6]['texto']);
+    }
+
+    #[Test]
+    public function elEnlacePermanenteSeEscapaYNoEntraEnElTexto(): void
+    {
+        $convertido = $this->convertirConEncabezados(
+            new Encabezados([2], '<#>', 'ancla a', ['es' => 'Ir a "{texto}"']),
+            "## Tom & Jerry\n",
+        );
+
+        self::assertSame(
+            "<h2 id=\"tom-y-jerry\">Tom &amp; Jerry<a class=\"ancla a\" href=\"#tom-y-jerry\" aria-label=\"Ir a &quot;Tom &amp; Jerry&quot;\">&lt;#&gt;</a></h2>\n",
+            $convertido->html,
+        );
+        self::assertSame('Tom & Jerry', $convertido->encabezados[0]['texto']);
+    }
+
+    #[Test]
+    public function sinEtiquetaEnSuIdiomaElEnlaceNoLlevaAriaLabel(): void
+    {
+        $convertido = $this->convertirConEncabezados(new Encabezados([2], '¶', etiquetas: ['eu' => '{texto}']), "## Uno\n");
+
+        self::assertSame("<h2 id=\"uno\">Uno<a class=\"ancla\" href=\"#uno\">¶</a></h2>\n", $convertido->html);
+    }
+
+    #[Test]
+    public function noCuentanLosEncabezadosDeUnAtajoQueEnvuelveNiLosDelHtmlEscritoAMano(): void
+    {
+        $convertido = $this->convertirConEncabezados(
+            new Encabezados([2]),
+            "## Antes\n\n[aviso tipo=\"importante\"]\n## Dentro\n[/aviso]\n\n<h2>A mano</h2>\n\n## Después\n",
+        );
+
+        self::assertSame(['antes', 'despues'], array_column($convertido->encabezados, 'id'));
+        self::assertStringContainsString('<h2>A mano</h2>', $convertido->html);
+    }
+
+    #[Test]
+    public function elAvisoDeLosEnlacesExternosNoEntraEnElTextoDelEncabezado(): void
+    {
+        $conversor = new Conversor('https://www.ejemplo.com', new EnlacesExternos(['es' => '(abre en ventana nueva)']), new Encabezados([2]));
+        $convertido = $conversor->convertirConEncabezados("## Mira [fuera](https://otro.com/a)\n", $this->resolutor(), $this->avisos, 'contenido/a.md', 5, 'es');
+
+        self::assertSame('Mira fuera', $convertido->encabezados[0]['texto']);
+        self::assertSame('mira-fuera', $convertido->encabezados[0]['id']);
+        self::assertStringContainsString('(abre en ventana nueva)', $convertido->html);
+    }
+
+    private function convertirConEncabezados(Encabezados $encabezados, string $markdown, string $idioma = 'es'): Convertido
+    {
+        return (new Conversor('https://www.ejemplo.com', new EnlacesExternos(), $encabezados))
+            ->convertirConEncabezados($markdown, $this->resolutor(), $this->avisos, 'contenido/a.md', 5, $idioma);
     }
 
     private function convertir(string $markdown): string

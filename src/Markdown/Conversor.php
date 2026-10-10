@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ehundu\Markdown;
 
 use Ehundu\Avisos;
+use Ehundu\Encabezados;
 use Ehundu\EnlacesExternos;
 use League\CommonMark\Environment\Environment;
 use League\CommonMark\Event\DocumentParsedEvent;
@@ -36,6 +37,10 @@ use League\CommonMark\Renderer\Inline\NewlineRenderer;
  * abren en otra pestaña; los atajos se reconocen al convertir y su HTML lo
  * da el sitio. Las etiquetas vacías salen como en HTML5, sin barra final.
  * El Markdown no pasa nunca por Twig.
+ *
+ * Si el sitio lo pide, los encabezados reciben un `id` y, a su elección, un
+ * enlace permanente (`Encabezados`); no es un paso sobre el HTML ya generado,
+ * sino algo que se hace al convertir.
  */
 final class Conversor
 {
@@ -45,9 +50,13 @@ final class Conversor
     /**
      * @param string          $urlDelSitio     la de `sitio.yml`, para saber qué enlaces son externos
      * @param EnlacesExternos $enlacesExternos lo que llevan esos enlaces además de `noopener` (formato §2)
+     * @param Encabezados     $encabezados     qué encabezados reciben `id` y si llevan enlace permanente (formato §2)
      */
-    public function __construct(string $urlDelSitio, private readonly EnlacesExternos $enlacesExternos = new EnlacesExternos())
-    {
+    public function __construct(
+        string $urlDelSitio,
+        private readonly EnlacesExternos $enlacesExternos = new EnlacesExternos(),
+        private readonly Encabezados $encabezados = new Encabezados(),
+    ) {
         $dominio = (string) preg_replace('/^www\./i', '', (string) parse_url($urlDelSitio, PHP_URL_HOST));
         $this->dominiosPropios = [$dominio, "www.{$dominio}"];
     }
@@ -65,6 +74,25 @@ final class Conversor
         int $primeraLinea = 1,
         string $idioma = '',
     ): string {
+        return $this->convertirConEncabezados($markdown, $atajos, $avisos, $fichero, $primeraLinea, $idioma)->html;
+    }
+
+    /**
+     * Lo mismo que `convertir()`, y además los encabezados que han recibido
+     * `id`, en el orden en que aparecen.
+     *
+     * @param string $fichero      ruta del fichero relativa a la raíz del proyecto, para los avisos
+     * @param int    $primeraLinea línea del fichero en la que empieza el Markdown
+     * @param string $idioma       el de la página, para el texto del aviso de los enlaces externos y de los encabezados
+     */
+    public function convertirConEncabezados(
+        string $markdown,
+        ResolutorDeAtajos $atajos,
+        Avisos $avisos,
+        string $fichero,
+        int $primeraLinea = 1,
+        string $idioma = '',
+    ): Convertido {
         $contexto = new Contexto($atajos, $avisos, $fichero, $primeraLinea);
 
         $entorno = new Environment([
@@ -92,6 +120,13 @@ final class Conversor
             $entorno->addEventListener(DocumentParsedEvent::class, $this->anadirAviso($aviso), -100);
         }
 
+        $identificador = new IdentificadorDeEncabezados($this->encabezados, $idioma);
+
+        if ($this->encabezados->activo()) {
+            // Después de todo lo que cambia el documento: lo que cuenta es el texto que queda.
+            $entorno->addEventListener(DocumentParsedEvent::class, $identificador, -200);
+        }
+
         $entorno->addBlockStartParser(new ParserDeAtajosDeBloque($contexto, SintaxisDeAtajos::conCierre($markdown)), 100);
         $entorno->addInlineParser(new ParserDeAtajosEnLinea($contexto), 100);
 
@@ -103,7 +138,9 @@ final class Conversor
         $entorno->addRenderer(ThematicBreak::class, Renderizadores::sinBarraFinal(new ThematicBreakRenderer()), 10);
         $entorno->addRenderer(FootnoteContainer::class, Renderizadores::sinBarraFinal(new FootnoteContainerRenderer()), 10);
 
-        return (new MarkdownConverter($entorno))->convert($markdown)->getContent();
+        $html = (new MarkdownConverter($entorno))->convert($markdown)->getContent();
+
+        return new Convertido($html, $identificador->encabezados());
     }
 
     /**

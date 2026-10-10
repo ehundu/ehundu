@@ -74,69 +74,7 @@ final readonly class EnlacesExternos
      */
     private static function leerAvisos(mixed $valor, ?int $linea, Idiomas $idiomas, Avisos $avisos): array
     {
-        if ($valor === null || $valor === []) {
-            return [];
-        }
-
-        $fichero = Proyecto::SITIO;
-        $codigos = $idiomas->codigos();
-
-        if (is_string($valor)) {
-            $texto = trim($valor);
-
-            if ($texto === '') {
-                return [];
-            }
-
-            if (count($codigos) > 1) {
-                $avisos->registrar(
-                    '«enlacesExternos»: «aviso» es un solo texto y el sitio tiene varios idiomas (' . implode(', ', $codigos)
-                    . '); se usa en todos. Conviene un texto por idioma: aviso: {' . $codigos[0] . ': …, ' . $codigos[1] . ': …}',
-                    $fichero,
-                    $linea,
-                );
-            }
-
-            return array_fill_keys($codigos, $texto);
-        }
-
-        if (!is_array($valor) || array_is_list($valor)) {
-            $avisos->registrar(
-                '«enlacesExternos»: «aviso» tiene que ser un texto, o un texto por idioma con su código como clave; se ignora',
-                $fichero,
-                $linea,
-            );
-
-            return [];
-        }
-
-        $textos = [];
-
-        foreach ($valor as $codigo => $texto) {
-            $codigo = (string) $codigo;
-
-            if (!$idiomas->declara($codigo)) {
-                $avisos->registrar("«enlacesExternos»: «aviso» tiene un texto para «{$codigo}», que no es un idioma del sitio; se ignora", $fichero, $linea);
-
-                continue;
-            }
-
-            if (!is_string($texto) || trim($texto) === '') {
-                $avisos->registrar("«enlacesExternos»: el «aviso» de «{$codigo}» tiene que ser un texto; ese idioma no lleva aviso", $fichero, $linea);
-
-                continue;
-            }
-
-            $textos[$codigo] = trim($texto);
-        }
-
-        foreach ($codigos as $codigo) {
-            if (!array_key_exists($codigo, $valor)) {
-                $avisos->registrar("«enlacesExternos»: «aviso» no tiene texto en «{$codigo}»; los enlaces de ese idioma no llevan aviso", $fichero, $linea);
-            }
-        }
-
-        return $textos;
+        return (new TextosPorIdioma('enlacesExternos', 'aviso', 'el', 'los enlaces'))->leer($valor, $linea, $idiomas, $avisos);
     }
 
     private static function leerClase(mixed $valor, ?int $linea, Avisos $avisos): string
@@ -145,8 +83,10 @@ final readonly class EnlacesExternos
             return self::CLASE_POR_DEFECTO;
         }
 
-        if (is_string($valor) && preg_match('/^[A-Za-z_][A-Za-z0-9_-]*(?: [A-Za-z_][A-Za-z0-9_-]*)*$/', trim($valor)) === 1) {
-            return trim($valor);
+        $clase = Campos::claseDeCss($valor);
+
+        if ($clase !== null) {
+            return $clase;
         }
 
         $avisos->registrar(

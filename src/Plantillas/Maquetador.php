@@ -9,6 +9,7 @@ use Ehundu\Colecciones;
 use Ehundu\ErrorDeProyecto;
 use Ehundu\Lectura;
 use Ehundu\Markdown\Conversor;
+use Ehundu\Markdown\Convertido;
 use Ehundu\Markdown\ResolutorDeAtajos;
 use Ehundu\Pagina;
 use Ehundu\Pdf\GeneradorDePdf;
@@ -46,7 +47,7 @@ final class Maquetador
     private Registros $registros;
     private ?GeneradorDePdf $generadorDePdf = null;
 
-    /** @var array<string, array{html: string, registro: Registro}> cuerpos ya convertidos, por ruta */
+    /** @var array<string, array{html: string, registro: Registro, encabezados: list<array{nivel: int, texto: string, id: string}>}> cuerpos ya convertidos, por ruta */
     private array $cuerpos = [];
 
     /** @var array<string, Registro> registros de las páginas ya maquetadas, por ruta */
@@ -70,7 +71,7 @@ final class Maquetador
         $this->registros = new Registros();
         $avisos->escuchar(fn (\Ehundu\Aviso $aviso) => $this->registros->aviso($aviso));
 
-        $this->markdown = new Conversor($lectura->sitio->url, $lectura->sitio->enlacesExternos);
+        $this->markdown = new Conversor($lectura->sitio->url, $lectura->sitio->enlacesExternos, $lectura->sitio->encabezados);
         $cargador = new CargadorDePlantillas($proyecto, fn (string $nombre) => $this->registros->anotar('plantillas', $nombre));
         $this->twig = new Environment(new ChainLoader([$cargador, $incluidas]), [
             'autoescape' => 'html',
@@ -80,7 +81,7 @@ final class Maquetador
         $this->twig->getExtension(CoreExtension::class)->setTimezone($zona);
 
         $this->recursos = new Recursos($proyecto, $avisos);
-        $this->extension = new ExtensionTwig($colecciones, $this->cuerpo(...), $proyecto, $avisos, $zona, $this->registros, $lectura->sitio->idiomas);
+        $this->extension = new ExtensionTwig($colecciones, $this->cuerpo(...), $proyecto, $avisos, $zona, $this->registros, $lectura->sitio->idiomas, $this->encabezados(...));
         $this->twig->addExtension($this->extension);
 
         $this->atajos = new Atajos($proyecto, $this->twig, $lectura, $this->extension, $avisos, $this->registros);
@@ -203,7 +204,7 @@ final class Maquetador
     /**
      * Los cuerpos convertidos o reutilizados en esta compilación, con su registro.
      *
-     * @return array<string, array{html: string, registro: Registro}>
+     * @return array<string, array{html: string, registro: Registro, encabezados: list<array{nivel: int, texto: string, id: string}>}>
      */
     public function cuerpos(): array
     {
@@ -214,7 +215,7 @@ final class Maquetador
      * Cuerpos de una compilación anterior que siguen valiendo: se usan tal
      * cual en lugar de volver a convertirlos.
      *
-     * @param array<string, array{html: string, registro: Registro}> $cuerpos
+     * @param array<string, array{html: string, registro: Registro, encabezados: list<array{nivel: int, texto: string, id: string}>}> $cuerpos
      */
     public function precargar(array $cuerpos): void
     {
@@ -283,20 +284,39 @@ final class Maquetador
         $this->registros->abrir();
 
         try {
-            $html = $pagina->formato === 'md'
+            $convertido = $pagina->formato === 'md'
                 ? $this->cuerpoMarkdown($pagina)
-                : $this->cuerpoTwig($pagina);
+                : new Convertido($this->cuerpoTwig($pagina));
         } finally {
             $registro = $this->registros->cerrar();
             array_pop($this->enCurso);
         }
 
-        $this->cuerpos[$pagina->ruta] = ['html' => $html, 'registro' => $registro];
+        $this->cuerpos[$pagina->ruta] = ['html' => $convertido->html, 'registro' => $registro, 'encabezados' => $convertido->encabezados];
 
-        return $html;
+        return $convertido->html;
     }
 
-    private function cuerpoMarkdown(Pagina $pagina): string
+    /**
+     * Los encabezados del cuerpo de una página que han recibido `id` (formato
+     * §7.2). Piden el cuerpo, así que quien los lee depende de él igual que de
+     * su contenido; una página en Twig, o un sitio sin la sección `encabezados`,
+     * no tienen ninguno y no piden nada.
+     *
+     * @return list<array{nivel: int, texto: string, id: string}>
+     */
+    public function encabezados(Pagina $pagina): array
+    {
+        if ($pagina->formato !== 'md' || !$this->lectura->sitio->encabezados->activo()) {
+            return [];
+        }
+
+        $this->cuerpo($pagina);
+
+        return $this->cuerpos[$pagina->ruta]['encabezados'];
+    }
+
+    private function cuerpoMarkdown(Pagina $pagina): Convertido
     {
         // Qué atajos hay cambia cómo se lee el Markdown: si aparece o
         // desaparece uno, cualquier cuerpo en Markdown puede cambiar.
@@ -334,7 +354,7 @@ final class Maquetador
             }
         };
 
-        return $this->markdown->convertir($pagina->cuerpo, $resolutor, $this->avisos, $fichero, $pagina->lineaCuerpo, $pagina->idioma);
+        return $this->markdown->convertirConEncabezados($pagina->cuerpo, $resolutor, $this->avisos, $fichero, $pagina->lineaCuerpo, $pagina->idioma);
     }
 
     private function cuerpoTwig(Pagina $pagina): string

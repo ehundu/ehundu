@@ -11,6 +11,7 @@ use Twig\Markup;
  * Una página tal como la ven las plantillas (formato §7 y §15.8): sus campos,
  * más `url`, `ruta`, `idioma`, `pdf` (la dirección de su PDF, si lo tiene),
  * `contenido`, `markdown` (su cuerpo sin convertir, solo en Markdown),
+ * `encabezados` (los de su cuerpo que han recibido `id`, formato §8),
  * `traducciones` y, en una página que genera `agrupar`, `paginas` (formato
  * §6.3; su `grupo` es un campo más). Se lee como un
  * array: `pagina.titulo`, `articulo.url`. No se puede modificar desde una
@@ -33,6 +34,9 @@ final class VistaDePagina implements \ArrayAccess
      * @param \Closure(Pagina): list<VistaDePagina>|null $paginasDelGrupo da las páginas del grupo
      *                                                 de una página generada por `agrupar`, y apunta
      *                                                 que quien las pide depende de cada una
+     * @param \Closure(Pagina): list<array{nivel: int, texto: string, id: string}>|null $encabezados da los
+     *                                                 encabezados del cuerpo que han recibido `id`, y
+     *                                                 apunta que quien los pide depende de ese cuerpo
      */
     public function __construct(
         private readonly Pagina $pagina,
@@ -40,6 +44,7 @@ final class VistaDePagina implements \ArrayAccess
         private readonly ?\Closure $traducciones = null,
         private readonly ?\Closure $markdown = null,
         private readonly ?\Closure $paginasDelGrupo = null,
+        private readonly ?\Closure $encabezados = null,
     ) {
     }
 
@@ -51,7 +56,7 @@ final class VistaDePagina implements \ArrayAccess
     public function offsetExists(mixed $clave): bool
     {
         return match ($clave) {
-            'url', 'ruta', 'idioma', 'traducciones' => true,
+            'url', 'ruta', 'idioma', 'traducciones', 'encabezados' => true,
             'pdf' => $this->pagina->urlPdf() !== null,
             'contenido' => $this->renderizar !== null,
             'markdown' => $this->tieneMarkdown(),
@@ -66,6 +71,7 @@ final class VistaDePagina implements \ArrayAccess
             'contenido' => $this->contenido(),
             'markdown' => $this->tieneMarkdown() ? ($this->markdown)($this->pagina) : null,
             'traducciones' => $this->traducciones === null ? [] : ($this->traducciones)($this->pagina),
+            'encabezados' => $this->encabezados === null ? [] : ($this->encabezados)($this->pagina),
             'paginas' => $this->tienePaginas() ? ($this->paginasDelGrupo)($this->pagina) : $this->pagina->valor('paginas'),
             default => $this->pagina->valor((string) $clave),
         };

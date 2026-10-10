@@ -21,6 +21,18 @@ final class CamposPrueba extends TestCase
     }
 
     #[Test]
+    public function unaClaseDeCssSonNombresSeparadosPorEspacios(): void
+    {
+        self::assertSame('ancla', Campos::claseDeCss('ancla'));
+        self::assertSame('a b_c d-e', Campos::claseDeCss(' a b_c d-e '));
+        self::assertSame('_x', Campos::claseDeCss('_x'));
+
+        foreach ([null, '', 'con comillas"', 'dos  espacios', '1clase', '-guion', ['ancla'], 3] as $malo) {
+            self::assertNull(Campos::claseDeCss($malo), var_export($malo, true));
+        }
+    }
+
+    #[Test]
     public function pasaLosAliasInglesesASuNombreEnEspanol(): void
     {
         $campos = $this->normalizar(

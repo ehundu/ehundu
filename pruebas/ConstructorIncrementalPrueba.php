@@ -383,7 +383,7 @@ Otro.
     private function crearSitio(): void
     {
         $this->ficheros = [
-            'sitio.yml' => "nombre: Prueba\nurl: https://ejemplo.com\nfeed:\n  coleccion: blog\n",
+            'sitio.yml' => "nombre: Prueba\nurl: https://ejemplo.com\nfeed:\n  coleccion: blog\nencabezados:\n  niveles: [2]\n  enlace: ¶\n",
             'datos/menu.yml' => "- texto: Inicio\n  url: /\n- texto: Contacto\n  url: /contacto/\n",
             'plantillas/base.twig' => <<<'TWIG'
                 <!doctype html>
@@ -400,7 +400,7 @@ Otro.
                 {% block principal %}
                 {{ pagina.contenido }}
                 {% for aviso in coleccion('avisos') %}<div>{{ aviso.contenido }}</div>{% endfor %}
-                <ul>{% for articulo in coleccion('blog')|invertir %}<li><a href="{{ articulo.url }}">{{ articulo.titulo }}</a> {{ articulo.contenido }}</li>{% endfor %}</ul>
+                <ul>{% for articulo in coleccion('blog')|invertir %}<li><a href="{{ articulo.url }}">{{ articulo.titulo }}</a> {{ articulo.contenido }}{% for h in articulo.encabezados %}<i>{{ h.id }}</i>{% endfor %}</li>{% endfor %}</ul>
                 {% endblock %}
 
                 TWIG,
@@ -416,7 +416,7 @@ Otro.
             'contenido/contacto.twig' => "---\ntitulo: Contacto\njs: [contacto.js]\n---\n<p>{{ pagina.titulo }}</p>\n{% include 'parciales/pie.twig' %}\n",
             'contenido/avisos/cierre.md' => "---\nurl: false\netiquetas: [avisos]\n---\nCerrado en **agosto**.\n",
             'contenido/blog/_datos.yml' => "etiquetas: [blog]\n",
-            'contenido/blog/uno.md' => "---\ntitulo: Uno\nfecha: 2024-01-01\n---\nPrimer artículo.\n\n![Una foto](/foto.jpg)\n",
+            'contenido/blog/uno.md' => "---\ntitulo: Uno\nfecha: 2024-01-01\n---\nPrimer artículo.\n\n## Capítulo\n\n![Una foto](/foto.jpg)\n",
             'contenido/blog/dos.md' => "---\ntitulo: Dos\nfecha: 2024-02-01\ncss: [dos.css]\n---\nSegundo artículo con [imagen fichero=\"foto.jpg\" alt=\"Foto\"].\n",
             'contenido/blog/futuro.md' => "---\ntitulo: Futuro\nfecha: 2024-03-01\npublicar: 2030-01-01\n---\nAún no.\n",
             'contenido/blog/borrador.md' => "---\ntitulo: Borrador\nborrador: sí\n---\nSin terminar.\n",
@@ -556,6 +556,10 @@ Resumen del año.
 /', "---
 pdf: sí
 ", $texto));
+            },
+            'encabezado en una página' => function () use ($paginas, $una, $palabra): void {
+                $ruta = $una($paginas());
+                $this->poner($ruta, $this->ficheros[$ruta] . "\n## " . $palabra() . "\n");
             },
             'nada' => fn () => null,
         ];

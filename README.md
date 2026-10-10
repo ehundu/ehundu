@@ -11,11 +11,13 @@ Ehundu es un generador de sitios estáticos escrito en PHP. Toma una carpeta con
 contenido en Markdown, datos en YAML y plantillas Twig, y produce un sitio web
 de HTML plano que se puede alojar en cualquier servidor.
 
-> **Estado: 0.6.** Compila sitios reales, también en varios idiomas, los
+> **Estado: 0.7.** Compila sitios reales, también en varios idiomas, los
 > previsualiza y los publica, saca en PDF las páginas que lo piden, genera una
 > página por cada etiqueta, publica las entradas en su fecha, deja las páginas
-> de una carpeta sin la carpeta en la URL y avisa a los lectores de pantalla de
-> los enlaces que abren otra pestaña.
+> de una carpeta sin la carpeta en la URL, avisa a los lectores de pantalla de
+> los enlaces que abren otra pestaña y da un `id`, y si se quiere un enlace
+> permanente, a los encabezados del Markdown, para enlazar a un apartado o
+> hacer un índice.
 > Hasta la 1.0 el formato del proyecto todavía puede cambiar; cada cambio
 > queda anotado, con su motivo, en el registro de decisiones de
 > [`docs/formato.md`](docs/formato.md).
@@ -258,11 +260,13 @@ ilustraciones de Nidel que hay en `marca/`: sus condiciones están en
 
 Ehundu is a static site generator written in PHP, designed to build sites both
 from the command line and from within a web process on ordinary shared PHP
-hosting. The current version is 0.6: it builds Markdown and Twig sites,
+hosting. The current version is 0.7: it builds Markdown and Twig sites,
 multilingual ones included, renders the pages that ask for it as PDF (with
 the optional dompdf), generates one page per tag, publishes entries on their
 date, drops a folder name from its pages' URLs, flags external links to screen
-readers, previews them with incremental rebuilds, and
+readers, gives Markdown headings an id (and, if asked, a permalink) so pages can
+link to a section or build a table of contents, previews them with incremental
+rebuilds, and
 deploys them to a folder, FTP, SFTP or any S3-compatible storage. It needs
 PHP 8.4 or later and nothing else, and ships as a single `ehundu.phar` or as
 the Composer package `ehundu/ehundu`.

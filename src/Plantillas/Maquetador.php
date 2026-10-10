@@ -53,6 +53,9 @@ final class Maquetador
     /** @var array<string, Registro> registros de las páginas ya maquetadas, por ruta */
     private array $registrosDePaginas = [];
 
+    /** @var array<string, array<string, string>> paquetes de CSS y JS de las páginas ya maquetadas, por ruta */
+    private array $paquetesDePaginas = [];
+
     /** @var list<string> rutas de las páginas cuyo cuerpo se está convirtiendo */
     private array $enCurso = [];
 
@@ -116,12 +119,13 @@ final class Maquetador
                 $this->registros->anotar('publico', $ruta);
             }
 
-            $html = $this->recursos->insertar($html, ['css' => $actual->css, 'js' => $actual->js]);
+            ['html' => $html, 'paquetes' => $paquetes] = $this->recursos->insertar($html, ['css' => $actual->css, 'js' => $actual->js]);
         } finally {
             $registro = $this->registros->cerrar();
         }
 
         $this->registrosDePaginas[$pagina->ruta] = $registro;
+        $this->paquetesDePaginas[$pagina->ruta] = $paquetes;
 
         return $html;
     }
@@ -164,7 +168,7 @@ final class Maquetador
                 $this->registros->anotar('publico', $ruta);
             }
 
-            $html = $this->recursos->insertar($html, ['css' => $actual->css, 'js' => []]);
+            $html = $this->recursos->insertar($html, ['css' => $actual->css, 'js' => []], conFicheros: false)['html'];
             $html = str_replace(Recursos::MARCA_JS, '', $html);
 
             $fecha = $pagina->campos['fecha'] ?? null;
@@ -199,6 +203,17 @@ final class Maquetador
     public function registroDe(string $ruta): ?Registro
     {
         return $this->registrosDePaginas[$ruta] ?? null;
+    }
+
+    /**
+     * Los ficheros de CSS y JS que enlaza una página con `css_fichero()` y
+     * `js_fichero()` (formato §9.1): su contenido, por ruta en `salida/`.
+     *
+     * @return array<string, string>
+     */
+    public function paquetesDe(string $ruta): array
+    {
+        return $this->paquetesDePaginas[$ruta] ?? [];
     }
 
     /**

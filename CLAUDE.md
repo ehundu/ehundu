@@ -87,7 +87,8 @@ documentación son inventados.
 5. **Las imágenes no se procesan en el build.** Se copian tal cual desde
    `publico/`. Nada de GD ni Imagick en la v1.
 6. **Sin pipeline de assets.** El CSS y el JS llegan escritos; el motor solo
-   los copia o los incrusta cuando una página lo declara.
+   los copia, los incrusta o los reúne en un fichero con la huella de su
+   contenido cuando una página lo declara. No los transforma.
 7. **Nada de código propio por sitio en la v1.** El motor no carga ni ejecuta
    PHP que venga del proyecto que compila.
 8. **La orden de consola es una envoltura fina** sobre una API de biblioteca.

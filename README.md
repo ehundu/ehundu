@@ -184,8 +184,11 @@ servidor no lo toca nunca. Con `--simular` dice qué haría sin hacerlo.
   idioma, colecciones y datos de cada idioma, y las fechas en castellano,
   euskera, inglés o alemán. Traducir solo parte del sitio es lo normal, no
   una excepción.
-- **El CSS y el JavaScript de cada página**, reunidos e incrustados en ella:
-  cada plantilla declara lo que necesita donde lo usa.
+- **El CSS y el JavaScript de cada página**, reunidos e incrustados en ella o
+  enlazados como un fichero cuyo nombre lleva la huella de su contenido, para
+  que el navegador lo guarde: cada plantilla declara lo que necesita donde lo
+  usa. Y `version('css/estilo.css')`, para dar a cualquier otro fichero de
+  `publico/` una dirección que cambia cuando cambia su contenido.
 - **PDF** de las páginas que lo piden con `pdf: sí`, con su propia plantilla
   (`menu.pdf.twig`) y sin programas externos. El mismo proyecto da siempre los
   mismos bytes, así que un PDF que no cambia no se vuelve a subir.

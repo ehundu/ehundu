@@ -187,6 +187,39 @@ final class MaquetadorPrueba extends TestCase
     }
 
     #[Test]
+    public function versionAnadeLaHuellaDelContenidoDelFichero(): void
+    {
+        $this->crearFichero('publico/css/estilo.css', 'body { margin: 0 }');
+        $this->crearFichero('publico/fonts/letra.woff2', "\x00\x01binario");
+        $this->crearFichero(
+            'contenido/index.twig',
+            "---\nplantilla: false\n---\n{{ version('css/estilo.css') }} {{ version('/css/estilo.css') }} {{ version('fonts/letra.woff2') }}",
+        );
+
+        $css = substr(hash('sha256', 'body { margin: 0 }'), 0, 10);
+        $letra = substr(hash('sha256', "\x00\x01binario"), 0, 10);
+
+        self::assertSame("/css/estilo.css?v={$css} /css/estilo.css?v={$css} /fonts/letra.woff2?v={$letra}", $this->maquetar('index.twig'));
+        self::assertSame([], $this->avisos->todos());
+
+        $this->crearFichero('publico/css/estilo.css', 'body { margin: 1px }');
+
+        self::assertStringNotContainsString("?v={$css}", $this->maquetar('index.twig'));
+    }
+
+    #[Test]
+    public function versionAvisaSiNoPuedeLeerElFicheroYDaLaDireccionSinHuella(): void
+    {
+        $this->crearFichero('contenido/index.twig', "---\nplantilla: false\n---\n{{ version('css/falta.css') }}|{{ version('../sitio.yml') }}");
+
+        self::assertSame('/css/falta.css|/../sitio.yml', $this->maquetar('index.twig'));
+        self::assertSame([
+            "version('css/falta.css'): no existe publico/css/falta.css",
+            "version('../sitio.yml'): solo se versionan ficheros de dentro de publico/",
+        ], array_map(strval(...), $this->avisos->todos()));
+    }
+
+    #[Test]
     public function activoMarcaLaPaginaYSuSeccion(): void
     {
         $plantilla = "{% for url in ['/', '/blog/', '/blog', '/blog/uno/', '/contacto/', '/bl'] %}{{ activo(url) ? 'sí' : 'no' }} {% endfor %}";

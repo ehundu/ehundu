@@ -12,7 +12,8 @@ final readonly class Construccion
 {
     /**
      * @param array<string, string> $escritos contenido de cada fichero que se genera
-     *                                        (páginas, sitemap, feed), por ruta en `salida/`
+     *                                        (páginas, PDF, sitemap, feed y los paquetes de CSS y JS
+     *                                        que enlazan las páginas), por ruta en `salida/`
      * @param array<string, string> $copias   origen de cada fichero que se copia tal cual,
      *                                        relativo a la raíz del proyecto, por ruta en `salida/`
      * @param int                   $paginas  cuántos de los escritos son páginas

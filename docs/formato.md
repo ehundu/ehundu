@@ -714,6 +714,16 @@ escribe, salvo `pagina.contenido` y lo que devuelve `svg()`.
   `activo('/blog/')` es cierto en `/blog/` y en `/blog/un-articulo/`. `/` solo
   es activo en la portada, y la raíz de cada idioma (`/eu/`), en la suya
   (§15.8). Para comparar exacto, `pagina.url == url`.
+- `version(ruta)` da la dirección de un fichero de `publico/` con su huella:
+  `{{ version('css/estilo.css') }}` da `/css/estilo.css?v=3fa9c1d2ab`. La
+  huella son los 10 primeros caracteres hexadecimales del SHA-256 del fichero,
+  así que cambia cuando cambia su contenido y no antes. Es para enlazar los
+  CSS, los JS, las tipografías y las imágenes que no pasan por `css()` ni
+  `css_fichero()` (§9.1): el navegador puede guardarlos mucho tiempo sin que,
+  tras un despliegue, nadie vea una versión vieja. Admite la ruta con o sin
+  `/` delante. Si el fichero no existe o la ruta sale de `publico/`, se avisa
+  y da la dirección sin huella. Quien la usa depende del fichero: si cambia,
+  se rehace la página.
 - `slug` (§5.2).
 - `fecha(formato)` escribe una fecha con las mismas letras que el filtro
   `date` de Twig, pero con los nombres de meses y días en el idioma de la
@@ -911,7 +921,8 @@ Cada fichero sale una sola vez por página, en el orden en que se declara al
 construirla, de arriba abajo; los del campo `css` van al final, para que
 puedan sobrescribir a los demás. Se insertan tal cual. Un fichero que no
 existe, o que no es un `.css` de dentro de `publico/`, se avisa y se salta. Si
-una página declara CSS y ninguna plantilla escribe `{{ css() }}`, se avisa.
+una página declara CSS y ninguna plantilla escribe `{{ css() }}` (ni
+`{{ css_fichero() }}`, más abajo), se avisa.
 
 El JavaScript funciona igual, con `js('…')`, `<script>{{ js() }}</script>` y
 el campo `js`.
@@ -925,6 +936,56 @@ el campo `js`.
       {% include 'parciales/cabecera.twig' %}  {# declara css/cabecera.css #}
       {% block cuerpo %}{% endblock %}
       <script>{{ js() }}</script>
+    </body>
+
+**Como fichero, en lugar de incrustados.** Incrustar es lo mejor con poco CSS:
+la página llega con todo y no hace falta otra petición. Con mucho, repite el
+mismo CSS en cada página y el navegador no puede guardarlo. `css_fichero()` y
+`js_fichero()` hacen lo mismo que `css()` y `js()` con lo que la página ha
+declarado (los mismos ficheros, en el mismo orden, una vez cada uno), pero en
+lugar de su contenido escriben la etiqueta que enlaza un fichero que contiene
+ese contenido:
+
+- `{{ css_fichero() }}` escribe `<link rel="stylesheet" href="/css/3fa9c1d2ab.css">`.
+- `{{ js_fichero() }}` escribe `<script src="/js/7c01e4b9d3.js" defer></script>`.
+
+Las dos funciones solo marcan el sitio, como `css()` y `js()` sin argumentos:
+los ficheros se declaran con `css('…')` y `js('…')`, y si se los das a
+`css_fichero()` se avisa y se ignoran.
+
+El fichero lo escribe el motor en `salida/css/` o `salida/js/`, y su nombre es
+la huella del contenido: los 10 primeros caracteres hexadecimales de su SHA-256.
+Las páginas que declaran lo mismo comparten el mismo fichero, y si cambia
+cualquiera de los ficheros de `publico/` que lo forman, cambia el nombre: ni el
+navegador ni una caché intermedia pueden servir uno viejo. Los ficheros que
+dejan de usarse desaparecen de `salida/` como cualquier otro (§10). Si una
+página no declara nada, o no se puede leer nada de lo que declara, no se
+escribe ninguna etiqueta. Si dos cosas van al mismo fichero, por ejemplo un
+`publico/css/3fa9c1d2ab.css`, el build se detiene (§10).
+
+Como el nombre cambia con el contenido, el fichero se puede servir con una
+caducidad de un año. En Apache, con un `.htaccess` en `publico/`:
+
+    <FilesMatch "^[0-9a-f]{10}\.(css|js)$">
+      Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+
+Una plantilla puede usar la forma que le convenga: `css()` para un CSS corto
+que quiere en la propia página, `css_fichero()` para uno largo. Lo declarado
+es lo mismo en las dos. Dentro de un CSS que se enlaza, las direcciones de
+`url(…)` tienen que empezar por `/`, como ya pasa en uno incrustado: las
+relativas se resolverían desde donde esté el fichero o la página, y un
+paquete reúne ficheros de carpetas distintas. En la plantilla de un PDF
+(§10.3) solo vale `css()`.
+
+    {# plantillas/base.twig #}
+    <head>
+      {{ css('css/base.css') }}
+      {{ css_fichero() }}
+    </head>
+    <body>
+      {% block cuerpo %}{% endblock %}
+      {{ js_fichero() }}
     </body>
 
 ---
@@ -1018,8 +1079,8 @@ décimas de segundo.
 - **Lo que admite.** CSS 2.1 con algo de CSS3, y nada de `flex` ni de rejilla.
   La hoja es A4 salvo que el CSS diga otra cosa con `@page { size: … }`. El CSS
   se declara con `css('…')` y `{{ css() }}` en la plantilla del PDF y en sus
-  parciales, como en una página (§9.1); el campo `css` del front matter no
-  cuenta, porque es el de la web. Las direcciones que empiezan por `/` se leen
+  parciales, como en una página (§9.1), pero sin `css_fichero()`; el campo `css`
+  del front matter no cuenta, porque es el de la web. Las direcciones que empiezan por `/` se leen
   de `publico/`; nada remoto se carga, y lo que dompdf no entiende (una
   propiedad de CSS, una imagen que no encuentra) sale como aviso, con la
   plantilla como fichero. Las imágenes pueden ser SVG, JPEG o PNG: los SVG no necesitan ninguna extensión de PHP, y las PNG con
@@ -1741,6 +1802,23 @@ un sitio de la v1 no debe usarlo como campo propio.
     En español esos signos solo abren una pregunta o una exclamación, y el
     diccionario no los tiene en cuenta. El resto de la puntuación sigue contando
     como hasta ahora. No cambia ningún texto, solo su posición en una lista.
+111. **Cerrada.** `css_fichero()` y `js_fichero()` enlazan el CSS y el JS que ha
+    declarado la página en lugar de incrustarlos: el motor escribe el
+    contenido que habría incrustado en `css/<huella>.css` o `js/<huella>.js`
+    de `salida/`, y las páginas que declaran lo mismo comparten el fichero. Lo
+    elige la plantilla, no `sitio.yml`, como todo lo que decide qué lleva una
+    página; `css()` y `js()` no cambian. El nombre lleva la huella del
+    contenido, para que se pueda guardar un año sin riesgo de servir uno
+    viejo. No minifica ni procesa nada: el contenido es el mismo que habría
+    incrustado. No hay un fichero por cada declarado (con `<link>` por
+    fichero se guardaría el común entre páginas, a costa de más peticiones):
+    un paquete por combinación repite el CSS común en cada una, pero son pocos
+    kilobytes comprimidos (§9.1).
+112. **Cerrada.** `version(ruta)` da la dirección de un fichero de `publico/`
+    con `?v=` y la huella de su contenido, para los ficheros que se enlazan sin
+    pasar por `css()` (§7.3, §9.1). Se llama `version` y no `activo`, que ya es
+    el del menú; y lleva la huella en la consulta y no en el nombre porque
+    así funciona en cualquier alojamiento, sin reglas de reescritura.
 
 ---
 

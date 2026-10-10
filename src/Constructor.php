@@ -78,7 +78,10 @@ final class Constructor
         /** @var array<string, string> $documentos los PDF, por ruta en salida/ */
         $documentos = [];
 
-        /** @var array<string, array{html: string, pdf: string|null, registro: Registro}> $hechas */
+        /** @var array<string, string> $paquetes los ficheros de CSS y JS que enlazan las páginas, por ruta en salida/ */
+        $paquetes = [];
+
+        /** @var array<string, array{html: string, pdf: string|null, paquetes: array<string, string>, registro: Registro}> $hechas */
         $hechas = [];
         $rehechas = 0;
 
@@ -105,11 +108,24 @@ final class Constructor
             } else {
                 $html = $maquetador->maquetar($pagina);
                 $pdf = $ficheroPdf === null ? null : $maquetador->generarPdf($pagina);
-                $hecha = ['html' => $html, 'pdf' => $pdf, 'registro' => $maquetador->registroDe($pagina->ruta) ?? new Registro()];
+                $hecha = [
+                    'html' => $html,
+                    'pdf' => $pdf,
+                    'paquetes' => $maquetador->paquetesDe($pagina->ruta),
+                    'registro' => $maquetador->registroDe($pagina->ruta) ?? new Registro(),
+                ];
                 $rehechas++;
             }
 
             $escritos[$fichero] = $hecha['html'];
+
+            // Las páginas que declaran lo mismo enlazan el mismo fichero: se escribe una vez.
+            foreach ($hecha['paquetes'] as $paquete => $contenido) {
+                if (!isset($paquetes[$paquete])) {
+                    $destinos->anotar($paquete, Proyecto::CONTENIDO . "/{$pagina->ruta}");
+                    $paquetes[$paquete] = $contenido;
+                }
+            }
 
             if ($ficheroPdf !== null && $hecha['pdf'] !== null) {
                 $documentos[$ficheroPdf] = $hecha['pdf'];
@@ -119,7 +135,7 @@ final class Constructor
         }
 
         $paginas = count($escritos);
-        $escritos = [...$escritos, ...$documentos];
+        $escritos = [...$escritos, ...$documentos, ...$paquetes];
 
         /** @var array<string, string> $copias */
         $copias = [];

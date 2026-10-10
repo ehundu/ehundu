@@ -52,6 +52,12 @@ final class ConstructorIncrementalPrueba extends TestCase
                 fn () => $this->cambiar('publico/dos.css', 'red', 'tan'),
                 1,
             ],
+            'cambia, sin cambiar de tamaño, la tipografía que versiona una página: solo ella' => [
+                fn () => $this->cambiar('publico/letra.woff2', 'WOFF', 'WOFG'),
+                1,
+            ],
+            'desaparece esa tipografía: solo ella' => [fn () => $this->quitar('publico/letra.woff2'), 1],
+            'y vuelve' => [fn () => $this->poner('publico/letra.woff2', 'WOFF'), 1],
             'cambia el SVG de la cabecera: todas' => [
                 fn () => $this->cambiar('publico/logo.svg', 'r="1"', 'r="2"'),
                 5,
@@ -388,10 +394,10 @@ Otro.
             'plantillas/base.twig' => <<<'TWIG'
                 <!doctype html>
                 <title>{{ pagina.titulo }} · {{ sitio.nombre }}</title>
-                <style>{{ css() }}</style>
+                <style>{{ css() }}</style>{{ css_fichero() }}
                 {% include 'parciales/cabecera.twig' %}
                 <main>{% block principal %}{{ pagina.contenido }}{% endblock %}</main>
-                <script>{{ js() }}</script>
+                <script>{{ js() }}</script>{{ js_fichero() }}<link rel="stylesheet" href="{{ version('base.css') }}">
 
                 TWIG,
             'plantillas/pagina.twig' => "{% extends 'plantillas/base.twig' %}\n",
@@ -413,7 +419,7 @@ Otro.
             'parciales/pie.twig' => "<footer>Escríbenos</footer>\n",
             'contenido/index.md' => "---\ntitulo: Inicio\nplantilla: portada\n---\nBienvenida. [archivo fichero=\"doc.pdf\" texto=\"Folleto\"]\n",
             'contenido/acerca.md' => "---\ntitulo: Acerca\n---\nSomos nosotros.\n\n[imagen fichero=\"falta.jpg\" alt=\"Falta\"]\n\n[aviso]\nImportante.\n[/aviso]\n",
-            'contenido/contacto.twig' => "---\ntitulo: Contacto\njs: [contacto.js]\n---\n<p>{{ pagina.titulo }}</p>\n{% include 'parciales/pie.twig' %}\n",
+            'contenido/contacto.twig' => "---\ntitulo: Contacto\njs: [contacto.js]\n---\n<p>{{ pagina.titulo }}</p>\n{% include 'parciales/pie.twig' %}\n<link rel=\"preload\" href=\"{{ version('letra.woff2') }}\">\n",
             'contenido/avisos/cierre.md' => "---\nurl: false\netiquetas: [avisos]\n---\nCerrado en **agosto**.\n",
             'contenido/blog/_datos.yml' => "etiquetas: [blog]\n",
             'contenido/blog/uno.md' => "---\ntitulo: Uno\nfecha: 2024-01-01\n---\nPrimer artículo.\n\n## Capítulo\n\n![Una foto](/foto.jpg)\n",
@@ -423,6 +429,7 @@ Otro.
             'publico/base.css' => "body{margin:0}\n",
             'publico/dos.css' => ".dos{color:red}\n",
             'publico/contacto.js' => "console.log(1);\n",
+            'publico/letra.woff2' => 'WOFF',
             'publico/logo.svg' => "<?xml version=\"1.0\"?>\n<svg><circle r=\"1\"/></svg>\n",
             'publico/foto.jpg' => 'JPEG',
             'publico/doc.pdf' => str_repeat('PDF', 500),

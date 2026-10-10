@@ -34,6 +34,9 @@ final class ExtensionTwig extends AbstractExtension
     /** @var array<string, string> SVG ya leídos, por ruta dentro de `publico/` */
     private array $svgs = [];
 
+    /** @var array<string, string|null> huellas ya calculadas, por ruta dentro de `publico/` */
+    private array $versiones = [];
+
     /**
      * @param \Closure(Pagina): string|null $renderizar da el cuerpo de una página ya en HTML
      * @param Proyecto|null                 $proyecto   de donde lee `svg()`
@@ -64,6 +67,9 @@ final class ExtensionTwig extends AbstractExtension
             new TwigFunction('activo', $this->activo(...), ['needs_context' => true]),
             new TwigFunction('css', fn (string ...$rutas) => $this->recurso('css', $rutas), ['is_safe' => ['html']]),
             new TwigFunction('js', fn (string ...$rutas) => $this->recurso('js', $rutas), ['is_safe' => ['html']]),
+            new TwigFunction('css_fichero', fn (string ...$rutas) => $this->recursoEnFichero('css', $rutas), ['is_safe' => ['html']]),
+            new TwigFunction('js_fichero', fn (string ...$rutas) => $this->recursoEnFichero('js', $rutas), ['is_safe' => ['html']]),
+            new TwigFunction('version', $this->version(...)),
         ];
     }
 
@@ -246,6 +252,39 @@ final class ExtensionTwig extends AbstractExtension
     }
 
     /**
+     * La dirección de un fichero de `publico/` con la huella de su contenido,
+     * `/css/estilo.css?v=3fa9c1d2ab`, para que el navegador pueda guardarlo
+     * sin servir uno viejo tras un cambio. Si no se puede leer, se avisa y se
+     * da la dirección sin huella.
+     */
+    public function version(string $ruta): string
+    {
+        $relativa = ltrim($ruta, '/');
+        $this->registros?->anotar('publico', $relativa);
+        $fichero = Proyecto::PUBLICO . "/{$relativa}";
+
+        if ($this->proyecto === null) {
+            return "/{$relativa}";
+        }
+
+        if ($relativa === '' || str_contains($relativa, '\\') || preg_match('#(^|/)\.\.?(/|$)#', $relativa) === 1) {
+            $this->avisos->registrar("version('{$ruta}'): solo se versionan ficheros de dentro de publico/");
+
+            return "/{$relativa}";
+        }
+
+        if (!is_file($this->proyecto->ruta($fichero))) {
+            $this->avisos->registrar("version('{$ruta}'): no existe {$fichero}");
+
+            return "/{$relativa}";
+        }
+
+        $huella = $this->versiones[$relativa] ??= Recursos::huellaDeFichero($this->proyecto->ruta($fichero));
+
+        return $huella === null ? "/{$relativa}" : "/{$relativa}?v={$huella}";
+    }
+
+    /**
      * Si la página actual es esa URL o está dentro de ella. `/`, y la raíz
      * de cada idioma (`/eu/`), solo son activas en su portada.
      *
@@ -286,6 +325,23 @@ final class ExtensionTwig extends AbstractExtension
         }
 
         return '';
+    }
+
+    /**
+     * `css_fichero()` marca dónde irá la etiqueta que enlaza el paquete de CSS
+     * de la página; igual con `js_fichero()`. No declara ficheros: eso lo hace
+     * `css('…')`, y se avisa si alguien lo intenta aquí.
+     *
+     * @param 'css'|'js'    $tipo
+     * @param list<string> $rutas
+     */
+    private function recursoEnFichero(string $tipo, array $rutas): string
+    {
+        if ($rutas !== []) {
+            $this->avisos->registrar("{$tipo}_fichero() no lleva ficheros, y se ignoran; se declaran con {$tipo}('…')");
+        }
+
+        return $tipo === 'css' ? Recursos::MARCA_CSS_FICHERO : Recursos::MARCA_JS_FICHERO;
     }
 
     /**

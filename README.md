@@ -11,14 +11,16 @@ Ehundu es un generador de sitios estáticos escrito en PHP. Toma una carpeta con
 contenido en Markdown, datos en YAML y plantillas Twig, y produce un sitio web
 de HTML plano que se puede alojar en cualquier servidor.
 
-> **Estado: 0.8.** Compila sitios reales, también en varios idiomas, los
+> **Estado: 0.9.** Compila sitios reales, también en varios idiomas, los
 > previsualiza y los publica, saca en PDF las páginas que lo piden, genera una
 > página por cada etiqueta, publica las entradas en su fecha, deja las páginas
 > de una carpeta sin la carpeta en la URL, avisa a los lectores de pantalla de
 > los enlaces que abren otra pestaña, da un `id`, y si se quiere un enlace
 > permanente, a los encabezados del Markdown, para enlazar a un apartado o
-> hacer un índice, y ordena los textos como un diccionario español, sin contar
-> los signos `¿` y `¡`.
+> hacer un índice, ordena los textos como un diccionario español, sin contar
+> los signos `¿` y `¡`, y enlaza el CSS y el JavaScript de una página como un
+> fichero con la huella de su contenido en el nombre, para que el navegador lo
+> guarde.
 > Hasta la 1.0 el formato del proyecto todavía puede cambiar; cada cambio
 > queda anotado, con su motivo, en el registro de decisiones de
 > [`docs/formato.md`](docs/formato.md).
@@ -264,14 +266,15 @@ ilustraciones de Nidel que hay en `marca/`: sus condiciones están en
 
 Ehundu is a static site generator written in PHP, designed to build sites both
 from the command line and from within a web process on ordinary shared PHP
-hosting. The current version is 0.8: it builds Markdown and Twig sites,
+hosting. The current version is 0.9: it builds Markdown and Twig sites,
 multilingual ones included, renders the pages that ask for it as PDF (with
 the optional dompdf), generates one page per tag, publishes entries on their
 date, drops a folder name from its pages' URLs, flags external links to screen
 readers, gives Markdown headings an id (and, if asked, a permalink) so pages can
 link to a section or build a table of contents, sorts text the way a Spanish
-dictionary does (ignoring the opening marks ¿ and ¡), previews them with
-incremental rebuilds, and
+dictionary does (ignoring the opening marks ¿ and ¡), links a page's CSS and
+JavaScript as a file named after a hash of its contents so browsers can cache
+it for a year, previews them with incremental rebuilds, and
 deploys them to a folder, FTP, SFTP or any S3-compatible storage. It needs
 PHP 8.4 or later and nothing else, and ships as a single `ehundu.phar` or as
 the Composer package `ehundu/ehundu`.

@@ -415,7 +415,7 @@ grupo de cada página que genera, y el patrón tiene que usarlo. En ella,
 Convierte un texto en un tramo de URL:
 
 - pasa a minúsculas y quita tildes y diéresis (`ü` → `u`, `ñ` → `n`,
-  `ç` → `c`; también `ß` → `ss`, `æ` → `ae`, `œ` → `oe`);
+  `ç` → `c`, `ș` → `s`; también `ß` → `ss`, `æ` → `ae`, `œ` → `oe`);
 - `&` se convierte en `y`, y el punto volado del catalán desaparece
   (`col·legi` → `collegi`);
 - cualquier otro carácter que no sea una letra latina o un número se

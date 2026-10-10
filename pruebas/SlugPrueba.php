@@ -29,6 +29,8 @@ final class SlugPrueba extends TestCase
         yield 'símbolo' => ['Precio: 10€', 'precio-10'];
         yield 'guiones en los extremos' => ['  --Espacios--  ', 'espacios'];
         yield 'ligaduras' => ['Straße, Façade, œuvre', 'strasse-facade-oeuvre'];
+        yield 'rumano con coma debajo y con cedilla' => ['Brașov, Ceaușescu, Târgu Mureș, Peleș, Carturești; Brasov, Cărţi', 'brasov-ceausescu-targu-mures-peles-carturesti-brasov-carti'];
+        yield 'islandés, noruego y turco' => ['Þingvellir, Kerið, Bygdøy, Kadıköy', 'thingvellir-kerid-bygdoy-kadikoy'];
         yield 'otro alfabeto' => ['Ελληνικά', ''];
         yield 'letras descompuestas' => ["lo ma\u{0301}s querido, cin\u{0303}a, pingu\u{0308}ino", 'lo-mas-querido-cina-pinguino'];
     }

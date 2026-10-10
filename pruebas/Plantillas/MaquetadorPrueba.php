@@ -287,6 +287,61 @@ final class MaquetadorPrueba extends TestCase
         self::assertSame("después: <p>Hola</p>\n", $this->maquetar('index.md'));
     }
 
+    #[Test]
+    public function elFiltroMarkdownPintaUnCampoConFormatoYNoLoEscapaDeNuevo(): void
+    {
+        $this->crearFichero('plantillas/pagina.twig', '<h1>{{ pagina.titular|markdown }}</h1><p>{{ pagina.resumen|markdown }}</p><i>{{ pagina.resumen }}</i>');
+        $this->crearFichero(
+            'contenido/index.md',
+            "---\ntitular: |\n  Una cocina\\\n  que *viaja*\\\n  contigo\nresumen: 'Con **<mark>marca</mark>** & más'\n---\nCuerpo",
+        );
+
+        self::assertSame(
+            "<h1>Una cocina<br>\nque <em>viaja</em><br>\ncontigo</h1><p>Con <strong><mark>marca</mark></strong> &amp; más</p>"
+            . '<i>Con **&lt;mark&gt;marca&lt;/mark&gt;** &amp; más</i>',
+            $this->maquetar('index.md'),
+        );
+        self::assertSame([], $this->avisos->todos());
+    }
+
+    #[Test]
+    public function elFiltroMarkdownNoDaNadaConUnValorVacioOAusenteYTomaUnNumeroComoTexto(): void
+    {
+        $this->crearFichero('plantillas/pagina.twig', '[{{ pagina.vacio|markdown }}][{{ pagina.ausente|markdown }}][{{ pagina.nulo|markdown }}][{{ pagina.anio|markdown }}]');
+        $this->crearFichero('contenido/index.md', "---\nvacio: ''\nnulo:\nanio: 2016\n---\nCuerpo");
+
+        self::assertSame('[][][][2016]', $this->maquetar('index.md'));
+        self::assertSame([], $this->avisos->todos());
+    }
+
+    #[Test]
+    public function elFiltroMarkdownAvisaDeUnaListaUnMapaOUnSiOUnNoYNoPintaNada(): void
+    {
+        $this->crearFichero('plantillas/pagina.twig', '[{{ pagina.lista|markdown }}][{{ pagina.mapa|markdown }}][{{ pagina.si|markdown }}]');
+        $this->crearFichero('contenido/index.md', "---\nlista: [a, b]\nmapa:\n  a: 1\nsi: true\n---\nCuerpo");
+
+        self::assertSame('[][][]', $this->maquetar('index.md'));
+        self::assertSame(
+            [
+                'markdown: se esperaba un texto y llega una lista o un mapa; no se pinta nada',
+                'markdown: se esperaba un texto y llega un sí o un no; no se pinta nada',
+            ],
+            array_map(fn ($aviso) => $aviso->mensaje, $this->avisos->todos()),
+        );
+    }
+
+    #[Test]
+    public function elFiltroMarkdownUsaElIdiomaDeLaPaginaParaElAvisoDeLosEnlacesExternos(): void
+    {
+        $this->crearFichero('sitio.yml', "nombre: Librería La Esquina\nurl: https://www.ejemplo.com\nidiomas:\n  - codigo: es\n  - codigo: eu\nenlacesExternos:\n  aviso:\n    es: (se abre fuera)\n    eu: (kanpoan irekitzen da)\n");
+        $this->crearFichero('plantillas/pagina.twig', '{{ pagina.nota|markdown }}');
+        $this->crearFichero('contenido/index.md', "---\nnota: '[fuera](https://otro.com)'\n---\nCuerpo");
+        $this->crearFichero('contenido/index.eu.md', "---\nnota: '[kanpora](https://otro.com)'\n---\nGorputza");
+
+        self::assertStringContainsString('(se abre fuera)', $this->maquetar('index.md'));
+        self::assertStringContainsString('(kanpoan irekitzen da)', $this->maquetar('index.eu.md'));
+    }
+
     private function maquetar(string $ruta): string
     {
         return $this->maquetador()->maquetar($this->pagina($ruta));

@@ -21,6 +21,7 @@ use League\CommonMark\Extension\ExternalLink\ExternalLinkExtension;
 use League\CommonMark\Extension\Footnote\FootnoteExtension;
 use League\CommonMark\Extension\Footnote\Node\FootnoteContainer;
 use League\CommonMark\Extension\Footnote\Renderer\FootnoteContainerRenderer;
+use League\CommonMark\Extension\InlinesOnly\InlinesOnlyExtension;
 use League\CommonMark\Extension\Strikethrough\StrikethroughExtension;
 use League\CommonMark\Extension\Table\TableExtension;
 use League\CommonMark\MarkdownConverter;
@@ -46,6 +47,9 @@ final class Conversor
 {
     /** @var list<string> dominios que no son externos */
     private array $dominiosPropios;
+
+    /** @var array<string, MarkdownConverter> convertidores de línea ya montados, por idioma */
+    private array $convertidoresEnLinea = [];
 
     /**
      * @param string          $urlDelSitio     la de `sitio.yml`, para saber qué enlaces son externos
@@ -95,16 +99,7 @@ final class Conversor
     ): Convertido {
         $contexto = new Contexto($atajos, $avisos, $fichero, $primeraLinea);
 
-        $entorno = new Environment([
-            'html_input' => 'allow',
-            'allow_unsafe_links' => false,
-            'external_link' => [
-                'internal_hosts' => $this->dominiosPropios,
-                'open_in_new_window' => true,
-                'noopener' => 'external',
-                'noreferrer' => $this->enlacesExternos->noreferrer ? 'external' : '',
-            ],
-        ]);
+        $entorno = new Environment($this->configuracion());
 
         $entorno->addExtension(new CommonMarkCoreExtension());
         $entorno->addExtension(new TableExtension());
@@ -113,12 +108,7 @@ final class Conversor
         $entorno->addExtension(new AutolinkExtension());
         $entorno->addExtension(new ExternalLinkExtension());
 
-        $aviso = $this->enlacesExternos->avisoDe($idioma);
-
-        if ($aviso !== null) {
-            // Después de ExternalLinkProcessor (prioridad -50), que es quien dice qué enlaces son externos.
-            $entorno->addEventListener(DocumentParsedEvent::class, $this->anadirAviso($aviso), -100);
-        }
+        $this->avisarDeLosEnlacesExternos($entorno, $idioma);
 
         $identificador = new IdentificadorDeEncabezados($this->encabezados, $idioma);
 
@@ -141,6 +131,66 @@ final class Conversor
         $html = (new MarkdownConverter($entorno))->convert($markdown)->getContent();
 
         return new Convertido($html, $identificador->encabezados());
+    }
+
+    /**
+     * El Markdown de un campo (formato §7.3, filtro `markdown`): el de línea de
+     * CommonMark, sin párrafos ni bloques y sin atajos, con tachado, enlaces
+     * automáticos y HTML escrito a mano; los enlaces a otros dominios van como
+     * en el cuerpo. Un salto con barra invertida o dos espacios sale como
+     * `<br>`. No da salto de línea final.
+     *
+     * @param string $idioma el de la página, para el texto del aviso de los enlaces externos
+     */
+    public function convertirEnLinea(string $markdown, string $idioma = ''): string
+    {
+        $convertidor = $this->convertidoresEnLinea[$idioma] ??= $this->montarConvertidorEnLinea($idioma);
+
+        return rtrim($convertidor->convert($markdown)->getContent(), "\n");
+    }
+
+    private function montarConvertidorEnLinea(string $idioma): MarkdownConverter
+    {
+        $entorno = new Environment($this->configuracion());
+
+        $entorno->addExtension(new InlinesOnlyExtension());
+        $entorno->addExtension(new StrikethroughExtension());
+        $entorno->addExtension(new AutolinkExtension());
+        $entorno->addExtension(new ExternalLinkExtension());
+
+        $this->avisarDeLosEnlacesExternos($entorno, $idioma);
+
+        $entorno->addRenderer(Image::class, Renderizadores::sinBarraFinal(new ImageRenderer()), 10);
+        $entorno->addRenderer(Newline::class, Renderizadores::sinBarraFinal(new NewlineRenderer()), 10);
+
+        return new MarkdownConverter($entorno);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function configuracion(): array
+    {
+        return [
+            'html_input' => 'allow',
+            'allow_unsafe_links' => false,
+            'external_link' => [
+                'internal_hosts' => $this->dominiosPropios,
+                'open_in_new_window' => true,
+                'noopener' => 'external',
+                'noreferrer' => $this->enlacesExternos->noreferrer ? 'external' : '',
+            ],
+        ];
+    }
+
+    private function avisarDeLosEnlacesExternos(Environment $entorno, string $idioma): void
+    {
+        $aviso = $this->enlacesExternos->avisoDe($idioma);
+
+        if ($aviso !== null) {
+            // Después de ExternalLinkProcessor (prioridad -50), que es quien dice qué enlaces son externos.
+            $entorno->addEventListener(DocumentParsedEvent::class, $this->anadirAviso($aviso), -100);
+        }
     }
 
     /**

@@ -19,8 +19,8 @@ use Twig\TwigFunction;
 
 /**
  * Lo que Ehundu añade a Twig (formato §5.2, §6, §7, §9 y §15): las funciones
- * `coleccion()`, `svg()`, `dimensiones()`, `activo()`, `css()` y `js()`, y los filtros `slug`, `fecha`, `orden`,
- * `limite`, `invertir`, `sin`, `donde`, `anterior` y `siguiente`.
+ * `coleccion()`, `svg()`, `dimensiones()`, `activo()`, `css()` y `js()`, y los filtros `slug`, `fecha`, `markdown`,
+ * `orden`, `limite`, `invertir`, `sin`, `donde`, `anterior` y `siguiente`.
  *
  * Las plantillas trabajan con vistas de página; los filtros de colección
  * trabajan con páginas. Esta clase traduce entre unas y otras, y usa siempre
@@ -45,6 +45,8 @@ final class ExtensionTwig extends AbstractExtension
      * @param \Closure(Pagina): list<array{nivel: int, texto: string, id: string}>|null $encabezados da los encabezados del
      *                                                  cuerpo de una página que han recibido `id`, y apunta que
      *                                                  quien los pide depende de ese cuerpo
+     * @param \Closure(string, string): string|null $convertirEnLinea convierte a HTML un texto en Markdown de línea, con el
+     *                                                  idioma de la página; sin ella, el filtro `markdown` escapa el texto
      */
     public function __construct(
         private readonly Colecciones $colecciones,
@@ -55,6 +57,7 @@ final class ExtensionTwig extends AbstractExtension
         private readonly ?Registros $registros = null,
         private readonly Idiomas $idiomas = new Idiomas(),
         private readonly ?\Closure $encabezados = null,
+        private readonly ?\Closure $convertirEnLinea = null,
     ) {
     }
 
@@ -87,6 +90,7 @@ final class ExtensionTwig extends AbstractExtension
                 ),
                 ['needs_context' => true],
             ),
+            new TwigFilter('markdown', $this->markdownEnLinea(...), ['needs_context' => true, 'is_safe' => ['html']]),
             new TwigFilter('orden', fn (iterable $lista, string $criterio = Coleccion::ORDEN_POR_DEFECTO) => $this->vistas(
                 Coleccion::orden($this->paginas($lista), $criterio),
             )),
@@ -109,6 +113,42 @@ final class ExtensionTwig extends AbstractExtension
                 Coleccion::siguiente($this->paginas($lista), $this->paginaORuta($actual)),
             )),
         ];
+    }
+
+    /**
+     * El filtro `markdown` (formato §7.3): el texto de un campo, en Markdown de
+     * línea, ya en HTML. Un valor vacío o que falta no da nada; un número se
+     * toma como texto; cualquier otra cosa avisa y no da nada.
+     *
+     * @param array<string, mixed> $contexto
+     */
+    public function markdownEnLinea(array $contexto, mixed $valor): string
+    {
+        if ($valor === null || $valor === '') {
+            return '';
+        }
+
+        if (is_int($valor) || is_float($valor)) {
+            $valor = (string) $valor;
+        }
+
+        if (!is_string($valor)) {
+            $es = match (true) {
+                is_array($valor) => 'una lista o un mapa',
+                is_bool($valor) => 'un sí o un no',
+                $valor instanceof \DateTimeInterface => 'una fecha',
+                default => 'otra cosa',
+            };
+            $this->avisos->registrar("markdown: se esperaba un texto y llega {$es}; no se pinta nada");
+
+            return '';
+        }
+
+        if ($this->convertirEnLinea === null) {
+            return htmlspecialchars($valor, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8');
+        }
+
+        return ($this->convertirEnLinea)($valor, $this->idiomaDe($contexto) ?? '');
     }
 
     /**

@@ -366,6 +366,72 @@ final class ConversorPrueba extends TestCase
         self::assertStringContainsString('(abre en ventana nueva)', $convertido->html);
     }
 
+    #[Test]
+    public function enLineaNoPoneParrafoNiSaltoFinal(): void
+    {
+        self::assertSame('Una cocina que <em>viaja</em>', $this->enLinea('Una cocina que *viaja*'));
+        self::assertSame('Una <strong>cocina</strong>', $this->enLinea("Una **cocina**\n"));
+        self::assertSame('', $this->enLinea(''));
+    }
+
+    #[Test]
+    public function enLineaUnSaltoConBarraODosEspaciosEsUnBr(): void
+    {
+        // Como en el cuerpo, el `<br>` conserva el salto de línea del texto: en HTML no se ve.
+        self::assertSame(
+            "Una cocina<br>\nque <em>viaja</em><br>\ncontigo",
+            $this->enLinea("Una cocina\\\nque *viaja*\\\ncontigo"),
+        );
+        self::assertSame("Una cocina<br>\ncontigo", $this->enLinea("Una cocina  \ncontigo"));
+        self::assertSame("Una cocina\ncontigo", $this->enLinea("Una cocina\ncontigo"));
+    }
+
+    #[Test]
+    public function enLineaAdmiteNegritaTachadoCodigoEnlacesAutomaticosYHtmlAMano(): void
+    {
+        self::assertSame(
+            '<strong>a</strong> <del>b</del> <code>c</code> <mark>d</mark> <a href="http://www.ejemplo.com">www.ejemplo.com</a>',
+            $this->enLinea('**a** ~~b~~ `c` <mark>d</mark> www.ejemplo.com'),
+        );
+        self::assertSame('Tom &amp; Jerry', $this->enLinea('Tom & Jerry'));
+    }
+
+    #[Test]
+    public function enLineaNoTieneBloquesNiAtajos(): void
+    {
+        self::assertSame('# No es un encabezado', $this->enLinea('# No es un encabezado'));
+        self::assertSame('- uno - dos', str_replace("\n", ' ', $this->enLinea("- uno\n- dos")));
+        self::assertSame('[imagen fichero=&quot;a.jpg&quot;]', $this->enLinea('[imagen fichero="a.jpg"]'));
+        self::assertSame([], $this->avisos->todos());
+    }
+
+    #[Test]
+    public function enLineaLosEnlacesExternosVanComoEnElCuerpo(): void
+    {
+        $enlaces = new EnlacesExternos(['es' => '(abre en ventana nueva)']);
+
+        self::assertSame(
+            '<a href="/contacto/">dentro</a> y <a rel="noopener" target="_blank" href="https://otro.com/a">fuera<span class="visually-hidden"> (abre en ventana nueva)</span></a>',
+            $this->enLinea('[dentro](/contacto/) y [fuera](https://otro.com/a)', $enlaces, 'es'),
+        );
+        self::assertSame(
+            '<a rel="noopener" target="_blank" href="https://otro.com/a">fuera</a>',
+            $this->enLinea('[fuera](https://otro.com/a)'),
+        );
+    }
+
+    #[Test]
+    public function enLineaUnaImagenSaleSinBarraFinalYUnEnlaceInseguroSinDestino(): void
+    {
+        self::assertSame('<img src="/a.jpg" alt="Una foto">', $this->enLinea('![Una foto](/a.jpg)'));
+        self::assertStringNotContainsString('javascript:', $this->enLinea('[pulsa](javascript:alert(1))'));
+    }
+
+    private function enLinea(string $markdown, ?EnlacesExternos $enlaces = null, string $idioma = ''): string
+    {
+        return (new Conversor('https://www.ejemplo.com', $enlaces ?? new EnlacesExternos()))->convertirEnLinea($markdown, $idioma);
+    }
+
     private function convertirConEncabezados(Encabezados $encabezados, string $markdown, string $idioma = 'es'): Convertido
     {
         return (new Conversor('https://www.ejemplo.com', new EnlacesExternos(), $encabezados))

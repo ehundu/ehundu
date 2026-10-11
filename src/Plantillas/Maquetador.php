@@ -84,7 +84,9 @@ final class Maquetador
         $this->twig->getExtension(CoreExtension::class)->setTimezone($zona);
 
         $this->recursos = new Recursos($proyecto, $avisos);
-        $this->extension = new ExtensionTwig($colecciones, $this->cuerpo(...), $proyecto, $avisos, $zona, $this->registros, $lectura->sitio->idiomas, $this->encabezados(...), $this->markdown->convertirEnLinea(...));
+        $this->extension = new ExtensionTwig($colecciones, $this->cuerpo(...), $proyecto, $avisos, $zona, $this->registros, $lectura->sitio->idiomas, $this->encabezados(...), fn (string $texto, string $idioma, bool $bloque) => $bloque
+            ? $this->markdown->convertirEnBloque($texto, $idioma)
+            : $this->markdown->convertirEnLinea($texto, $idioma));
         $this->twig->addExtension($this->extension);
 
         $this->atajos = new Atajos($proyecto, $this->twig, $lectura, $this->extension, $avisos, $this->registros);

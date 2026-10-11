@@ -305,6 +305,40 @@ final class MaquetadorPrueba extends TestCase
     }
 
     #[Test]
+    public function elFiltroMarkdownConModoBloqueDaLosParrafosYLosDemasBloques(): void
+    {
+        $this->crearFichero(
+            'plantillas/pagina.twig',
+            "<div>{{ pagina.texto|markdown('bloque') }}</div><h1>{{ pagina.texto|markdown('linea') }}</h1><h2>{{ pagina.texto|markdown }}</h2>",
+        );
+        $this->crearFichero('contenido/index.md', "---\ntexto: |\n  Uno con *énfasis*.\n\n  - a\n  - b\n---\nCuerpo");
+
+        $html = $this->maquetar('index.md');
+
+        self::assertStringStartsWith("<div><p>Uno con <em>énfasis</em>.</p>\n<ul>\n<li>a</li>\n<li>b</li>\n</ul></div><h1>Uno con <em>énfasis</em>.", $html);
+        // De línea, sin modo o con «linea», es lo mismo y no abre bloques
+        self::assertSame(
+            substr($html, strpos($html, '<h1>') + 4, strpos($html, '</h1>') - strpos($html, '<h1>') - 4),
+            substr($html, strpos($html, '<h2>') + 4, strpos($html, '</h2>') - strpos($html, '<h2>') - 4),
+        );
+        self::assertStringNotContainsString('<ul>', substr($html, strpos($html, '<h1>')));
+        self::assertSame([], $this->avisos->todos());
+    }
+
+    #[Test]
+    public function elFiltroMarkdownAvisaDeUnModoQueNoExisteYUsaElDeLinea(): void
+    {
+        $this->crearFichero('plantillas/pagina.twig', "{{ pagina.texto|markdown('parrafos') }}");
+        $this->crearFichero('contenido/index.md', "---\ntexto: Con *énfasis*\n---\nCuerpo");
+
+        self::assertSame('Con <em>énfasis</em>', $this->maquetar('index.md'));
+        self::assertSame(
+            ['markdown: el modo «parrafos» no existe; vale «linea» o «bloque», y se usa «linea»'],
+            array_map(fn ($aviso) => $aviso->mensaje, $this->avisos->todos()),
+        );
+    }
+
+    #[Test]
     public function elFiltroMarkdownNoDaNadaConUnValorVacioOAusenteYTomaUnNumeroComoTexto(): void
     {
         $this->crearFichero('plantillas/pagina.twig', '[{{ pagina.vacio|markdown }}][{{ pagina.ausente|markdown }}][{{ pagina.nulo|markdown }}][{{ pagina.anio|markdown }}]');

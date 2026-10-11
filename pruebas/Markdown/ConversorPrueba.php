@@ -427,6 +427,46 @@ final class ConversorPrueba extends TestCase
         self::assertStringNotContainsString('javascript:', $this->enLinea('[pulsa](javascript:alert(1))'));
     }
 
+    #[Test]
+    public function enBloqueSonLosBloquesDelCuerpoSinNadaDeLoQueNecesitaUnaPagina(): void
+    {
+        self::assertSame(
+            "<p>Uno con <em>énfasis</em> y <mark>marca</mark>.</p>\n<p>Dos.</p>",
+            $this->enBloque("Uno con *énfasis* y <mark>marca</mark>.\n\nDos.\n"),
+        );
+        self::assertSame("<ul>\n<li>a</li>\n<li>b</li>\n</ul>", $this->enBloque("- a\n- b\n"));
+        self::assertSame('<h2>Título</h2>', $this->enBloque('## Título'));
+        self::assertSame("<blockquote>\n<p>Cita</p>\n</blockquote>", $this->enBloque('> Cita'));
+        self::assertSame('', $this->enBloque(''));
+    }
+
+    #[Test]
+    public function enBloqueNoHayAtajosFigurasTablasNiNotasAlPie(): void
+    {
+        self::assertSame('<p>[imagen fichero=&quot;a.jpg&quot;]</p>', $this->enBloque('[imagen fichero="a.jpg"]'));
+        self::assertSame('<p><img src="/a.jpg" alt="Una foto"></p>', $this->enBloque('![Una foto](/a.jpg)'));
+        self::assertStringNotContainsString('<table>', $this->enBloque("| a | b |\n|---|---|\n| 1 | 2 |"));
+        self::assertStringNotContainsString('footnote', $this->enBloque("Con nota[^1].\n\n[^1]: La nota."));
+        self::assertSame([], $this->avisos->todos());
+    }
+
+    #[Test]
+    public function enBloqueLosEnlacesExternosYElSaltoVanComoEnElCuerpo(): void
+    {
+        $enlaces = new EnlacesExternos(['es' => '(abre en ventana nueva)']);
+
+        self::assertSame(
+            '<p><a rel="noopener" target="_blank" href="https://otro.com/a">fuera<span class="visually-hidden"> (abre en ventana nueva)</span></a>'
+            . "<br>\nsigue</p>",
+            $this->enBloque("[fuera](https://otro.com/a)\\\nsigue", $enlaces, 'es'),
+        );
+    }
+
+    private function enBloque(string $markdown, ?EnlacesExternos $enlaces = null, string $idioma = ''): string
+    {
+        return (new Conversor('https://www.ejemplo.com', $enlaces ?? new EnlacesExternos()))->convertirEnBloque($markdown, $idioma);
+    }
+
     private function enLinea(string $markdown, ?EnlacesExternos $enlaces = null, string $idioma = ''): string
     {
         return (new Conversor('https://www.ejemplo.com', $enlaces ?? new EnlacesExternos()))->convertirEnLinea($markdown, $idioma);

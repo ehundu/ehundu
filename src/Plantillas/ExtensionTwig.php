@@ -45,8 +45,9 @@ final class ExtensionTwig extends AbstractExtension
      * @param \Closure(Pagina): list<array{nivel: int, texto: string, id: string}>|null $encabezados da los encabezados del
      *                                                  cuerpo de una página que han recibido `id`, y apunta que
      *                                                  quien los pide depende de ese cuerpo
-     * @param \Closure(string, string): string|null $convertirEnLinea convierte a HTML un texto en Markdown de línea, con el
-     *                                                  idioma de la página; sin ella, el filtro `markdown` escapa el texto
+     * @param \Closure(string, string, bool): string|null $convertirMarkdown convierte a HTML un texto en Markdown (de línea, o
+     *                                                  de bloque si el tercer argumento es cierto), con el idioma de la
+     *                                                  página; sin ella, el filtro `markdown` escapa el texto
      */
     public function __construct(
         private readonly Colecciones $colecciones,
@@ -57,7 +58,7 @@ final class ExtensionTwig extends AbstractExtension
         private readonly ?Registros $registros = null,
         private readonly Idiomas $idiomas = new Idiomas(),
         private readonly ?\Closure $encabezados = null,
-        private readonly ?\Closure $convertirEnLinea = null,
+        private readonly ?\Closure $convertirMarkdown = null,
     ) {
     }
 
@@ -90,7 +91,7 @@ final class ExtensionTwig extends AbstractExtension
                 ),
                 ['needs_context' => true],
             ),
-            new TwigFilter('markdown', $this->markdownEnLinea(...), ['needs_context' => true, 'is_safe' => ['html']]),
+            new TwigFilter('markdown', $this->markdownDeCampo(...), ['needs_context' => true, 'is_safe' => ['html']]),
             new TwigFilter('orden', fn (iterable $lista, string $criterio = Coleccion::ORDEN_POR_DEFECTO) => $this->vistas(
                 Coleccion::orden($this->paginas($lista), $criterio),
             )),
@@ -117,13 +118,19 @@ final class ExtensionTwig extends AbstractExtension
 
     /**
      * El filtro `markdown` (formato §7.3): el texto de un campo, en Markdown de
-     * línea, ya en HTML. Un valor vacío o que falta no da nada; un número se
-     * toma como texto; cualquier otra cosa avisa y no da nada.
+     * línea o, con `'bloque'`, de bloque, ya en HTML. Un valor vacío o que
+     * falta no da nada; un número se toma como texto; cualquier otra cosa
+     * avisa y no da nada. Un modo que no existe avisa y se usa el de línea.
      *
      * @param array<string, mixed> $contexto
      */
-    public function markdownEnLinea(array $contexto, mixed $valor): string
+    public function markdownDeCampo(array $contexto, mixed $valor, string $modo = 'linea'): string
     {
+        if (!in_array($modo, ['linea', 'bloque'], true)) {
+            $this->avisos->registrar("markdown: el modo «{$modo}» no existe; vale «linea» o «bloque», y se usa «linea»");
+            $modo = 'linea';
+        }
+
         if ($valor === null || $valor === '') {
             return '';
         }
@@ -144,11 +151,11 @@ final class ExtensionTwig extends AbstractExtension
             return '';
         }
 
-        if ($this->convertirEnLinea === null) {
+        if ($this->convertirMarkdown === null) {
             return htmlspecialchars($valor, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8');
         }
 
-        return ($this->convertirEnLinea)($valor, $this->idiomaDe($contexto) ?? '');
+        return ($this->convertirMarkdown)($valor, $this->idiomaDe($contexto) ?? '', $modo === 'bloque');
     }
 
     /**

@@ -51,6 +51,9 @@ final class Conversor
     /** @var array<string, MarkdownConverter> convertidores de línea ya montados, por idioma */
     private array $convertidoresEnLinea = [];
 
+    /** @var array<string, MarkdownConverter> convertidores de bloque ya montados, por idioma */
+    private array $convertidoresEnBloque = [];
+
     /**
      * @param string          $urlDelSitio     la de `sitio.yml`, para saber qué enlaces son externos
      * @param EnlacesExternos $enlacesExternos lo que llevan esos enlaces además de `noopener` (formato §2)
@@ -147,6 +150,41 @@ final class Conversor
         $convertidor = $this->convertidoresEnLinea[$idioma] ??= $this->montarConvertidorEnLinea($idioma);
 
         return rtrim($convertidor->convert($markdown)->getContent(), "\n");
+    }
+
+    /**
+     * El Markdown de un campo con párrafos (formato §7.3, filtro
+     * `markdown('bloque')`): los bloques de CommonMark, con tachado, enlaces
+     * automáticos y enlaces externos como en el cuerpo. Sin atajos, sin
+     * figuras (una imagen sola es una imagen), sin tablas, sin notas al pie y
+     * sin `id` en los encabezados: eso es del cuerpo. No da salto de línea
+     * final.
+     *
+     * @param string $idioma el de la página, para el texto del aviso de los enlaces externos
+     */
+    public function convertirEnBloque(string $markdown, string $idioma = ''): string
+    {
+        $convertidor = $this->convertidoresEnBloque[$idioma] ??= $this->montarConvertidorEnBloque($idioma);
+
+        return rtrim($convertidor->convert($markdown)->getContent(), "\n");
+    }
+
+    private function montarConvertidorEnBloque(string $idioma): MarkdownConverter
+    {
+        $entorno = new Environment($this->configuracion());
+
+        $entorno->addExtension(new CommonMarkCoreExtension());
+        $entorno->addExtension(new StrikethroughExtension());
+        $entorno->addExtension(new AutolinkExtension());
+        $entorno->addExtension(new ExternalLinkExtension());
+
+        $this->avisarDeLosEnlacesExternos($entorno, $idioma);
+
+        $entorno->addRenderer(Image::class, Renderizadores::sinBarraFinal(new ImageRenderer()), 10);
+        $entorno->addRenderer(Newline::class, Renderizadores::sinBarraFinal(new NewlineRenderer()), 10);
+        $entorno->addRenderer(ThematicBreak::class, Renderizadores::sinBarraFinal(new ThematicBreakRenderer()), 10);
+
+        return new MarkdownConverter($entorno);
     }
 
     private function montarConvertidorEnLinea(string $idioma): MarkdownConverter

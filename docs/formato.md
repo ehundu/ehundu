@@ -1234,9 +1234,11 @@ contenido, o `agencia`, para quien lo desarrolla. Los campos de agencia solo
 aparecen en el modo avanzado.
 
 Tipos de campo en la v1: `texto`, `parrafo`, `markdown`, `numero`, `fecha`,
-`booleano`, `imagen`, `enlace`, `lista-texto`, `seleccion-multiple`, `lista` y
-`grupo`.
+`booleano`, `imagen`, `enlace`, `lista-texto`, `seleccion`, `seleccion-multiple`,
+`lista` y `grupo`.
 
+- `seleccion` es una sola elección entre unas opciones fijas, como el tipo de
+  lente de un producto o la provincia de un distribuidor (§11.3).
 - `enlace` es una dirección: completa, con `http://` o `https://`, o una ruta
   del propio sitio que empieza por `/`. El editor la comprueba, y puede
   completar el `https://` que falte.
@@ -1431,7 +1433,21 @@ Los campos reservados de texto (`titulo`, `subtitulo`, `descripcion`,
 `imagenAlt`) no pueden ser traducibles: ya llevan su traducción en el fichero
 de cada idioma.
 
-### 11.3 Selección múltiple
+### 11.3 Selección y selección múltiple
+
+`seleccion` es un campo cuyo valor es una sola elección entre unas opciones
+fijas: el tipo de lente de un producto, la provincia de un distribuidor. Lleva
+sus `opciones` de las mismas dos formas y con el mismo contenido que las de
+`seleccion-multiple` (abajo), y lo que se guarda es el `id` de la elegida, tal
+como está en la opción (`provincia: Bizkaia`, o un número si el `id` lo es). Es
+la elección entre una lista cerrada que un texto libre no da: una errata en el
+texto de un filtro o de una agrupación saca la página de ellos sin avisar.
+`requerido` hace que el editor no guarde hasta que se elija una opción; sin él,
+se puede dejar sin elegir y el campo falta. Un `id` guardado que ya no está
+entre las opciones se conserva tal cual mientras no se cambie, y el editor lo
+avisa, igual que en la múltiple. `traducible` no vale en una `seleccion`: el
+`id` es el mismo en todos los idiomas, y el rótulo de cada opción lleva sus
+traducciones.
 
 `seleccion-multiple` es un campo cuyo valor es una lista de elecciones entre
 unas opciones fijas, como los alérgenos de un plato. Las opciones van en
@@ -1968,6 +1984,20 @@ un sitio de la v1 no debe usarlo como campo propio.
     campos que ya están publicados. Las dimensiones no se guardan en el front
     matter, porque se desharían en cuanto se cambiara la imagen:
     `dimensiones()` (decisión 62) las da. No cambia nada en el motor.
+117. **Cerrada.** Nuevo tipo de campo `seleccion`, una sola elección entre unas
+    `opciones` (un fichero de `datos/` o la lista del esquema, como en
+    `seleccion-multiple`) que guarda el `id` de la elegida (§11, §11.3). Salió de
+    un sitio con una lista de distribuidores agrupada por comunidad, a partir de
+    la provincia que escribe quien edita, y con unos filtros que comparan el texto
+    exacto del tipo de lente: con un texto libre, «Bizcaia» o «polarizada» sacan
+    la página del grupo o del filtro sin que nadie lo vea. Se descartaron
+    `seleccion-multiple` con una sola casilla (el valor sería una lista, y la
+    plantilla tendría que sacar el primero), un texto libre con la ayuda de qué
+    valores valen (la errata se publica) y una comprobación en el motor (el
+    esquema no es cosa suya, §11). Un `id` que ya no está entre las opciones se
+    conserva y se avisa, como en la múltiple, para que quitar una opción de la
+    lista no cambie en silencio las páginas que la usaban. No cambia nada en el
+    motor.
 
 ---
 

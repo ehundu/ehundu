@@ -1234,9 +1234,12 @@ contenido, o `agencia`, para quien lo desarrolla. Los campos de agencia solo
 aparecen en el modo avanzado.
 
 Tipos de campo en la v1: `texto`, `parrafo`, `markdown`, `numero`, `fecha`,
-`booleano`, `imagen`, `enlace`, `lista-texto`, `seleccion`, `seleccion-multiple`,
-`lista` y `grupo`.
+`fechas`, `booleano`, `imagen`, `enlace`, `lista-texto`, `seleccion`,
+`seleccion-multiple`, `lista` y `grupo`.
 
+- `fechas` es un conjunto de días que el editor enseña como un calendario de
+  meses, como los días en que un local está ocupado o los de cierre de un
+  negocio (§11.7).
 - `seleccion` es una sola elección entre unas opciones fijas, como el tipo de
   lente de un producto o la provincia de un distribuidor (§11.3).
 - `enlace` es una dirección: completa, con `http://` o `https://`, o una ruta
@@ -1544,6 +1547,20 @@ Para quien edita, un fichero de datos es un formulario más de la lista de lo
 que puede cambiar: no le importa si sus campos viven en una página o en
 `datos/`.
 
+**Publicar al guardar.** Un fichero de datos con `"publicarAlGuardar": true`
+hace que el editor, al guardarlo, publique el sitio en el acto, en lugar de
+dejar que quien edita lo haga después en un segundo paso. Es para lo que no
+puede esperar a ese paso: un cambio guardado y sin publicar es una web que
+dice lo contrario de lo que quiere su titular, como con los días en que un
+local está ocupado o un aviso de cierre. Publicar es compilar y desplegar el
+sitio (`despliegue.md`) tal como está guardado, no solo ese fichero: lo que
+hubiera guardado y sin publicar sale con él. Si el editor no puede publicar, lo
+dice: el fichero queda guardado, sin publicar, y no da el cambio por
+publicado. Sin la clave, guardar y publicar siguen siendo dos pasos. Como el
+resto del esquema, la clave es del editor: el motor no la lee y el sitio se
+compila igual con ella que sin ella. Solo vale en un fichero de datos y su
+valor es `true` o `false`; cualquier otro es un error del esquema.
+
 ### 11.6 Elegir y subir imágenes
 
 Un campo `imagen` puede declarar tres claves, todas opcionales, para que el
@@ -1594,6 +1611,40 @@ queda en `publico/` como cualquier otro cambio. Las dimensiones no se guardan
 en el front matter: la plantilla las lee con `dimensiones()` (§7.3), que da
 las de la imagen que esté entonces. El motor no lee estas claves, como el resto
 del esquema, y no procesa imágenes (§9): lo que ve es un fichero de `publico/`.
+
+### 11.7 Fechas
+
+`fechas` es un campo cuyo valor es un conjunto de días: una lista sin orden
+propio y sin repetidos, que se marca en un calendario. Sirve para los días en
+que un local está ocupado, los de cierre de un negocio o los festivos de los
+que depende un precio. En el fichero es una lista YAML de fechas
+(`AAAA-MM-DD`), de menor a mayor y una por línea, para que un cambio sea una
+línea y quien edita a mano las encuentre ordenadas:
+
+    dias:
+      - 2026-10-17
+      - 2026-10-24
+
+El motor las lee como cualquier otra fecha del front matter o de `datos/`: días
+en la zona horaria del sitio (decisión 30), que la plantilla escribe con el
+filtro `fecha` y compara como cualquier fecha. Con `dias` vacío la plantilla
+ve una lista sin elementos, y es una respuesta como otra cualquiera: `dias: []`
+dice que no hay ningún día marcado, que es el estado normal de un calendario
+sin reservas.
+
+El editor lo enseña como un calendario de meses, desde el actual y durante los
+doce siguientes, en el que se marca y se desmarca cada día. Un día que no
+enseña, de un mes ya pasado o de más allá de esos doce, se conserva tal cual al
+guardar, y un valor que no es un día se conserva y se avisa, igual que un `id`
+que ya no está entre las opciones de una `seleccion`. Lo que escribe es siempre
+la lista entera, ordenada y sin repetidos.
+
+Un campo `fechas` no admite `requerido` (no marcar ningún día es una respuesta
+tan buena como marcar uno) ni `traducible` (los días son los mismos en todos
+los idiomas), y de momento solo vale como campo de primer nivel de un tipo o de
+un fichero de datos, no dentro de una `lista` ni de un `grupo`. Lo que no
+cumple esto es un error del esquema. El motor no lee el esquema y no cambia: lo
+único que ve es una lista de fechas.
 
 ---
 
@@ -1998,6 +2049,37 @@ un sitio de la v1 no debe usarlo como campo propio.
     conserva y se avisa, como en la múltiple, para que quitar una opción de la
     lista no cambie en silencio las páginas que la usaban. No cambia nada en el
     motor.
+118. **Cerrada.** Nuevo tipo de campo `fechas`, un conjunto de días que el editor
+    enseña como un calendario de meses y que se guarda como una lista YAML de
+    fechas, ordenada, sin repetidos y una por línea (§11, §11.7). Salió de un
+    sitio de alquiler de un local cuyo titular solo cambia qué días está
+    ocupado, dos o tres veces al mes: con una `lista` de grupos con un campo
+    `fecha` serían unas ciento cincuenta filas al año, cada una con su «Añadir»
+    y su «Quitar», y con una `lista-texto` quien edita escribiría las fechas a
+    mano y la errata se publicaría. Una lista ordenada y sin repetidos hace que
+    un cambio sea una línea en Git y que quien edita a mano las encuentre donde
+    espera. Se descartaron los rangos (`desde` y `hasta`), que ya se escriben con
+    una `lista` y que un local que se alquila por días no necesita, y una nota
+    por día (de quién es la reserva), que llevaría datos de personas al
+    repositorio del sitio. Sin `requerido`, porque una lista vacía es el estado
+    normal; sin `traducible`, y de momento solo en el primer nivel de un tipo o de
+    un fichero de datos, porque un calendario dentro de la fila de una lista no
+    lo pide ningún sitio; se abrirá cuando alguno lo pida. No cambia nada en el
+    motor.
+119. **Cerrada.** Clave nueva de un fichero de datos editable,
+    `publicarAlGuardar` (§11.5): al guardarlo, el editor publica el sitio en el
+    acto. Salió del mismo sitio que la 118. Separar guardar de publicar es lo
+    normal en un editor, para que nada salga sin que alguien lo decida, pero con
+    los días ocupados de un local es una trampa: el titular marca el día, no
+    pulsa «Publicar» y la web sigue enseñando libre un día ya cobrado. La clave
+    se pone en el fichero que no puede esperar y no en todo el sitio, porque un
+    aviso de cierre pide lo mismo y una ficha a medias, no. Publica el sitio tal
+    como está guardado, no solo ese fichero, y si no puede, el editor lo dice y no
+    da el cambio por publicado. Se descartaron una clave general del esquema
+    (no distingue un dato urgente de una ficha a medias), un ajuste del editor
+    por sitio fuera del proyecto (el zip del proyecto no se llevaría cómo se
+    comporta) y un botón único «Guardar y publicar» para todo. No cambia nada en
+    el motor.
 
 ---
 

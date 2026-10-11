@@ -921,8 +921,8 @@ imágenes, y publicarlo lo pondría a ejecutarse en el servidor. En la v1 no hay
 forma de permitirlo.
 
 Las imágenes no se procesan durante el build. Si hacen falta varios tamaños,
-los genera otra herramienta (por ejemplo, un editor al subir la imagen) y deja
-los ficheros en `publico/`.
+los genera otra herramienta (por ejemplo, un editor al subir la imagen, §11.6)
+y deja los ficheros en `publico/`.
 
 ### 9.1 CSS y JavaScript de cada página
 
@@ -1243,6 +1243,11 @@ Tipos de campo en la v1: `texto`, `parrafo`, `markdown`, `numero`, `fecha`,
 - `markdown` es un texto con Markdown (§7.3). Como cuerpo de la página no
   cambia (§8); como campo, la plantilla lo pinta con el filtro `markdown`, de
   línea o de bloque según lo que el campo contenga, y sin él sale como texto.
+- `imagen` es una imagen de `publico/`. Su valor es la ruta desde `publico/`
+  (`assets/images/bacalao.jpg`), la misma que entienden el campo reservado
+  `imagen` (§4) y `dimensiones()` (§7.3). Con solo `nombre` y `tipo`, el editor
+  enseña esa ruta escrita; con `carpeta`, deja elegir una imagen del sitio o
+  subir otra (§11.6).
 - `lista-texto` es una lista de textos sueltos, como `etiquetas`.
 - `grupo` es un conjunto de campos con nombre, un mapa en el front matter, y
   `lista` es una lista de grupos, que se pueden añadir, quitar y ordenar. Los
@@ -1522,6 +1527,57 @@ junto al declarado hay variantes por idioma, el editor lo avisa y no las toca.
 Para quien edita, un fichero de datos es un formulario más de la lista de lo
 que puede cambiar: no le importa si sus campos viven en una página o en
 `datos/`.
+
+### 11.6 Elegir y subir imágenes
+
+Un campo `imagen` puede declarar tres claves, todas opcionales, para que el
+editor deje elegir y subir imágenes en lugar de pedir una ruta escrita:
+
+    {
+      "nombre": "imagen",
+      "titulo": "Foto",
+      "tipo": "imagen",
+      "carpeta": "assets/images",
+      "ancho": 1600,
+      "alt": "imagenAlt"
+    }
+
+- `carpeta` es una carpeta de `publico/`, sin `/` al principio ni al final y
+  sin `..`. Es donde el editor guarda las imágenes que se suben desde ese
+  campo y de donde ofrece las que ya hay: las de esa carpeta y las de sus
+  subcarpetas. Sin `carpeta`, el campo no cambia: el editor enseña la ruta
+  escrita y no sube ni ofrece nada. Un valor que ya está escrito y no cae en
+  `carpeta` se conserva tal cual hasta que se cambie.
+- `ancho` es el ancho máximo, en píxeles, de lo que se sube: un entero
+  positivo, 2000 si falta. Una imagen más ancha se reduce a ese ancho, con el
+  alto en proporción; una que no lo es no se amplía. Solo vale con `carpeta`.
+- `alt` es el nombre de otro campo del mismo nivel (el mismo tipo, la misma
+  lista o el mismo grupo), de tipo `texto` o `parrafo`, que lleva la
+  descripción de la imagen para quien no puede verla: el `imagenAlt` de §4, o
+  el `alt` de una lista de fotos. El editor pide esa descripción al elegir la
+  imagen y la escribe en ese campo, y es obligatoria si el campo es
+  `requerido`. Sin `alt`, no pide descripción. Solo vale con `carpeta`.
+
+Una clave que no cumple lo anterior, o un `alt` que no nombra un campo del
+mismo nivel, es un error del esquema.
+
+Al subir una imagen, el editor:
+
+- acepta JPEG, PNG y WebP, y rechaza lo demás diciéndolo; también puede
+  rechazar una imagen que no pueda tratar con los recursos que tiene, y debe
+  decirlo;
+- la gira según la orientación que guarda la cámara y le quita esos datos y la
+  ubicación, de modo que se vea igual y no publique dónde se hizo;
+- la reduce a `ancho`, si hace falta;
+- le da un nombre sin tildes ni espacios y la deja en `carpeta`, sin pisar una
+  que ya esté: si el nombre existe, añade `-2`, `-3`, y así hasta que no choque,
+  como con `fichero` (§11).
+
+El formato y la calidad con que la guarda son cosa del editor, y el fichero
+queda en `publico/` como cualquier otro cambio. Las dimensiones no se guardan
+en el front matter: la plantilla las lee con `dimensiones()` (§7.3), que da
+las de la imagen que esté entonces. El motor no lee estas claves, como el resto
+del esquema, y no procesa imágenes (§9): lo que ve es un fichero de `publico/`.
 
 ---
 
@@ -1895,6 +1951,23 @@ un sitio de la v1 no debe usarlo como campo propio.
     abre y es distinto de cómo funcionan las demás entradas (una entrada, un
     listado, una ficha). La entrada es solo para tipos fijos porque no hay un
     «añadir» que valga para varios tipos a la vez. No cambia nada en el motor.
+116. **Cerrada.** Un campo `imagen` puede declarar `carpeta`, `ancho` y `alt`
+    para que el editor deje elegir y subir imágenes en lugar de pedir la ruta
+    escrita (§11, §11.6). Salió de un sitio cuyo titular edita casi todos los
+    textos y lleva un blog: quien no escribe rutas no puede cambiar una foto, y
+    las fotos del móvil pesan entre 3 y 10 MB. Se descartaron tres salidas: que
+    el editor las reduzca por su cuenta, sin que el esquema diga cuánto, porque
+    un fondo a todo el ancho y una foto de una ficha no piden lo mismo; guardarlas
+    fuera de la carpeta del proyecto, que rompería la regla de que un proyecto
+    exportado compila en cualquier máquina (§12); y generar varios tamaños, que
+    sigue fuera de la v1 (§13): `ancho` es un solo máximo, no una familia de
+    tamaños. `carpeta` es el interruptor: un sitio que ya usa `imagen` con la
+    ruta escrita no cambia. `alt` se declara y no se deduce del nombre porque
+    no es el mismo en todos los sitios (`imagenAlt` en una página, `alt` en una
+    lista de fotos), y una convención por nombre habría obligado a renombrar
+    campos que ya están publicados. Las dimensiones no se guardan en el front
+    matter, porque se desharían en cuanto se cambiara la imagen:
+    `dimensiones()` (decisión 62) las da. No cambia nada en el motor.
 
 ---
 

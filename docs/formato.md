@@ -732,13 +732,21 @@ escribe, salvo `pagina.contenido` y lo que devuelve `svg()`.
   que salir tal cual se escapa
   con dos barras dentro de la plantilla, igual que con `date`:
   `fecha('j \\d\\e F')` da `18 de marzo`.
-- `markdown` convierte a HTML un texto en Markdown de línea, para los campos
-  del front matter o de `datos/` que llevan formato: un titular con una palabra
-  en cursiva, un resumen con una negrita. Con `titular: "Una cocina que *viaja*"`,
-  `{{ pagina.titular|markdown }}` da `Una cocina que <em>viaja</em>`. Es el
-  Markdown del §8 sin bloques: no hay `<p>`, ni encabezados, listas, citas,
-  tablas ni figuras, y los atajos (§8.1) no se reconocen, porque solo viven en
-  el cuerpo. Sí valen el énfasis, la negrita, el tachado, el código, los
+- `markdown` convierte a HTML un texto en Markdown, para los campos del front
+  matter o de `datos/` que llevan formato: un titular con una palabra en
+  cursiva, un resumen con una negrita. Con `titular: "Una cocina que *viaja*"`,
+  `{{ pagina.titular|markdown }}` da `Una cocina que <em>viaja</em>`. Sin
+  argumento es de línea, el Markdown del §8 sin bloques: no hay `<p>`, ni
+  encabezados, listas, citas, tablas ni figuras, y los atajos (§8.1) no se
+  reconocen, porque solo viven en el cuerpo. Con `markdown('bloque')` es de
+  bloque: lo que haya en el campo se convierte como el cuerpo, con párrafos,
+  listas, citas y encabezados, para un texto con varios párrafos dentro de un
+  bloque que la plantilla pone (`{{ pagina.intro|markdown('bloque') }}`). El
+  modo de bloque sigue sin atajos, y tampoco convierte las tablas ni las notas
+  al pie, ni da `id` a los encabezados (§2, §8), ni hace figuras de las
+  imágenes: todo eso es del cuerpo. `markdown('linea')` es lo mismo que sin
+  argumento; cualquier otro modo avisa y se usa el de línea. En los dos modos
+  valen el énfasis, la negrita, el tachado, el código, los
   enlaces (los externos se tratan como en el cuerpo, con su `target` y su
   `rel`, y el aviso de `enlacesExternos`), los enlaces automáticos y el HTML
   escrito a mano (`<mark>`, `<br>`). Un salto de línea con una barra invertida
@@ -1232,9 +1240,9 @@ Tipos de campo en la v1: `texto`, `parrafo`, `markdown`, `numero`, `fecha`,
 - `enlace` es una dirección: completa, con `http://` o `https://`, o una ruta
   del propio sitio que empieza por `/`. El editor la comprueba, y puede
   completar el `https://` que falte.
-- `markdown` es un texto con Markdown de línea (§7.3). Como cuerpo de la
-  página no cambia (§8); como campo, la plantilla lo pinta con el filtro
-  `markdown`, y sin él sale como texto.
+- `markdown` es un texto con Markdown (§7.3). Como cuerpo de la página no
+  cambia (§8); como campo, la plantilla lo pinta con el filtro `markdown`, de
+  línea o de bloque según lo que el campo contenga, y sin él sale como texto.
 - `lista-texto` es una lista de textos sueltos, como `etiquetas`.
 - `grupo` es un conjunto de campos con nombre, un mapa en el front matter, y
   `lista` es una lista de grupos, que se pueden añadir, quitar y ordenar. Los
@@ -1843,16 +1851,28 @@ un sitio de la v1 no debe usarlo como campo propio.
     línea, para los campos con formato (§7.3, §8, §11). El esquema ya ofrecía
     el tipo `markdown` para cualquier campo, pero solo el cuerpo se podía
     convertir: un titular con una palabra en cursiva, o un resumen con una
-    negrita, no tenía forma de llegar a la plantilla como HTML. Es de línea y
-    no de bloque porque la plantilla ya pone el contenedor (`<h1>`, `<p>`,
-    `<li>`) y un campo no es un documento: lo que necesite párrafos, listas o
-    figuras es el cuerpo. No reconoce los atajos, para que el vocabulario
-    cerrado siga viviendo en un solo sitio y para que un campo no dependa de
-    plantillas. Admite HTML escrito a mano, como el cuerpo, porque quien lo
-    escribe es la misma persona. Un solo filtro y no dos (`markdown` y
-    `markdown_en_linea`): el de bloque ya es el cuerpo. No es un procesador
-    sobre el HTML generado: actúa sobre el texto de un campo, antes de que
-    llegue a la plantilla, y no cambia ningún sitio que no lo use.
+    negrita, no tenía forma de llegar a la plantilla como HTML. Por defecto es
+    de línea porque la plantilla ya pone el contenedor (`<h1>`, `<p>`, `<li>`);
+    el modo de bloque es la decisión 114. No reconoce los atajos, para que el
+    vocabulario cerrado siga viviendo en un solo sitio y para que un campo no
+    dependa de plantillas. Admite HTML escrito a mano, como el cuerpo, porque
+    quien lo escribe es la misma persona. No es un procesador sobre el HTML
+    generado: actúa sobre el texto de un campo, antes de que llegue a la
+    plantilla, y no cambia ningún sitio que no lo use.
+114. **Cerrada.** El filtro `markdown` admite un modo de bloque,
+    `markdown('bloque')` (§7.3). La 113 lo dejó fuera pensando que un texto con
+    párrafos era el cuerpo de una página, pero una página de aterrizaje se
+    compone de bloques (un manifiesto, un apartado de servicio) que llevan
+    varios párrafos cada uno, y el cuerpo es uno solo y va entero en un sitio
+    de la plantilla. Se descartaron dos salidas sin tocar el motor: una lista
+    de párrafos en el front matter, que obliga a quien edita a escribir cada
+    párrafo en su caja y a renunciar a encabezados y listas; y una ficha por
+    bloque, con su propio cuerpo, que reparte una página en varias. Es un
+    argumento del mismo filtro y no un filtro aparte porque lo único que cambia
+    es si hay bloques, y el modo por defecto, el de línea, no cambia. El modo de
+    bloque deja fuera lo que depende de ser el cuerpo de una página: los
+    atajos, las figuras, las tablas, las notas al pie y los `id` de los
+    encabezados.
 
 ---
 

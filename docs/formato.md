@@ -1303,7 +1303,7 @@ que escriba sigue mandando sobre él.
 
 **El menú lateral.** El editor agrupa lo que se edita en secciones. Cada tipo
 lleva la suya, con el plural del tipo por nombre, y los ficheros de datos
-(§11.5) van en «Ajustes». Tres claves, todas opcionales, lo cambian:
+(§11.5) van en «Ajustes». Cuatro claves, todas opcionales, lo cambian:
 
 - `"grupo": "Menús"`, en un tipo o en un fichero de datos, dice en qué
   sección va. Los que llevan el mismo `grupo` comparten sección, y en ella
@@ -1314,6 +1314,16 @@ lleva la suya, con el plural del tipo por nombre, y los ficheros de datos
   cómo se llama esa carpeta en el menú lateral, en lugar del título de la
   página que la rotula (arriba, §11). Sirve, por ejemplo, para la carpeta
   `contenido`, cuyo `index.md` es la portada y no un título de sección.
+- `"entrada": "Páginas"`, en un tipo con `unico`, es cómo se llama en el menú
+  lateral la entrada que comparten los tipos fijos de una misma sección que
+  llevan esa misma `entrada`: una sola, con un listado que reúne las páginas de
+  todos, en el orden de los tipos del esquema, y cuyo número es el de todas
+  ellas. Cada fila se llama como su tipo (`titulo`: «Portada», «Contacto») y
+  abre su propio formulario, y el editor no ofrece añadir ni ordenar desde ese
+  listado, porque son páginas fijas. Sirve para un sitio de aterrizaje en el
+  que cada página tiene sus campos, y por eso es un tipo, pero que no puede
+  llevar una entrada del menú por cada una. Sin `unico`, o junto a `rotulo`
+  (que ya da nombre a la carpeta), es un error del esquema.
 - `"excluir": ["404", "aviso-legal"]`, en un tipo, son páginas de sus
   carpetas que el editor no enseña, no cuenta ni abre, aunque estén en ellas:
   su nombre, sin carpeta, idioma ni extensión. Sirve para las páginas que solo
@@ -1873,6 +1883,18 @@ un sitio de la v1 no debe usarlo como campo propio.
     bloque deja fuera lo que depende de ser el cuerpo de una página: los
     atajos, las figuras, las tablas, las notas al pie y los `id` de los
     encabezados.
+115. **Cerrada.** Los tipos fijos (`unico`) de una misma sección del menú
+    lateral pueden compartir una entrada con la clave `entrada` (§11). Salió de
+    un sitio de aterrizaje con diez páginas distintas, cada una con sus campos
+    y por tanto cada una su tipo: el menú tenía una entrada por página y el
+    cliente, que solo quiere ver «Páginas», «Servicios» y «Diario», lo
+    encontraba largo. Se descartaron dos salidas: un solo tipo con todos los
+    campos de todas las páginas, que obligaría a un formulario enorme y a
+    campos que no son de la página que se abre; y un submenú desplegable, que
+    cambia solo cómo se pinta el menú pero deja el menú tan largo en cuanto se
+    abre y es distinto de cómo funcionan las demás entradas (una entrada, un
+    listado, una ficha). La entrada es solo para tipos fijos porque no hay un
+    «añadir» que valga para varios tipos a la vez. No cambia nada en el motor.
 
 ---
 

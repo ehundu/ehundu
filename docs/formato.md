@@ -1632,12 +1632,16 @@ ve una lista sin elementos, y es una respuesta como otra cualquiera: `dias: []`
 dice que no hay ningún día marcado, que es el estado normal de un calendario
 sin reservas.
 
-El editor lo enseña como un calendario de meses, desde el actual y durante los
-doce siguientes, en el que se marca y se desmarca cada día. Un día que no
-enseña, de un mes ya pasado o de más allá de esos doce, se conserva tal cual al
-guardar, y un valor que no es un día se conserva y se avisa, igual que un `id`
-que ya no está entre las opciones de una `seleccion`. Lo que escribe es siempre
-la lista entera, ordenada y sin repetidos.
+El editor lo enseña como un calendario de meses, el actual y los doce
+siguientes (trece en total, para poder marcar el mismo día de dentro de un
+año), en el que se marca y se desmarca cada día desde hoy, en la zona horaria
+del sitio. Los días anteriores a hoy se ven pero no se cambian. Lo que no se
+puede cambiar o no se enseña, un día ya pasado o de más allá de esos trece
+meses, se conserva tal cual al guardar, y un valor que no es un día se conserva
+y se avisa, igual que un `id` que ya no está entre las opciones de una
+`seleccion`. Lo que escribe es siempre la lista entera, ordenada y sin
+repetidos. Dos cambios sobre el mismo calendario no chocan: se juntan día a día,
+con lo que añade y lo que quita cada uno.
 
 Un campo `fechas` no admite `requerido` (no marcar ningún día es una respuesta
 tan buena como marcar uno) ni `traducible` (los días son los mismos en todos

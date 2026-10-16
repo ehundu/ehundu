@@ -11,7 +11,7 @@ Ehundu es un generador de sitios estáticos escrito en PHP. Toma una carpeta con
 contenido en Markdown, datos en YAML y plantillas Twig, y produce un sitio web
 de HTML plano que se puede alojar en cualquier servidor.
 
-> **Estado: 0.10.** Compila sitios reales, también en varios idiomas, los
+> **Estado: 0.11.** Compila sitios reales, también en varios idiomas, los
 > previsualiza y los publica, saca en PDF las páginas que lo piden, genera una
 > página por cada etiqueta, publica las entradas en su fecha, deja las páginas
 > de una carpeta sin la carpeta en la URL, avisa a los lectores de pantalla de
@@ -20,8 +20,10 @@ de HTML plano que se puede alojar en cualquier servidor.
 > hacer un índice, ordena los textos como un diccionario español, sin contar
 > los signos `¿` y `¡`, enlaza el CSS y el JavaScript de una página como un
 > fichero con la huella de su contenido en el nombre, para que el navegador lo
-> guarde, y convierte a HTML el texto con formato de un campo, de una línea o
-> de varios párrafos, con el filtro `markdown`.
+> guarde, convierte a HTML el texto con formato de un campo, de una línea o
+> de varios párrafos, con el filtro `markdown`, escribe el `srcset` (y el
+> `<picture>`, si hay varios formatos) de las imágenes que ya tienen variantes
+> de ancho, y parte una lista larga en páginas con `paginar`.
 > Hasta la 1.0 el formato del proyecto todavía puede cambiar; cada cambio
 > queda anotado, con su motivo, en el registro de decisiones de
 > [`docs/formato.md`](docs/formato.md).
@@ -181,6 +183,14 @@ servidor no lo toca nunca. Con `--simular` dice qué haría sin hacerlo.
 - **Una página por cada valor** de un campo, como una por etiqueta, con una
   sola página que declara `agrupar`: una etiqueta nueva tiene su página sin
   que nadie la escriba.
+- **Listas partidas en páginas** con `paginar`: la propia página es la primera,
+  en su dirección, y el motor genera las demás (`/blog/pagina/2/`, o la forma
+  que se pida), con las entradas de cada trozo y los enlaces para moverse. Una
+  entrada nueva que desborde la última abre la siguiente sola.
+- **Imágenes con varios anchos.** El motor no las genera, pero si otra
+  herramienta las deja en `publico/` (`foto-480.webp`, `foto-960.webp`…) y el
+  sitio las declara en `imagenes`, `variantes()`, el atajo `[imagen …]` y las
+  figuras del Markdown escriben el `srcset` con el ancho real de cada fichero.
 - **Varios idiomas**, con un fichero por idioma en el mismo árbol
   (`contacto.md`, `contacto.eu.md`): cada idioma con su prefijo en la URL, las
   traducciones enlazadas entre sí para los `hreflang` y el selector de
@@ -200,8 +210,9 @@ servidor no lo toca nunca. Con `--simular` dice qué haría sin hacerlo.
   huella del servidor) o a cualquier servicio compatible con S3. Las
   contraseñas van en un fichero aparte que no se versiona.
 
-Lo que no hace, a propósito, en esta versión: procesar imágenes, compilar CSS o
-JavaScript, paginar listados o ejecutar código propio de cada sitio. El formato
+Lo que no hace, a propósito, en esta versión: generar las variantes de una
+imagen (solo lee las que ya están hechas), compilar CSS o JavaScript, o
+ejecutar código propio de cada sitio. El formato
 está pensado para que lo que llegue después no obligue a cambiarlo, y ya
 reserva lo que necesitará.
 
@@ -267,7 +278,7 @@ ilustraciones de Nidel que hay en `marca/`: sus condiciones están en
 
 Ehundu is a static site generator written in PHP, designed to build sites both
 from the command line and from within a web process on ordinary shared PHP
-hosting. The current version is 0.10: it builds Markdown and Twig sites,
+hosting. The current version is 0.11: it builds Markdown and Twig sites,
 multilingual ones included, renders the pages that ask for it as PDF (with
 the optional dompdf), generates one page per tag, publishes entries on their
 date, drops a folder name from its pages' URLs, flags external links to screen
@@ -276,7 +287,9 @@ link to a section or build a table of contents, sorts text the way a Spanish
 dictionary does (ignoring the opening marks ¿ and ¡), links a page's CSS and
 JavaScript as a file named after a hash of its contents so browsers can cache
 it for a year, converts the formatted text of a field to HTML, inline or in
-blocks, with a `markdown` filter, previews them with incremental rebuilds, and
+blocks, with a `markdown` filter, writes the `srcset` of images that already
+have width variants, splits long lists into pages, previews them with
+incremental rebuilds, and
 deploys them to a folder, FTP, SFTP or any S3-compatible storage. It needs
 PHP 8.4 or later and nothing else, and ships as a single `ehundu.phar` or as
 the Composer package `ehundu/ehundu`.

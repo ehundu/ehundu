@@ -11,7 +11,7 @@ Ehundu es un generador de sitios estáticos escrito en PHP. Toma una carpeta con
 contenido en Markdown, datos en YAML y plantillas Twig, y produce un sitio web
 de HTML plano que se puede alojar en cualquier servidor.
 
-> **Estado: 0.12.** Compila sitios reales, también en varios idiomas, los
+> **Estado: 0.13.** Compila sitios reales, también en varios idiomas, los
 > previsualiza y los publica, saca en PDF las páginas que lo piden, genera una
 > página por cada etiqueta, publica las entradas en su fecha, deja las páginas
 > de una carpeta sin la carpeta en la URL, avisa a los lectores de pantalla de
@@ -25,7 +25,8 @@ de HTML plano que se puede alojar en cualquier servidor.
 > `<picture>`, si hay varios formatos) de las imágenes que ya tienen variantes
 > de ancho, parte una lista larga en páginas con `paginar`, reparte la
 > compilación y la subida de un sitio grande en varias llamadas de unos
-> segundos cada una, y lleva la versión del formato (`formato: 1` en
+> segundos cada una, recuerda lo que compila entre un proceso y otro para
+> rehacer solo lo que un cambio afecta, y lleva la versión del formato (`formato: 1` en
 > `sitio.yml`) y una lista corta y documentada de lo que se promete de la
 > biblioteca ([`docs/biblioteca.md`](docs/biblioteca.md)), que es lo que la 1.0
 > congelará.
@@ -294,7 +295,7 @@ ilustraciones de Nidel que hay en `marca/`: sus condiciones están en
 
 Ehundu is a static site generator written in PHP, designed to build sites both
 from the command line and from within a web process on ordinary shared PHP
-hosting. The current version is 0.12: it builds Markdown and Twig sites,
+hosting. The current version is 0.13: it builds Markdown and Twig sites,
 multilingual ones included, renders the pages that ask for it as PDF (with
 the optional dompdf), generates one page per tag, publishes entries on their
 date, drops a folder name from its pages' URLs, flags external links to screen
@@ -306,7 +307,9 @@ it for a year, converts the formatted text of a field to HTML, inline or in
 blocks, with a `markdown` filter, writes the `srcset` of images that already
 have width variants, splits long lists into pages, previews them with
 incremental rebuilds, spreads the build and the upload of a big site over
-several calls of a few seconds each (for a web process with a time limit), and
+several calls of a few seconds each (for a web process with a time limit),
+remembers what it built between one process and the next so that a change
+rebuilds only the pages it affects, and
 deploys them to a folder, FTP, SFTP or any S3-compatible storage. It needs
 PHP 8.4 or later and nothing else, and ships as a single `ehundu.phar` or as
 the Composer package `ehundu/ehundu`. Projects declare the version of the

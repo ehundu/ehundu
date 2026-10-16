@@ -65,6 +65,20 @@ Si un despliegue se corta, el siguiente sigue donde se quedó: lo que ya subió
 está anotado. Si falla un fichero concreto, se guarda lo hecho hasta ahí antes
 de detenerse.
 
+## Subir por lotes
+
+Desde un proceso web con límite de tiempo, `Desplegador::desplegar()` admite un
+presupuesto de `$segundos`: al agotarse guarda el manifiesto y para, siempre
+después de al menos un fichero, y el `InformeDeDespliegue` dice que no está
+completo (`$completo`) y cuántos ficheros quedan (`$pendientes`). La llamada
+siguiente traza el plan otra vez, ve en el manifiesto lo que ya está subido y
+sigue por el resto. Con `$todo` no se reparte, porque sube todo sin mirar el
+manifiesto: la primera llamada lleva `$todo` y las siguientes no.
+
+Junto con una compilación por lotes ya terminada (`CompiladorPorLotes`), se pasa
+su `Informe` como `$compilado` y el despliegue no vuelve a compilar en cada
+llamada.
+
 ## Cada destino
 
 **Carpeta.** Una ruta de esta máquina: la raíz de un servidor web local, una
@@ -123,4 +137,4 @@ arregla con `--todo`.
 `Desplegador::desplegar()` recibe los secretos directamente, sin fichero, e
 informa de cada fichero subido o borrado según avanza. Decidir qué hacer
 (`PlanDeDespliegue`) va aparte de hacerlo (`Desplegador::ejecutar()`), así que
-un plan se puede ejecutar por partes, en varias peticiones.
+un plan se puede ejecutar por partes, en varias peticiones (ver «Subir por lotes»).

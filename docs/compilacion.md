@@ -131,5 +131,34 @@ proceso. De momento no se guarda nada en disco: al arrancar, la
 previsualización hace una compilación completa.
 
 Compilar decide primero qué se aprovecha (`Plan`) y después rehace el resto.
-Esa separación es la que permitirá compilar por lotes desde un proceso web,
-repartiendo lo que hay que rehacer entre varias peticiones, cuando haga falta.
+
+## Compilar por lotes
+
+Un proceso web puede no tener tiempo de compilar un sitio grande de una vez.
+`CompiladorPorLotes` ([`biblioteca.md`](biblioteca.md), formato §10.4) reparte la
+compilación **completa** en tareas (cada página, cada fichero que se copia, el
+sitemap con el feed, la limpieza final) y las hace en varias llamadas, cada una
+con un presupuesto de tiempo. No es la compilación incremental: no recuerda qué
+se rehizo la vez anterior, y cada lote lo rehace todo. Son cosas distintas, y
+la una no impide a la otra: guardar la memoria incremental entre peticiones
+queda para cuando un sitio lo pida.
+
+Cada llamada vuelve a leer el proyecto entero (con `agrupar` y `paginar`
+expandidos) y construye de nuevo el maquetador; lo único que viaja de una a otra
+es `.ehundu/lote.json`, que cuenta por dónde va el lote y no lleva nada del
+sitio. Leer cuesta poco frente a hacer las páginas: en el sitio más grande de
+los de prueba, 1.200 páginas, leerlo y expandirlo son menos de 1 s y hacerlas,
+de 40 a 50. Lo mismo vale para los avisos: se juntan de una llamada a la
+siguiente sin repetirse, como en una compilación completa, y el informe final
+los da en el mismo orden.
+
+Si algún fichero de `sitio.yml`, `contenido/`, `datos/`, `plantillas/`,
+`parciales/` o `publico/` cambia de tamaño o de fecha entre dos llamadas, el lote
+empieza de nuevo (la huella no lee el contenido, porque en `publico/` puede haber
+gigas). El momento con el que se decide qué está publicado se fija al empezar y
+no cambia en todo el lote: una página que se publica por fecha a mitad de un lote
+no cambia las tareas que quedan.
+
+Lo que no se puede garantizar es la coherencia de `salida/` mientras dura: cada
+página se escribe al hacerla. Por eso un lote dice si está completo y la subida
+no debería empezar hasta entonces.

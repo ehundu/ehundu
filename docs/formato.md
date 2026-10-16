@@ -35,11 +35,17 @@ Estado: borrador. Las decisiones cerradas están en §14.
       esquema.json           tipos de contenido y campos (lo usan los editores)
       .secretos.yml          credenciales de despliegue (nunca se versiona)
       salida/                resultado del build (nunca se versiona)
+      .ehundu/               por dónde va una compilación por lotes (nunca se versiona)
 
 Reglas:
 
 - Todo lo que afecta al resultado vive dentro de esta carpeta. Sin excepciones.
-- El motor solo lee de aquí y solo escribe en `salida/`.
+- El motor solo lee de aquí y solo escribe en `salida/` y, en una compilación
+  por lotes (§10.4), en `.ehundu/`.
+- `.ehundu/` es del motor: lo crea él, lleva dentro su propio `.gitignore` para
+  que no se versione, no se publica ni se lee como contenido, y no afecta al
+  resultado. Se puede borrar cuando se quiera: lo único que se pierde es lo
+  avanzado en una compilación por lotes a medias.
 - Los nombres de carpeta son fijos; no se configuran. Un proyecto siempre se
   reconoce igual, y se puede pasar de uno a otro, o migrar muchos, sin
   averiguar cómo está organizado cada uno.
@@ -1326,6 +1332,55 @@ plantilla o de lo que lee de `publico/`, igual que su página
 (`compilacion.md`). El sitemap no lleva PDF
 (§10.1).
 
+### 10.4 Compilación por lotes
+
+Compilar un sitio grande de una vez puede pasarse del tiempo que da un
+alojamiento a cada petición web. La compilación por lotes
+(`CompiladorPorLotes`, [`biblioteca.md`](biblioteca.md)) la reparte en varias
+llamadas, cada una con un presupuesto de tiempo, y al terminar deja `salida/`
+y los avisos que daría una compilación completa del mismo proyecto. La consola
+no la necesita y no la ofrece.
+
+- **Tareas.** El trabajo se divide en tareas que no se parten: hacer una
+  página (con su PDF, si lo tiene), copiar un fichero de `publico/` o de
+  `contenido/`, el sitemap y el feed, y la limpieza final, por ese orden, que
+  es el de una compilación completa. Cada llamada hace tareas hasta agotar su
+  presupuesto y siempre al menos una; la que ha empezado se termina, así que
+  una sola puede tardar más que el presupuesto.
+- **El estado.** Vive en `.ehundu/lote.json` (§1): el momento fijado para
+  decidir qué está publicado, la huella del proyecto, cuántas tareas hay y
+  cuántas se han hecho, los ficheros que ha escrito y los avisos que han dado.
+  No lleva nada del sitio: cada llamada vuelve a leer el proyecto entero, que
+  cuesta poco frente a hacer las páginas (en el sitio más grande de los de
+  prueba, con 1.200 páginas, leerlo y expandir `agrupar` y `paginar` son menos
+  de 1 s, y hacerlas, unos 40).
+- **Antes de escribir.** Empezar un lote comprueba lo que detiene una
+  compilación completa sin tocar `salida/`: un proyecto que no se lee, dos
+  páginas en el mismo fichero, un fichero PHP en `publico/`. Si falla, no
+  deja `salida/` a medias.
+- **Si el proyecto cambia** entre dos llamadas, el lote empieza de nuevo,
+  porque las páginas ya hechas podrían no corresponder a las que quedan, y lo
+  dice (`Lote::reiniciado()`). Es un cambio si cambia el tamaño o la fecha de
+  `sitio.yml` o de cualquier fichero de `contenido/`, `datos/`, `plantillas/`,
+  `parciales/` o `publico/`. Lo ya escrito que no cambia se queda como estaba.
+- **`salida/` mientras tanto.** Cada página se escribe al hacerla, y lo que
+  sobra se borra en la última tarea. Hasta que el lote está completo,
+  `salida/` mezcla páginas nuevas y viejas: es lo contrario de la garantía de
+  la compilación completa, que ante un error deja `salida/` como estaba, y por
+  eso el lote lo dice con `completo()` y nada debe publicarse mientras sea
+  falso. Un error del proyecto mientras se hacen las páginas (una plantilla
+  que falla) detiene el lote como `ErrorDeProyecto`, y deja el estado y lo
+  escrito como están.
+- **Seguir y repetir.** Empezar un lote descarta el que hubiera. Avanzar
+  retoma el que haya y, si no hay ninguno, empieza uno; en uno completo no
+  hace nada. Una llamada que llega mientras otra está avanzando no espera ni
+  estropea nada: devuelve el estado, con `ocupado()`.
+- **El mismo resultado.** Un lote completo y una compilación completa del
+  mismo proyecto dan los mismos ficheros en `salida/` y los mismos avisos,
+  también si el lote se corta y se retoma tantas veces como se quiera.
+
+El despliegue (`despliegue.md`) se reparte igual: ver la decisión 125.
+
 ---
 
 ## 11. `esquema.json`
@@ -1988,7 +2043,8 @@ un sitio de la v1 no debe usarlo como campo propio.
     y no se guarda en disco; son datos simples, que un programa que incruste
     el motor podrá guardar donde le convenga (`compilacion.md`).
 51. **Cerrada.** Compilar por lotes queda para más adelante; la compilación
-    ya separa decidir qué se rehace de rehacerlo (`compilacion.md`).
+    ya separa decidir qué se rehace de rehacerlo (`compilacion.md`). Entra en
+    la 0.12 (decisiones 124 y 125).
 52. **Cerrada.** `ehundu desplegar` compila entero y, si no hay errores,
     publica en el destino de `sitio.yml`; `--simular` dice qué haría sin
     tocar el destino y `--todo` lo sube todo (`despliegue.md`).
@@ -2376,6 +2432,38 @@ un sitio de la v1 no debe usarlo como campo propio.
     pero no `Sitio::$encabezados`). `FrontMatter` y `Yaml` siguen internos: el
     panel solo los cita en comentarios. La regla de retirada: lo que va a dejar
     de valer avisa durante, al menos, una versión menor antes de quitarse.
+124. **Cerrada.** La compilación por lotes (§10.4) entra en la 1.0. Estaba
+    aplazada desde la decisión 51 y la web de Ehundu la prometía para la 1.0:
+    es la razón de ser del proyecto, compilar también desde un proceso web con
+    los límites que eso trae, y deja una huella en el formato, la carpeta
+    `.ehundu/` (§1), que conviene reservar antes de congelarlo. Se mide así: en
+    los sitios de prueba, volver a leer el proyecto en cada llamada cuesta 0,7 s
+    en el mayor (1.200 páginas, 40 a 50 s de compilación), así que el estado no
+    necesita guardar nada del sitio, solo por dónde va. Es una interfaz nueva,
+    `CompiladorPorLotes`, con `Lote` como resultado: `Compilador` y
+    `CompiladorEnProceso` no cambian, y añadir un parámetro o un resultado a
+    `Compilador::compilar` habría roto a quien la implemente. El estado lo
+    guarda el motor en `.ehundu/lote.json`, no quien llama: así funciona igual
+    desde el panel, un cron o un programa de otra persona, sin que cada uno
+    invente dónde guardarlo. Cuesta la regla de que el motor solo escribe en
+    `salida/`, que pasa a ser «y en `.ehundu/`», y se evita que ensucie un
+    repositorio con una carpeta que escribe él mismo con su propio
+    `.gitignore`. Se descartó guardar cada página en una carpeta aparte y
+    cambiarla de golpe al final, que haría `salida/` siempre coherente pero
+    copiaría `publico/` otra vez (puede ser de gigas), y escribir cada página al
+    hacerla deja `salida/` mezclada hasta el último lote, que el lote
+    reconoce con `completo()`. La compilación incremental guardada entre
+    peticiones no entra: es otra función, que los lotes no impiden.
+125. **Cerrada.** El despliegue también se reparte en lotes. `Desplegador`
+    acepta un presupuesto de tiempo (`$segundos`): cuando se agota, guarda el
+    manifiesto y para, y lo dice, y la llamada siguiente sigue donde se quedó.
+    Y acepta un `Informe` ya hecho (`$compilado`), para no volver a compilar
+    en cada llamada cuando la compilación se hizo por lotes. El manifiesto del
+    destino ya guarda lo subido cada 50 ficheros o 15 segundos (decisión 53), así
+    que cortar la subida y retomarla ya era posible; lo nuevo es parar a tiempo
+    y decirlo (`InformeDeDespliegue::$completo`). Salió de que una petición que
+    compila en lotes y luego sube de golpe se pasaría igual del límite en un
+    sitio con muchos ficheros.
 
 ---
 

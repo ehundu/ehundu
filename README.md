@@ -206,6 +206,10 @@ servidor no lo toca nunca. Con `--simular` dice qué haría sin hacerlo.
   (`menu.pdf.twig`) y sin programas externos. El mismo proyecto da siempre los
   mismos bytes, así que un PDF que no cambia no se vuelve a subir.
 - **Un `sitemap.xml`**, y un feed Atom si se pide.
+- **Compilación por lotes**, para un proceso web que no tiene tiempo de
+  compilar un sitio grande de una vez: la biblioteca la reparte, y también la
+  subida, en varias llamadas con un presupuesto de segundos cada una, y al
+  terminar da lo mismo que una compilación completa.
 - **Despliegue** a una carpeta, por FTP o FTPS, por SFTP (comprobando la
   huella del servidor) o a cualquier servicio compatible con S3. Las
   contraseñas van en un fichero aparte que no se versiona.

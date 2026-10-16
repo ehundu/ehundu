@@ -49,6 +49,12 @@ final class Desplegador
      *                                                         antes de conectar con el destino
      * @param (\Closure(Aviso): void)|null          $alAvisar  se llama con cada aviso del despliegue según
      *                                                         sale, para que se vea aunque luego falle
+     * @param float|null                            $segundos  lo que puede durar la subida (formato decisión 125): al
+     *                                                         agotarse, guarda el manifiesto y para, y el informe dice
+     *                                                         que no está completo; la llamada siguiente sigue donde se
+     *                                                         quedó. La tarea que ha empezado se termina. Sin él, sube todo
+     * @param Informe|null                          $compilado el de una compilación ya hecha, por ejemplo por lotes
+     *                                                         (formato §10.4), para no volver a compilar en cada llamada
      *
      * @throws ErrorDeProyecto si no se puede compilar o desplegar
      */
@@ -60,9 +66,13 @@ final class Desplegador
         ?\Closure $alAvanzar = null,
         ?\Closure $alCompilar = null,
         ?\Closure $alAvisar = null,
+        ?float $segundos = null,
+        ?Informe $compilado = null,
     ): InformeDeDespliegue {
         $inicio = hrtime(true);
         $avisos = new Avisos();
+        $hechos = ['subidos' => [], 'borrados' => []];
+        $completo = true;
 
         if ($alAvisar !== null) {
             $avisos->escuchar($alAvisar);
@@ -70,7 +80,7 @@ final class Desplegador
 
         // La configuración se lee antes de compilar: si está mal, no hay nada que esperar.
         $configuracion = Configuracion::leer($proyecto, $secretos, $avisos);
-        $compilacion = $this->compilador->compilar($proyecto);
+        $compilacion = $compilado ?? $this->compilador->compilar($proyecto);
         $alCompilar !== null && $alCompilar($compilacion);
         $ficheros = self::ficheros($proyecto);
         $url = (new Lector())->leerSitio($proyecto)->url;
@@ -82,22 +92,36 @@ final class Desplegador
             $plan = PlanDeDespliegue::trazar($ficheros, $anterior, $todo, $url);
 
             if (!$simular) {
-                $this->ejecutar($plan, $proyecto, $destino, $anterior, $alAvanzar);
+                // Lo que se ha hecho de verdad, que con un presupuesto de tiempo puede ser solo una parte del plan
+                $completo = $this->ejecutar($plan, $proyecto, $destino, $anterior, function (string $que, string $ruta) use (&$hechos, $alAvanzar): void {
+                    $hechos[$que === 'subido' ? 'subidos' : 'borrados'][] = $ruta;
+                    $alAvanzar !== null && $alAvanzar($que, $ruta);
+                }, $segundos);
             }
         } finally {
             $destino->cerrar();
         }
 
+        $subidos = $simular ? array_column($plan->subidas, 'ruta') : $hechos['subidos'];
+        $borrados = $simular ? $plan->borrados : $hechos['borrados'];
+        $bytes = $simular ? $plan->bytes() : array_sum(array_map(
+            static fn (array $subida): int => in_array($subida['ruta'], $hechos['subidos'], true) ? $subida['tamano'] : 0,
+            $plan->subidas,
+        ));
+        $pendientes = $simular || $completo ? 0 : count($plan->subidas) - count($hechos['subidos']) + count($plan->borrados) - count($hechos['borrados']);
+
         return new InformeDeDespliegue(
             $compilacion,
             $configuracion->descripcion(),
-            array_column($plan->subidas, 'ruta'),
-            $plan->bytes(),
-            $plan->borrados,
+            $subidos,
+            $bytes,
+            $borrados,
             $plan->sinCambios,
             $avisos->todos(),
             (hrtime(true) - $inicio) / 1e9,
             $simular,
+            $completo,
+            $pendientes,
         );
     }
 
@@ -108,14 +132,21 @@ final class Desplegador
      *
      * @param Manifiesto|null                       $anterior  el que había en el destino
      * @param (\Closure(string, string): void)|null $alAvanzar
+     * @param float|null                            $segundos  lo que puede durar; al agotarse, guarda el manifiesto
+     *                                                         y para. Siempre hace al menos un fichero
+     *
+     * @return bool si ha hecho todo el plan; falso si ha parado por el tiempo y queda algo
      */
-    public function ejecutar(PlanDeDespliegue $plan, Proyecto $proyecto, Destino $destino, ?Manifiesto $anterior, ?\Closure $alAvanzar = null): void
+    public function ejecutar(PlanDeDespliegue $plan, Proyecto $proyecto, Destino $destino, ?Manifiesto $anterior, ?\Closure $alAvanzar = null, ?float $segundos = null): bool
     {
         $url = $plan->url ?? $anterior?->url;
 
         if ($plan->estaVacio() && $anterior !== null && $anterior->url === $url) {
-            return;
+            return true;
         }
+
+        $limite = $segundos === null ? null : hrtime(true) + (int) ($segundos * 1e9);
+        $hechas = 0;
 
         $manifiesto = new Manifiesto($anterior?->ficheros() ?? [], $url);
         $sinGuardar = 0;
@@ -137,6 +168,13 @@ final class Desplegador
 
         try {
             foreach ($plan->subidas as $subida) {
+                if ($limite !== null && $hechas > 0 && hrtime(true) >= $limite) {
+                    $guardar();
+
+                    return false;
+                }
+
+                $hechas++;
                 $destino->subir($subida['ruta'], $proyecto->ruta(Proyecto::SALIDA, $subida['ruta']));
                 $manifiesto->anotar($subida['ruta'], $subida['md5'], $subida['tamano']);
                 $alAvanzar !== null && $alAvanzar('subido', $subida['ruta']);
@@ -144,6 +182,13 @@ final class Desplegador
             }
 
             foreach ($plan->borrados as $ruta) {
+                if ($limite !== null && $hechas > 0 && hrtime(true) >= $limite) {
+                    $guardar();
+
+                    return false;
+                }
+
+                $hechas++;
                 $destino->borrar($ruta);
                 $manifiesto->quitar($ruta);
                 $alAvanzar !== null && $alAvanzar('borrado', $ruta);
@@ -164,6 +209,8 @@ final class Desplegador
         }
 
         $guardar();
+
+        return true;
     }
 
     /**

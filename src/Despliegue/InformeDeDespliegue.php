@@ -20,6 +20,9 @@ final readonly class InformeDeDespliegue
      * @param list<string> $borrados    lo que se ha borrado, o se borraría
      * @param int          $sinCambios  lo que ya estaba como debía
      * @param list<Aviso>  $avisos      los del despliegue; los de la compilación van en ella
+     * @param bool         $completo   si se ha hecho todo lo que había que hacer; falso si se ha parado porque
+     *                                 se agotó el tiempo de esta llamada (formato decisión 125)
+     * @param int          $pendientes los ficheros que quedan por subir o borrar, si no está completo
      */
     public function __construct(
         public Informe $compilacion,
@@ -31,6 +34,8 @@ final readonly class InformeDeDespliegue
         public array $avisos,
         public float $segundos,
         public bool $simulado = false,
+        public bool $completo = true,
+        public int $pendientes = 0,
     ) {
     }
 
@@ -67,7 +72,9 @@ final readonly class InformeDeDespliegue
             $igual > 0 ? "{$igual} sin cambios" : null,
         ]);
 
-        return "Desplegado en {$this->destino}: " . self::enumerar($partes) . " en {$segundos} s.";
+        $resumen = "Desplegado en {$this->destino}: " . self::enumerar($partes) . " en {$segundos} s.";
+
+        return $this->completo ? $resumen : $resumen . ' Quedan ' . self::cuantos($this->pendientes, 'fichero', 'ficheros') . ' por desplegar.';
     }
 
     private static function cuantos(int $numero, string $uno, string $varios): string

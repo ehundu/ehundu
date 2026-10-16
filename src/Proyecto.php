@@ -226,6 +226,132 @@ final readonly class Proyecto
         return $cambios;
     }
 
+    /**
+     * Lo mismo que `sincronizarSalida`, pero en trozos, para una compilación por
+     * lotes (formato §10.4): comprueba que `salida/` se puede usar. No la crea:
+     * la primera página que se escriba lo hace, y un lote que se detiene antes de
+     * escribir nada no deja ni la carpeta.
+     *
+     * @throws ErrorDeProyecto si `salida/` es un enlace
+     */
+    public function comprobarSalida(): void
+    {
+        if (is_link($this->ruta(self::SALIDA))) {
+            throw new ErrorDeProyecto('salida/ es un enlace a otra carpeta; el motor no la toca');
+        }
+    }
+
+    /**
+     * Escribe un fichero en `salida/` si no está ya igual. Si en su sitio hay una
+     * carpeta, o una de sus carpetas es un fichero, lo quita antes: el lote no
+     * limpia hasta el final.
+     *
+     * @return bool si lo ha escrito
+     *
+     * @throws ErrorDeProyecto si no se puede escribir
+     */
+    public function escribirSiCambia(string $fichero, string $contenido): bool
+    {
+        $this->despejar($fichero);
+        $completa = $this->ruta(self::SALIDA, $fichero);
+
+        if (is_file($completa) && filesize($completa) === strlen($contenido) && file_get_contents($completa) === $contenido) {
+            return false;
+        }
+
+        $this->escribirEnSalida($fichero, $contenido);
+
+        return true;
+    }
+
+    /**
+     * Copia un fichero del proyecto a `salida/` si no está ya igual (mismo
+     * tamaño y misma fecha), como `sincronizarSalida`.
+     *
+     * @return bool si lo ha copiado
+     *
+     * @throws ErrorDeProyecto si no se puede copiar
+     */
+    public function copiarSiCambia(string $origen, string $destino): bool
+    {
+        $this->despejar($destino);
+        $completa = $this->ruta(self::SALIDA, $destino);
+        $original = $this->ruta($origen);
+
+        if (is_file($completa) && filesize($completa) === filesize($original) && filemtime($completa) === filemtime($original)) {
+            return false;
+        }
+
+        $this->copiarASalida($origen, $destino);
+
+        return true;
+    }
+
+    /**
+     * Borra de `salida/` lo que no está en `$queda`, y las carpetas que se
+     * quedan vacías. Es la última tarea de una compilación por lotes.
+     *
+     * @param array<string, true> $queda los ficheros que se quedan, por ruta en `salida/`
+     *
+     * @return int cuántos ficheros ha borrado
+     *
+     * @throws ErrorDeProyecto si no se puede borrar algo
+     */
+    public function limpiarSalida(array $queda): int
+    {
+        $salida = $this->ruta(self::SALIDA);
+
+        if (!is_dir($salida)) {
+            return 0;
+        }
+
+        $borrados = 0;
+
+        // Primero lo que sobra, por si un fichero pasa a ser carpeta o al revés.
+        foreach (array_reverse($this->ficherosDe(self::SALIDA)) as $fichero) {
+            if (!isset($queda[$fichero])) {
+                self::borrar("{$salida}/{$fichero}");
+                $borrados++;
+            }
+        }
+
+        self::quitarCarpetasVacias($salida);
+
+        return $borrados;
+    }
+
+    /**
+     * Quita de `salida/` lo que estorba para escribir ahí un fichero: una
+     * carpeta en su sitio, o un fichero (o un enlace) donde iría una de sus
+     * carpetas.
+     */
+    private function despejar(string $fichero): void
+    {
+        $partes = explode('/', $fichero);
+        $ruta = $this->ruta(self::SALIDA);
+        $ultima = count($partes) - 1;
+
+        foreach ($partes as $i => $parte) {
+            $ruta .= "/{$parte}";
+
+            if ($i < $ultima) {
+                if (is_link($ruta) || is_file($ruta)) {
+                    self::borrar($ruta);
+                }
+
+                if (!is_dir($ruta)) {
+                    return;
+                }
+
+                continue;
+            }
+
+            if (is_link($ruta) || is_dir($ruta)) {
+                self::borrar($ruta);
+            }
+        }
+    }
+
     private static function quitarCarpetasVacias(string $carpeta): void
     {
         foreach (scandir($carpeta) ?: [] as $nombre) {

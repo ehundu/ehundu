@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Ehundu\Pruebas\Despliegue;
 
+use Ehundu\Compilador;
 use Ehundu\CompiladorEnProceso;
 use Ehundu\Despliegue\Desplegador;
 use Ehundu\Despliegue\Manifiesto;
 use Ehundu\ErrorDeProyecto;
+use Ehundu\Informe;
 use Ehundu\Proyecto;
 use Ehundu\Pruebas\Apoyo\CarpetaTemporal;
 use Ehundu\Pruebas\Apoyo\DestinoEnMemoria;
@@ -297,6 +299,88 @@ final class DesplegadorPrueba extends TestCase
         self::assertDirectoryDoesNotExist($this->carpetaTemporal() . '/contenido/copia');
     }
 
+    #[Test]
+    public function conUnPresupuestoDeTiempoSubeUnFicheroPorLlamadaYAlFinalEstaTodo(): void
+    {
+        $this->crearSitio();
+        $subidos = [];
+        $llamadas = 0;
+
+        do {
+            $informe = $this->desplegar(segundos: 0.0);
+            $llamadas++;
+            $subidos = [...$subidos, ...$informe->subidos];
+
+            if (!$informe->completo) {
+                self::assertCount(1, $informe->subidos, 'Cada llamada hace al menos un fichero, y con el tiempo agotado, solo uno');
+                self::assertGreaterThan(0, $informe->pendientes);
+                self::assertStringContainsString(' por desplegar.', $informe->resumen());
+            }
+        } while (!$informe->completo && $llamadas < 20);
+
+        self::assertTrue($informe->completo);
+        self::assertSame(0, $informe->pendientes);
+        self::assertSame(4, $llamadas);
+        self::assertSame(['css/a.css', 'index.html', 'otra/index.html', 'sitemap.xml'], $subidos);
+        self::assertSame(
+            ['css/a.css', 'index.html', 'otra/index.html', 'sitemap.xml'],
+            array_keys(Manifiesto::leer($this->destino->ficheros[Manifiesto::FICHERO])->ficheros()),
+        );
+        self::assertSame([Manifiesto::FICHERO, 'css/a.css', 'index.html', 'otra/index.html', 'sitemap.xml'], array_keys($this->ordenados()));
+    }
+
+    #[Test]
+    public function unDespliegueEnLotesDejaElDestinoComoUnoDeGolpeTambienConLosBorrados(): void
+    {
+        $this->crearSitio();
+        $this->desplegar();
+        unlink($this->carpetaTemporal() . '/contenido/otra.md');
+        unlink($this->carpetaTemporal() . '/publico/css/a.css');
+        $this->crearFichero('contenido/index.md', "---
+titulo: Inicio
+---
+Hola, cambiado");
+
+        $deGolpe = new DestinoEnMemoria();
+        $deGolpe->ficheros = $this->destino->ficheros;
+        $this->desplegar(destino: $deGolpe);
+
+        $subidos = $borrados = [];
+        $llamadas = 0;
+
+        do {
+            $informe = $this->desplegar(segundos: 0.0);
+            $llamadas++;
+            $subidos = [...$subidos, ...$informe->subidos];
+            $borrados = [...$borrados, ...$informe->borrados];
+        } while (!$informe->completo && $llamadas < 20);
+
+        self::assertTrue($informe->completo);
+        self::assertSame(4, $llamadas, 'Dos ficheros que cambian, dos que se borran');
+        self::assertSame(['index.html', 'sitemap.xml'], $subidos);
+        self::assertSame(['css/a.css', 'otra/index.html'], $borrados);
+        self::assertSame($deGolpe->ficheros, $this->destino->ficheros);
+    }
+
+    #[Test]
+    public function conUnaCompilacionYaHechaNoSeVuelveACompilar(): void
+    {
+        $this->crearSitio();
+        $compilado = (new CompiladorEnProceso())->compilar(Proyecto::abrir($this->carpetaTemporal()));
+        $noCompila = new class implements Compilador {
+            public function compilar(Proyecto $proyecto): Informe
+            {
+                throw new \LogicException('No tenía que compilar');
+            }
+        };
+
+        $informe = $this->desplegar(compilado: $compilado, compilador: $noCompila);
+
+        self::assertSame($compilado, $informe->compilacion);
+        self::assertSame(4, count($informe->subidos));
+        self::assertTrue($informe->completo);
+    }
+
     private function crearSitio(): void
     {
         $this->crearFichero('sitio.yml', "nombre: Prueba\nurl: https://ejemplo.com\ndespliegue:\n  destino: carpeta\n  ruta: /publicado\n");
@@ -306,10 +390,10 @@ final class DesplegadorPrueba extends TestCase
         $this->crearFichero('publico/css/a.css', 'a{}');
     }
 
-    private function desplegar(bool $simular = false, bool $todo = false): \Ehundu\Despliegue\InformeDeDespliegue
+    private function desplegar(bool $simular = false, bool $todo = false, ?float $segundos = null, ?Informe $compilado = null, ?Compilador $compilador = null, ?DestinoEnMemoria $destino = null): \Ehundu\Despliegue\InformeDeDespliegue
     {
-        return (new Desplegador(new CompiladorEnProceso(), fn () => $this->destino))
-            ->desplegar(Proyecto::abrir($this->carpetaTemporal()), $simular, $todo);
+        return (new Desplegador($compilador ?? new CompiladorEnProceso(), fn () => $destino ?? $this->destino))
+            ->desplegar(Proyecto::abrir($this->carpetaTemporal()), $simular, $todo, segundos: $segundos, compilado: $compilado);
     }
 
     /**

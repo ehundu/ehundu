@@ -401,6 +401,12 @@ final class Lector
         // resolver cuando se sabe qué grupos hay. `Agrupador` la sustituye por
         // las que genera, así que aquí no tiene URL ni se comprueba nada de ella.
         if (is_array($campos['agrupar'] ?? null)) {
+            // Partir cada grupo en páginas queda reservado (formato §6.4).
+            if (isset($campos['paginar'])) {
+                $avisos->registrar('Una página no puede llevar «agrupar» y «paginar» a la vez; «paginar» se ignora (formato §6.4)', $fichero);
+                unset($campos['paginar']);
+            }
+
             return new Pagina($ruta, $extension, $campos, false, $frontMatter->cuerpo, $frontMatter->lineaCuerpo, $idioma);
         }
 

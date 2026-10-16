@@ -66,6 +66,27 @@ final class Url
         return $url === null ? null : self::conPrefijo($url, $prefijo, $fichero, $avisos);
     }
 
+    /**
+     * La URL de una página que genera `paginar` (formato §6.4): el patrón de
+     * `paginar.url` con el `numero` de esa página. Si el patrón no vale no hay
+     * una URL de respaldo: se avisa y no se parte nada.
+     *
+     * @param array<array-key, mixed> $campos  los de la página que define la serie
+     * @param string                  $fichero ruta relativa a la raíz del proyecto, para los avisos
+     * @param string                  $prefijo el del idioma de la página: '' o '/eu'
+     * @param string                  $ruta    la del fichero que parte la lista, sin código de idioma, para `{{ nombreDeFichero }}`
+     *
+     * @return string|null null si la URL no vale; ya se ha avisado
+     */
+    public static function resolverDePagina(string $patron, array $campos, int $numero, string $fichero, Avisos $avisos, string $prefijo = '', string $ruta = ''): ?string
+    {
+        $sinPaginas = 'no se parte nada';
+        $url = self::aplicarPatron($patron, [...$campos, 'numero' => $numero], $fichero, $avisos, $sinPaginas, self::nombreDeFichero($ruta));
+        $url = $url === null ? null : self::normalizar($url, $fichero, $avisos, $sinPaginas);
+
+        return $url === null ? null : self::conPrefijo($url, $prefijo, $fichero, $avisos);
+    }
+
     private static function conPrefijo(string $url, string $prefijo, string $fichero, Avisos $avisos): string
     {
         if ($prefijo === '') {

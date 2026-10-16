@@ -124,6 +124,16 @@ final class Cascada
                     unset($campos['agrupar']);
                 }
 
+                // Lo mismo con `paginar` (formato §6.4).
+                if (isset($campos['paginar']) && str_starts_with(basename($fichero), '_datos')) {
+                    $this->avisos->registrar(
+                        '«paginar» no se hereda: todas las páginas de la carpeta serían plantillas de páginas. Se escribe en la página que parte la lista; se ignora',
+                        $fichero,
+                        Yaml::lineasDeClaves($yaml)['paginar'] ?? null,
+                    );
+                    unset($campos['paginar']);
+                }
+
                 $this->leidos[$fichero] = $campos;
             }
         }

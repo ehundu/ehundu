@@ -20,9 +20,11 @@ final readonly class Pagina
      * @param string                  $idioma      el código de su idioma, que sale del nombre (formato §15.2)
      * @param list<string>|null       $miembros    si la ha generado una página con `agrupar` (formato §6.3), las rutas
      *                                             de las páginas de su grupo, en el orden de la colección; su ruta es
-     *                                             entonces la de esa página seguida de `#` y el `slug` del grupo. Va
-     *                                             dentro de la página para que, al comparar dos construcciones, un
-     *                                             grupo que gana o pierde una página cuente como una página que cambia
+     *                                             entonces la de esa página seguida de `#` y el `slug` del grupo. Si es
+     *                                             una página con `paginar` (formato §6.4), o una de las que genera
+     *                                             (su ruta, seguida de `#` y su número), las de su trozo. Va dentro de
+     *                                             la página para que, al comparar dos construcciones, un grupo o un
+     *                                             trozo que gana o pierde una página cuente como una página que cambia
      */
     public function __construct(
         public string $ruta,
@@ -39,12 +41,13 @@ final readonly class Pagina
     /**
      * Lo que comparte con sus traducciones: la ruta sin la extensión ni el
      * código de idioma. `blog/uno.md` y `blog/uno.eu.md` dan `blog/uno`. Una
-     * página generada por `agrupar` no tiene traducciones: su clave es su
-     * ruta entera, que no comparte ninguna otra.
+     * página generada por `agrupar` o por `paginar` no tiene traducciones: su
+     * clave es su ruta entera, que no comparte ninguna otra. La primera
+     * página de `paginar` es la que la define y sí las tiene.
      */
     public function clave(): string
     {
-        if ($this->miembros !== null) {
+        if ($this->miembros !== null && str_contains($this->ruta, '#')) {
             return $this->ruta;
         }
 

@@ -698,8 +698,8 @@ cree nada, y una que se quita la cierra.
   usarlo; sin `paginar.url`, la de la primera más `pagina/2/`, `pagina/3/`…
   (`/blog/` da `/blog/pagina/2/`). Esa forma por defecto exige que la `url`
   de la primera acabe en `/`: si no es así, y no hay `paginar.url`, se avisa y
-  no se genera ninguna más. Sin `{{ numero }}` en el patrón todas irían al
-  mismo fichero: se avisa y tampoco se genera ninguna. Lo demás del §5 vale:
+  la página es una más, sin partir. Sin `{{ numero }}` en el patrón todas irían
+  al mismo fichero: se avisa y pasa lo mismo. Lo demás del §5 vale:
   el prefijo de idioma (§15.3) y el error si dos páginas van al mismo
   fichero. `paginar.url` existe para quien migra y ya tiene otra forma
   (`/blog/2/`, `/page/2/`) y no quiere perder direcciones.
@@ -731,10 +731,12 @@ cree nada, y una que se quita la cierra.
   `porPagina` avisa, con su línea, y no parte nada. Una clave que no admite se
   avisa y se ignora. Si ni siquiera es un mapa (`paginar: sí`), se avisa, se
   ignora y la página es una más. Un `orden` que no es un criterio válido se
-  avisa y se usa el de `coleccion()`.
-- **Sin vueltas.** Una página con `paginar` no puede depender de las páginas
-  que genera ella misma ni de otra que dependa de ella: el build se detiene
-  con un error que muestra la cadena, como en el §6.3 y el §7.2.
+  avisa y se usa el de `coleccion()`. En un fragmento (`url: false`) no hay
+  dónde poner la primera página: se avisa y no se parte nada.
+- **Sin vueltas.** Las páginas que genera no están en ninguna colección, así
+  que ninguna página puede depender de ellas por una colección: no hay
+  cadenas que comprobar, a diferencia de `agrupar` (§6.3). La propia página
+  tampoco entra en su trozo, aunque herede la etiqueta de su colección.
 
 La compilación incremental da siempre lo mismo que la completa. Las páginas que
 se generan, o dejan de generarse, se deciden de nuevo en cada compilación, y

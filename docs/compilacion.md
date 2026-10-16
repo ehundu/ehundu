@@ -82,6 +82,18 @@ grupo cuenta también como un campo de la página generada para las colecciones:
 si gana o pierde una página, se rehace quien lee el recuento a través de
 `coleccion()`.
 
+Las listas que parte `paginar` (formato §6.4) funcionan igual. La serie se
+decide en cada compilación, justo después de las de `agrupar`: la primera
+página es la propia página, con sus rutas de trozo, y las demás son páginas
+generadas (`blog/index.md#2`), sin traducciones y sin colecciones. El trozo de
+cada una (`Pagina::$miembros`) y su `paginacion` (que es un campo más) cuentan
+como cambios de la página: entrar, salir o cambiar de sitio un artículo rehace
+las páginas de la serie a las que toca, y si cambia cuántas hay, o sus
+direcciones, las de toda la serie. Los campos de cada artículo se anotan uno a
+uno, como con `agrupar`, así que un título cambiado rehace solo la página en la
+que sale, y un cuerpo cambiado, ninguna. Una página de la serie que ya no existe
+deja de escribirse.
+
 Lo que no se rehace se aprovecha tal cual, y sus avisos se repiten, para que
 la terminal diga lo mismo que diría una compilación completa. Los avisos de
 `agrupar` (un valor en blanco, una `url` sin `grupo`) no son de una página sino

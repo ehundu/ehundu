@@ -97,6 +97,18 @@ final class Campos
                 continue;
             }
 
+            if ($nombre === 'paginar') {
+                $paginar = self::paginar($valor, $escrito[$nombre], $fichero, $linea, $avisos);
+
+                if ($paginar === null) {
+                    unset($normalizados[$nombre]);
+                } else {
+                    $normalizados[$nombre] = $paginar;
+                }
+
+                continue;
+            }
+
             try {
                 $normalizados[$nombre] = self::comprobar((string) $nombre, $valor, $original, $zona);
             } catch (\UnexpectedValueException $problema) {
@@ -187,6 +199,62 @@ final class Campos
         }
 
         return $agrupar;
+    }
+
+    /**
+     * `paginar` (formato §6.4): un mapa con `coleccion` y `porPagina`, y `orden`
+     * y `url` si se quieren. Lo que falta o no vale se avisa aquí, con su
+     * línea, y se deja fuera; sin `coleccion` o sin `porPagina` la página no
+     * parte nada (`Paginador`). Solo si el valor ni siquiera es un mapa se
+     * descarta el campo y la página es una más.
+     *
+     * @return array{coleccion?: string, porPagina?: int, orden?: string, url?: string}|null
+     */
+    private static function paginar(mixed $valor, string $escrito, string $fichero, ?int $linea, Avisos $avisos): ?array
+    {
+        if (!is_array($valor) || array_is_list($valor)) {
+            $avisos->registrar("«{$escrito}» tiene que ser un mapa con «coleccion» y «porPagina»; se ignora", $fichero, $linea);
+
+            return null;
+        }
+
+        $paginar = [];
+        $coleccion = $valor['coleccion'] ?? null;
+        $coleccion = is_int($coleccion) || is_float($coleccion) ? (string) $coleccion : $coleccion;
+
+        if (is_string($coleccion) && trim($coleccion) !== '') {
+            $paginar['coleccion'] = $coleccion;
+        } else {
+            $avisos->registrar("«{$escrito}» necesita «coleccion», la colección de la que salen las páginas; no se parte nada", $fichero, $linea);
+        }
+
+        if (!array_key_exists('porPagina', $valor) || $valor['porPagina'] === null) {
+            $avisos->registrar("«{$escrito}» necesita «porPagina», cuántas páginas lleva cada una; no se parte nada", $fichero, $linea);
+        } elseif (is_int($valor['porPagina']) && $valor['porPagina'] > 0) {
+            $paginar['porPagina'] = $valor['porPagina'];
+        } else {
+            $avisos->registrar("«{$escrito}»: «porPagina» tiene que ser un número entero mayor que cero; no se parte nada", $fichero, $linea);
+        }
+
+        foreach (['orden' => 'el criterio de orden()', 'url' => 'la dirección de las páginas a partir de la segunda, con {{ numero }}'] as $clave => $descripcion) {
+            if (!array_key_exists($clave, $valor) || $valor[$clave] === null) {
+                continue;
+            }
+
+            if (is_string($valor[$clave]) && trim($valor[$clave]) !== '') {
+                $paginar[$clave] = trim($valor[$clave]);
+            } else {
+                $avisos->registrar("«{$escrito}»: «{$clave}» tiene que ser un texto, {$descripcion}; se ignora", $fichero, $linea);
+            }
+        }
+
+        foreach (array_keys($valor) as $clave) {
+            if (!in_array($clave, ['coleccion', 'porPagina', 'orden', 'url'], true)) {
+                $avisos->registrar("«{$escrito}» no admite «{$clave}»; se ignora", $fichero, $linea);
+            }
+        }
+
+        return $paginar;
     }
 
     private static function texto(mixed $valor): string

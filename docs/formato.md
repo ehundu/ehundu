@@ -51,6 +51,7 @@ documentación en español y en inglés, pero el formato es en español.
 
 ## 2. `sitio.yml`
 
+    formato: 1
     nombre: Librería La Esquina
     url: https://www.ejemplo.com
     idioma: es
@@ -68,6 +69,17 @@ documentación en español y en inglés, pero el formato es en español.
 es la dirección absoluta del sitio, con `http://` o `https://`. Si falta el
 fichero o alguno de esos dos campos, el build se detiene con un error: sin
 ellos no se pueden generar ni el sitemap ni el feed.
+
+`formato` es la versión de este formato para la que está escrito el proyecto:
+un número entero, `1`. No hay versión menor, porque dentro de una versión
+mayor el formato solo crece (§12): un proyecto del formato 1 compila igual con
+cualquier Ehundu que entienda el 1. Si falta, es `1`, y sin avisar, así que los
+proyectos escritos antes de que existiera la clave no cambian. Un valor que no
+es un entero mayor que cero se avisa y se toma como `1`. Si es mayor que la
+versión que entiende esta versión de Ehundu, el build se detiene con un error
+que lo dice (`ehundu compilar`, `servir` y `desplegar`): compilar a ciegas un
+formato distinto daría un sitio mal hecho sin que nadie lo notara. Es lo
+primero que se comprueba, antes que `nombre` y `url`.
 
 `zonaHoraria` es la zona en la que se leen y se escriben todas las fechas del
 sitio, con su nombre estándar (`Europe/Madrid`, `America/Mexico_City`). Si
@@ -1321,7 +1333,13 @@ plantilla o de lo que lee de `publico/`, igual que su página
 Lo usan los editores; el motor lo ignora. Declara los tipos de contenido del
 sitio, dónde están sus páginas, qué campos llevan y quién puede editarlos.
 
+Lleva, si se quiere, `"formato": 1`: la versión de este formato, la misma
+clave y las mismas reglas que la de `sitio.yml` (§2). Sin ella, es el 1. Un
+editor que no entienda la versión que declara un esquema no lo toca y lo dice.
+El motor no la comprueba, porque no lee el esquema.
+
     {
+      "formato": 1,
       "tipos": [
         {
           "nombre": "articulo",
@@ -1839,6 +1857,14 @@ cumple esto es un error del esquema. El motor no lee el esquema y no cambia: lo
    mismo HTML, salvo lo que una plantilla elija al azar con `random()` o
    saque de la fecha del momento (§7.3).
 4. El motor no ejecuta código propio del sitio en la v1.
+5. Dentro de una versión mayor del formato (§2), el contrato solo crece: un
+   campo, una función, un filtro, un tipo de campo del esquema o una opción
+   nuevos no cambian lo que ya significaba un proyecto escrito. Quitar algo
+   o cambiar su significado es una versión mayor. Lo que va a dejar de valer
+   se avisa durante, al menos, una versión menor antes de quitarse.
+6. La biblioteca PHP y la orden de consola prometen lo que dice
+   [`biblioteca.md`](biblioteca.md), con la misma regla: lo que no está allí
+   puede cambiar en cualquier versión.
 
 ---
 
@@ -2317,6 +2343,39 @@ un sitio de la v1 no debe usarlo como campo propio.
     definirlo después no rompe nada, mientras que definirlo ahora fijaría
     algo que nadie ha probado. La paginación se calcula antes de cualquier
     plantilla y no ejecuta código del sitio (§12, regla 4).
+122. **Cerrada.** Un proyecto declara para qué versión del formato está
+    escrito con `formato: 1` en `sitio.yml` (§2), y un editor con `"formato": 1`
+    en `esquema.json` (§11). Salió de preparar la 1.0: sin una declaración, una
+    versión mayor futura no podría reconocer los proyectos antiguos y tendría
+    que adivinarlos. Es solo la versión mayor, porque dentro de una el formato
+    solo crece (§12, regla 5), y una menor (`"1.3"`) haría fallar en un motor
+    más viejo a un proyecto que no usa nada de lo nuevo, y cada sitio tendría
+    que subirla a mano. Sin la clave, el formato es el 1 y no se avisa: los
+    proyectos escritos antes no cambian. Un valor que no es un entero mayor que
+    cero se avisa y se toma como 1. Si es mayor que el que entiende el motor, se
+    detiene el build con un error (`Formato`): la regla 10 del motor deja parar
+    cuando es imprescindible, y compilar a ciegas otro formato daría un sitio
+    mal hecho sin que nadie lo notara; un aviso se perdería entre los demás.
+    Se descartó dejar el esquema fuera de la promesa de la 1.0, porque otro
+    editor no tendría ninguna garantía sobre él: el §11 es contrato como el
+    resto, y crecer con un tipo de campo nuevo no lo rompe.
+123. **Cerrada.** La promesa de compatibilidad de la 1.0 cubre tres cosas: el
+    formato (este documento), la orden de consola y una lista corta de la
+    biblioteca PHP, documentada en [`biblioteca.md`](biblioteca.md); el resto
+    queda `@internal` y puede cambiar en cualquier versión (§12, reglas 5 y 6).
+    La lista sale de lo que usa el panel, que es el primer programa que
+    incrusta el motor: compilar (`Compilador`, `CompiladorEnProceso`,
+    `Informe`), leer un proyecto (`Proyecto`, `Lector`, `Lectura`, `Sitio`,
+    `Pagina`, `Formato`), los avisos y los errores (`Aviso`, `Avisos`,
+    `ErrorDeProyecto`), `Slug` y el despliegue. Se descartaron cubrir todo lo
+    que no es `@internal`, unas treinta clases con todos sus métodos, porque
+    cualquier refactor interno sería un cambio mayor; y no prometer nada de la
+    biblioteca, porque el panel quedaría fijado a una versión menor del motor y
+    habría que revisarlo en cada una. De cada clase se promete lo que el
+    documento nombra y no lo demás aunque PHP lo permita (`Sitio` es público,
+    pero no `Sitio::$encabezados`). `FrontMatter` y `Yaml` siguen internos: el
+    panel solo los cita en comentarios. La regla de retirada: lo que va a dejar
+    de valer avisa durante, al menos, una versión menor antes de quitarse.
 
 ---
 

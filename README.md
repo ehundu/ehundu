@@ -227,6 +227,8 @@ reserva lo que necesitará.
   incremental qué rehace.
 - [`docs/despliegue.md`](docs/despliegue.md): `ehundu desplegar` y cada
   destino.
+- [`docs/biblioteca.md`](docs/biblioteca.md): lo que se promete de la
+  biblioteca PHP y de la orden de consola, y qué es interno.
 
 ## Dentro de otro programa
 

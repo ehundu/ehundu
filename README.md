@@ -215,6 +215,11 @@ servidor no lo toca nunca. Con `--simular` dice qué haría sin hacerlo.
   compilar un sitio grande de una vez: la biblioteca la reparte, y también la
   subida, en varias llamadas con un presupuesto de segundos cada una, y al
   terminar da lo mismo que una compilación completa.
+- **Compilación incremental entre procesos**, para un proceso web que compila
+  el mismo sitio una y otra vez: lo que recuerda se guarda en el proyecto
+  (`.ehundu/`) y cambiar una página rehace unas pocas, en un sitio de 1.200
+  páginas en unos 3 s en lugar de unos 40, con el mismo resultado que una
+  compilación completa. También se puede repartir en llamadas de unos segundos.
 - **Despliegue** a una carpeta, por FTP o FTPS, por SFTP (comprobando la
   huella del servidor) o a cualquier servicio compatible con S3. Las
   contraseñas van en un fichero aparte que no se versiona.

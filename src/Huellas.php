@@ -37,6 +37,27 @@ final class Huellas
     }
 
     /**
+     * Parte de las huellas que tomó otro proceso (las que guarda la memoria de la
+     * incremental), para no volver a leer el contenido de cada fichero: las de los
+     * ficheros que ya llevaban un rato sin tocarse cuando se tomaron, es decir, los
+     * que tenían una fecha anterior en más de un segundo a ese momento. Los demás
+     * se calcularán de nuevo, como si el proceso empezara de cero.
+     *
+     * @param array<string, string> $huellas las que se tomaron, por ruta
+     * @param int                   $momento cuándo se tomaron (segundos desde 1970)
+     */
+    public function sembrar(array $huellas, int $momento): void
+    {
+        foreach ($huellas as $ruta => $huella) {
+            $partes = explode('|', $huella, 3);
+
+            if (count($partes) === 3 && (int) $partes[1] < $momento - 1) {
+                $this->estables["{$ruta}|{$partes[0]}|{$partes[1]}"] = $huella;
+            }
+        }
+    }
+
+    /**
      * La huella de cada fichero de esas rutas, que pueden ser ficheros o
      * carpetas, desde la raíz del proyecto.
      *

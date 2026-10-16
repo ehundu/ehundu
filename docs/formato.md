@@ -35,17 +35,19 @@ Estado: borrador. Las decisiones cerradas están en §14.
       esquema.json           tipos de contenido y campos (lo usan los editores)
       .secretos.yml          credenciales de despliegue (nunca se versiona)
       salida/                resultado del build (nunca se versiona)
-      .ehundu/               por dónde va una compilación por lotes (nunca se versiona)
+      .ehundu/               lo que recuerda el motor entre compilaciones: por dónde va un lote
+                             y la memoria de la incremental (nunca se versiona)
 
 Reglas:
 
 - Todo lo que afecta al resultado vive dentro de esta carpeta. Sin excepciones.
 - El motor solo lee de aquí y solo escribe en `salida/` y, en una compilación
-  por lotes (§10.4), en `.ehundu/`.
+  por lotes (§10.4) o incremental entre procesos (§10.5), en `.ehundu/`.
 - `.ehundu/` es del motor: lo crea él, lleva dentro su propio `.gitignore` para
   que no se versione, no se publica ni se lee como contenido, y no afecta al
   resultado. Se puede borrar cuando se quiera: lo único que se pierde es lo
-  avanzado en una compilación por lotes a medias.
+  avanzado en una compilación por lotes a medias y lo que la incremental
+  recordaba, y la siguiente compilación será completa.
 - Los nombres de carpeta son fijos; no se configuran. Un proyecto siempre se
   reconoce igual, y se puede pasar de uno a otro, o migrar muchos, sin
   averiguar cómo está organizado cada uno.
@@ -1381,6 +1383,47 @@ no la necesita y no la ofrece.
 
 El despliegue (`despliegue.md`) se reparte igual: ver la decisión 125.
 
+### 10.5 Compilación incremental entre procesos
+
+La compilación incremental (`compilacion.md`) recuerda la última compilación y
+rehace solo lo que un cambio afecta. La previsualización la tiene dentro de su
+proceso; `CompiladorIncrementalEnProceso` ([`biblioteca.md`](biblioteca.md)) la
+ofrece a quien incruste el motor, guardando lo que recuerda en
+`.ehundu/memoria.bin` (§1) para que la aproveche una compilación de otro
+proceso: guardar un cambio en un sitio de mil páginas rehace unas pocas. La
+consola no la necesita y no la ofrece.
+
+- **El mismo resultado.** Como toda compilación incremental: los mismos
+  ficheros y los mismos avisos que una compilación completa del mismo
+  proyecto. Si no se puede asegurar, se rehace todo.
+- **Qué se guarda.** Lo que la incremental ya recuerda, tal cual: lo leído del
+  proyecto, las huellas de `plantillas/`, `parciales/` y `publico/`, y de cada
+  página su HTML (y su PDF), lo que usó y los cuerpos convertidos. Pesa del
+  orden de `salida/` más lo leído (97 MB en el sitio más grande de los de
+  prueba, con 1.200 páginas) y se carga en una fracción de segundo. No lleva
+  nada que no esté en el proyecto.
+- **Cuándo no vale.** Si falta, está dañada o a medio escribir, es de otra
+  versión de la memoria o del motor, o es de otro proyecto (otra ruta), se
+  ignora y se hace una compilación completa. Nunca es un error. Cambiar de
+  versión del motor, o tocar su código, hace que la primera compilación sea
+  completa.
+- **Cuándo se guarda.** Solo cuando una llamada sale bien. Un error del
+  proyecto deja la memoria y `salida/` como estaban, y el siguiente cambio
+  vuelve a aprovecharla.
+- **Por presupuesto.** `avanzar` hace lo mismo con un presupuesto de segundos,
+  como los lotes (§10.4): rehace páginas hasta agotarlo, siempre al menos una,
+  guarda lo hecho y devuelve un `Lote` que dice si está completo. La llamada
+  siguiente sigue: lo que ya está hecho se aprovecha por la misma regla que
+  cualquier otro cambio, y a una memoria con la mitad de las páginas solo le
+  faltan páginas, así que no hace falta ningún estado aparte, y si el proyecto
+  cambia entre dos llamadas solo se rehace lo que el cambio afecta, no todo.
+  Hasta que está completo, `salida/` mezcla páginas nuevas y viejas: vale lo
+  del §10.4.
+- **Una llamada a la vez.** Una llamada que llega mientras otra está avanzando
+  no espera ni estropea nada: devuelve el estado, con `ocupado()`.
+- **El primer arranque** (sin memoria) es una compilación completa: con
+  `avanzar` se reparte en las llamadas que haga falta.
+
 ---
 
 ## 11. `esquema.json`
@@ -2464,6 +2507,31 @@ un sitio de la v1 no debe usarlo como campo propio.
     y decirlo (`InformeDeDespliegue::$completo`). Salió de que una petición que
     compila en lotes y luego sube de golpe se pasaría igual del límite en un
     sitio con muchos ficheros.
+126. **Cerrada.** La compilación incremental sale del proceso: `.ehundu/memoria.bin`
+    guarda lo que ya recuerda, y `CompiladorIncrementalEnProceso` lo usa (§10.5).
+    La decisión 124 la había dejado fuera, y salió de usar los lotes en un panel web con el sitio más grande de los de
+    prueba (1.200 páginas): guardar un cambio de una página costaba una
+    compilación entera, de 35 a 45 s, porque los lotes no recuerdan nada, y
+    la incremental, que dentro de un proceso rehace esa página en 0,7 s, no se
+    podía usar porque lo que recuerda no sobrevivía a la petición. Se midió que
+    la memoria entera pesa 97 MB y se carga en 0,06 s: no hacía falta inventar
+    nada más pequeño. Se guarda tal cual, con la versión del motor, y se ignora
+    sin error si no vale, porque el resultado tiene que ser siempre el de una
+    completa y el motor no puede fiarse de algo que escribió otra versión de sí
+    mismo. El trabajo por presupuesto no necesita un estado como el de los
+    lotes: una memoria con la mitad de las páginas es una memoria a la que le
+    faltan páginas, y el plan de la incremental ya rehace las que faltan y
+    aprovecha las que valen, también si el proyecto cambia entre dos llamadas
+    (con los lotes, empezaba de nuevo). Los lotes se quedan como están, porque
+    la decisión 124 ya los promete, y esto los complementa: son los que
+    reparten una compilación completa sin recordar nada. Cuesta lo que pesa la
+    memoria, en disco y en el proceso que la carga, y que la primera
+    compilación tras cada cambio de versión del motor sea completa. Se
+    descartó guardar solo lo que usó cada página y volver a leer el HTML de
+    `salida/` (ahorra la mitad, pero depende de que nadie toque `salida/` y
+    complica el motor), y dejar el trabajo al panel con una compilación
+    posterior a la respuesta, que esconde la espera pero no la quita y deja
+    la copia ocupada.
 
 ---
 

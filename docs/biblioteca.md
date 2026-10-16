@@ -68,6 +68,38 @@ Para un proceso web que no puede dedicarle de una vez todo lo que hace falta
   llamada ha empezado de nuevo porque el proyecto cambió) y `ocupado()` (si otra
   llamada estaba avanzando y esta no ha hecho nada).
 
+### Compilar de forma incremental
+
+Para un proceso web que compila el mismo sitio una y otra vez, sobre todo si es
+grande ([`formato.md`](formato.md), §10.5). Lo que recuerda entre una compilación
+y la siguiente se guarda en `.ehundu/memoria.bin`, en el proyecto: un cambio en
+una página rehace unas pocas, aunque la compilación anterior fuera de otro
+proceso, y el resultado es siempre el de una compilación completa.
+
+- **`CompiladorIncrementalEnProceso`** implementa `Compilador`.
+  `__construct(?\DateTimeImmutable $ahora = null)` fija el momento con el que se
+  decide qué está publicado. `compilar(Proyecto): Informe` compila de una vez
+  (si otra llamada está compilando el proyecto, espera a que termine);
+  `$informe->rehechas` dice cuántas páginas se han rehecho. Sin una memoria que
+  valga (la primera vez, tras cambiar de versión del motor, o si se borra
+  `.ehundu/`) hace una compilación completa. Lanza `ErrorDeProyecto` si el
+  proyecto no se puede compilar, y entonces deja la memoria y `salida/` como
+  estaban.
+- **`avanzar(Proyecto, float $segundos): Lote`** hace lo mismo con un
+  presupuesto, como los lotes: rehace páginas hasta agotarlo, y siempre al
+  menos una, guarda lo hecho y devuelve un `Lote` (ver arriba) que dice si
+  está completo. La llamada siguiente sigue donde se quedó, también si el
+  proyecto ha cambiado entretanto: solo se rehace lo que el cambio afecta. Hasta
+  que el `Lote` está completo, `salida/` mezcla páginas nuevas y viejas. Una
+  llamada que llega mientras otra está avanzando no espera: devuelve
+  `ocupado()`.
+- **`olvidar(Proyecto)`** borra la memoria: la siguiente compilación será
+  completa.
+
+La memoria pesa del orden de `salida/` más lo leído (97 MB en un sitio de 1.200
+páginas) y se carga en una fracción de segundo; el proceso que la usa necesita
+memoria para ella (unos 350 MB en ese sitio).
+
 ### Leer un proyecto
 
 - **`Proyecto`**: `Proyecto::abrir(string $ruta)`, `$raiz`, `ruta(string ...$partes)`

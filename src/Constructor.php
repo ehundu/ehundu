@@ -26,6 +26,9 @@ final class Constructor
     private ?Huellas $huellas = null;
     private ?string $raizDeLasHuellas = null;
 
+    /** @var array{huellas: array<string, string>, momento: int}|null las huellas que tomó otro proceso, para sembrar las de este */
+    private ?array $semilla = null;
+
     /**
      * @param bool $incremental si se recuerda cada construcción para aprovecharla en la siguiente
      */
@@ -35,12 +38,36 @@ final class Constructor
     }
 
     /**
+     * Parte de lo que recordó otro proceso (`Incremental\Almacen`): la siguiente construcción lo
+     * aprovecha como si fuera la última de este.
+     *
+     * @param int $momento cuándo se guardó esa memoria (segundos desde 1970), para saber qué huellas valen
+     */
+    public function recordar(?Memoria $memoria, int $momento = 0): void
+    {
+        $this->memoria = $memoria;
+        $this->semilla = $memoria === null ? null : ['huellas' => $memoria->huellas, 'momento' => $momento];
+    }
+
+    /**
+     * Lo que recuerda ahora, para guardarlo fuera del proceso.
+     */
+    public function memoria(): ?Memoria
+    {
+        return $this->memoria;
+    }
+
+    /**
      * @param \DateTimeImmutable|null $ahora         el momento con el que se decide qué está publicado
      * @param bool                    $conBorradores si se incluyen los borradores y las páginas futuras
+     * @param int|null                $limite        el momento (de `hrtime(true)`, en nanosegundos) a partir
+     *                                               del cual se deja de hacer páginas: la construcción sale
+     *                                               incompleta, con lo hecho en su memoria, y la siguiente
+     *                                               sigue. Siempre se hace al menos una página
      *
      * @throws ErrorDeProyecto si el proyecto no se puede construir
      */
-    public function construir(Proyecto $proyecto, ?\DateTimeImmutable $ahora = null, bool $conBorradores = false): Construccion
+    public function construir(Proyecto $proyecto, ?\DateTimeImmutable $ahora = null, bool $conBorradores = false, ?int $limite = null): Construccion
     {
         $ahora ??= new \DateTimeImmutable();
         $anterior = $this->memoria;
@@ -83,8 +110,30 @@ final class Constructor
         $hechas = [];
         $rehechas = 0;
 
+        /** @var array<string, string> $nuevos lo que escriben las páginas rehechas, por ruta en salida/: lo único que hay que escribir si la construcción sale incompleta */
+        $nuevos = [];
+        $cortada = false;
+        $visitadas = 0;
+        $total = 0;
+
+        foreach ($lectura->paginas as $pagina) {
+            if ($pagina->url !== false && isset($publicadas[$pagina->ruta])) {
+                $total++;
+            }
+        }
+
         foreach ($lectura->paginas as $pagina) {
             if ($pagina->url === false || !isset($publicadas[$pagina->ruta])) {
+                continue;
+            }
+
+            // Pasado el límite no se hace nada más, pero lo que se aprovecha de la construcción anterior se
+            // conserva en la memoria: la siguiente llamada solo tiene que rehacer lo que falta
+            if ($cortada) {
+                if ($anterior !== null && isset($aprovechables[$pagina->ruta])) {
+                    $hechas[$pagina->ruta] = $anterior->paginas[$pagina->ruta];
+                }
+
                 continue;
             }
 
@@ -106,6 +155,15 @@ final class Constructor
             } else {
                 $hecha = self::hacerPagina($maquetador, $pagina, $ficheroPdf);
                 $rehechas++;
+                $nuevos[$fichero] = $hecha['html'];
+
+                if ($ficheroPdf !== null && $hecha['pdf'] !== null) {
+                    $nuevos[$ficheroPdf] = $hecha['pdf'];
+                }
+
+                foreach ($hecha['paquetes'] as $paquete => $contenido) {
+                    $nuevos[$paquete] = $contenido;
+                }
             }
 
             $escritos[$fichero] = $hecha['html'];
@@ -123,6 +181,23 @@ final class Constructor
             }
 
             $hechas[$pagina->ruta] = $hecha;
+
+            // Siempre se hace al menos una página rehecha por llamada, para que una llamada con poco tiempo avance.
+            // Si era la última página, no hay nada que dejar para otra llamada: se termina
+            $visitadas++;
+
+            if ($limite !== null && $rehechas > 0 && $visitadas < $total && hrtime(true) >= $limite) {
+                $cortada = true;
+            }
+        }
+
+        if ($cortada) {
+            // Incompleta: sin copias, sitemap ni feed, y con lo hecho en la memoria para que la siguiente siga
+            if ($this->incremental) {
+                $this->memoria = new Memoria($proyecto->raiz, $conBorradores, $lectura, $huellas, $publicadas, $maquetador->cuerpos(), $hechas);
+            }
+
+            return new Construccion($nuevos, [], count($hechas), [], $rehechas, completa: false, total: $total);
         }
 
         $paginas = count($escritos);
@@ -138,7 +213,7 @@ final class Constructor
             $this->memoria = new Memoria($proyecto->raiz, $conBorradores, $lectura, $huellas, $publicadas, $maquetador->cuerpos(), $hechas);
         }
 
-        return new Construccion($escritos, $copias, $paginas, [...$lectura->avisos, ...$avisos->todos()], $rehechas);
+        return new Construccion($escritos, $copias, $paginas, [...$lectura->avisos, ...$avisos->todos()], $rehechas, total: $total);
     }
 
     /**
@@ -273,6 +348,11 @@ final class Constructor
         if ($this->huellas === null || $this->raizDeLasHuellas !== $proyecto->raiz) {
             $this->huellas = new Huellas($proyecto, ocultos: true);
             $this->raizDeLasHuellas = $proyecto->raiz;
+
+            // Las que tomó otro proceso, si la memoria que se ha recordado era de este mismo proyecto
+            if ($this->semilla !== null) {
+                $this->huellas->sembrar($this->semilla['huellas'], $this->semilla['momento']);
+            }
         }
 
         return $this->huellas;

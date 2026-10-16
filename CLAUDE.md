@@ -81,7 +81,8 @@ documentación son inventados.
    `require-dev`, nunca en `require`, y el motor funciona sin ella.
 3. **Todo lo que afecta al resultado vive en la carpeta del proyecto.** El
    motor solo lee de ella y solo escribe en `salida/` y, en una compilación
-   por lotes (formato §10.4), en `.ehundu/`, que no afecta al resultado.
+   por lotes o incremental entre procesos (formato §10.4 y §10.5), en
+   `.ehundu/`, que no afecta al resultado.
 4. **El Markdown no pasa por Twig.** Los atajos (`[imagen ...]`) son un
    vocabulario cerrado, se resuelven sobre el HTML ya convertido y no admiten
    expresiones ni lógica. Ver §8.1 del formato.

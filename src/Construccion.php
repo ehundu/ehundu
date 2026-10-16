@@ -23,6 +23,11 @@ final readonly class Construccion
      * @param int|null              $rehechas cuántas de las páginas se han construido de nuevo; las
      *                                        demás se han aprovechado de la construcción anterior.
      *                                        Null si no se sabe: todas
+     * @param bool                  $completa false si la construcción se ha cortado al llegar a su límite de
+     *                                        tiempo (`Constructor::construir`): entonces `escritos` es solo lo que
+     *                                        han escrito las páginas rehechas, `copias` y `avisos` están vacíos y
+     *                                        `paginas` son las que lleva hechas, de `total`
+     * @param int                   $total    cuántas páginas se escriben en total
      */
     public function __construct(
         public array $escritos,
@@ -30,6 +35,8 @@ final readonly class Construccion
         public int $paginas,
         public array $avisos,
         public ?int $rehechas = null,
+        public bool $completa = true,
+        public int $total = 0,
     ) {
     }
 }

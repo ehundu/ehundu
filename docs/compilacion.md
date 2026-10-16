@@ -127,8 +127,30 @@ aviso a aviso, y también cuando la compilación falla.
 
 Lo que se recuerda entre compilaciones son datos simples (`Memoria`), sin
 recursos ni conexiones, así que se pueden serializar y guardar fuera del
-proceso. De momento no se guarda nada en disco: al arrancar, la
-previsualización hace una compilación completa.
+proceso. La previsualización no guarda nada en disco: al arrancar, hace una
+compilación completa. Quien incruste el motor sí puede guardarlo:
+`CompiladorIncrementalEnProceso` ([`biblioteca.md`](biblioteca.md), formato §10.5)
+lo escribe en `.ehundu/memoria.bin` después de cada compilación y la siguiente,
+aunque sea de otro proceso, lo aprovecha. En Bilbonauta, el sitio más grande de
+los de prueba (1.204 páginas), cambiar el cuerpo de una página rehace una y
+tarda unos 3 s en total (leer el proyecto, cargar la memoria, comparar `salida/`
+y guardarla), frente a los 35–45 s de una compilación completa.
+
+**Cuándo no vale lo guardado.** Si el fichero falta, está cortado o dañado, lo
+escribió otra versión de la memoria o del motor (se compara una huella del
+tamaño y la fecha de su código), o es de otro proyecto (otra ruta), se ignora y
+se compila entero: nunca es un error. Solo se guarda cuando una compilación
+sale bien, y si no se ha rehecho ninguna página no se vuelve a escribir. Las
+huellas de `plantillas/`, `parciales/` y `publico/` que tomó el proceso anterior
+también se aprovechan: no se vuelve a leer el contenido de los ficheros que ya
+llevaban un rato sin tocarse.
+
+**Repartida en llamadas.** `avanzar` corta la compilación cuando se agota el
+presupuesto y guarda lo hecho. No hace falta ningún estado aparte: una memoria
+con la mitad de las páginas es una memoria a la que le faltan páginas, y el plan
+rehace las que faltan y aprovecha las que valen. Por eso, si el proyecto cambia
+entre dos llamadas, no se empieza de nuevo (a diferencia de los lotes de más
+abajo): solo se rehace lo que el cambio afecta.
 
 Compilar decide primero qué se aprovecha (`Plan`) y después rehace el resto.
 
@@ -139,9 +161,10 @@ Un proceso web puede no tener tiempo de compilar un sitio grande de una vez.
 compilación **completa** en tareas (cada página, cada fichero que se copia, el
 sitemap con el feed, la limpieza final) y las hace en varias llamadas, cada una
 con un presupuesto de tiempo. No es la compilación incremental: no recuerda qué
-se rehizo la vez anterior, y cada lote lo rehace todo. Son cosas distintas, y
-la una no impide a la otra: guardar la memoria incremental entre peticiones
-queda para cuando un sitio lo pida.
+se rehizo la vez anterior, y cada lote lo rehace todo. Para un sitio que se
+compila una y otra vez, `CompiladorIncrementalEnProceso` (más arriba) hace lo
+mismo con memoria; los lotes quedan para quien quiere una compilación completa
+repartida sin guardar nada del sitio.
 
 Cada llamada vuelve a leer el proyecto entero (con `agrupar` y `paginar`
 expandidos) y construye de nuevo el maquetador; lo único que viaja de una a otra

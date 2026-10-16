@@ -126,6 +126,10 @@ final class Maquetador
             }
 
             ['html' => $html, 'paquetes' => $paquetes] = $this->recursos->insertar($html, ['css' => $actual->css, 'js' => $actual->js]);
+
+            if ($this->lectura->sitio->generador) {
+                $html = Generador::marcar($html);
+            }
         } finally {
             $registro = $this->registros->cerrar();
         }

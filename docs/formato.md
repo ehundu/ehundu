@@ -209,6 +209,28 @@ solo el menor, para no repetir la imagen.
 Cambiar esta sección rehace todas las páginas, y una página depende de cada
 fichero de variantes que mira, como de cualquier otro de `publico/`.
 
+`generador` marca las páginas como hechas con Ehundu. Por defecto, el motor
+añade `<meta name="generator" content="Ehundu">` al `<head>` de cada página
+HTML, y esta clave la quita:
+
+    generador: no
+
+- **Dónde.** En cada página que escribe el motor y que tiene un `</head>`
+  (sin distinguir mayúsculas), en el primero. La etiqueta va justo antes, en su
+  propia línea y con la sangría de `</head>` más dos espacios; si `</head>` no
+  está al principio de su línea, va pegada a él. Lo que no tiene `</head>` no
+  cambia: un fragmento, un `.txt`, un XML, una página con `plantilla: false`
+  que no es un documento. Tampoco cambian el PDF de una página, el sitemap ni
+  el feed.
+- **Si la plantilla ya la pone.** Una página que ya tiene una etiqueta `<meta>`
+  con `name="generator"` no se toca: manda la plantilla.
+- **Sin versión.** El contenido es siempre `Ehundu`. Con la versión, cada
+  actualización del motor cambiaría todas las páginas de todos los sitios y
+  obligaría a volver a subirlas (decisión 127).
+- **Valores.** `no` o `false` la quita; `sí`, `true` o no poner la clave es lo
+  mismo, que salga. Otro valor se avisa y se ignora. Cambiar la clave rehace
+  todas las páginas, como cualquier otro cambio de `sitio.yml`.
+
 La sección `despliegue` dice adónde publica `ehundu desplegar` (ver
 `despliegue.md`). Destinos admitidos en la v1: `carpeta`, `ftp`, `sftp` y
 `s3`. Sus campos:
@@ -2532,6 +2554,25 @@ un sitio de la v1 no debe usarlo como campo propio.
     complica el motor), y dejar el trabajo al panel con una compilación
     posterior a la respuesta, que esconde la espera pero no la quita y deja
     la copia ocupada.
+127. **Cerrada.** El motor marca las páginas con `<meta name="generator" content="Ehundu">`,
+    por defecto y con `generador: no` para quitarla (§2). Salió de querer que los
+    sitios hechos con Ehundu se reconozcan, como los de otros generadores. Se
+    decidió que el contenido sea solo `Ehundu`, sin la versión: con ella, cada
+    actualización cambiaría el HTML de todas las páginas de todos los sitios y
+    obligaría a volver a subirlas, y en el panel todo aparecería como cambios sin
+    publicar sin que nadie hubiera tocado nada; además, daría a quien mira el
+    código de una web la versión exacta del motor. Y que la añada el motor, antes
+    de `</head>`, en vez de una función que cada plantilla tenga que escribir,
+    porque la marca solo sirve si sale en todos los sitios sin que cada uno se
+    acuerde de ponerla. Es una excepción a que el motor no toca el HTML de la
+    página, que son las plantillas del sitio; por eso se limita a una sola línea,
+    se respeta la etiqueta de quien ya la tiene y se puede quitar con una clave.
+    Cuesta que, al actualizar el motor, cada página de cada sitio lleve una línea
+    más, así que cada sitio tiene que volver a publicarse una vez; no pasa de una
+    vez a otra, porque la etiqueta no cambia con la versión. Se descartó una
+    función de plantilla (`{{ generador() }}`) por no ser por defecto, y poner
+    también la versión en el feed (`<generator version="…">` de Atom), porque el
+    feed cambiaría con cada versión como las páginas.
 
 ---
 

@@ -19,6 +19,7 @@ final readonly class Sitio
      * @param Encabezados             $encabezados    la sección del mismo nombre (formato §2)
      * @param Imagenes                $imagenes       la sección del mismo nombre (formato §2)
      * @param int                     $formato        la versión del formato que declara el proyecto; 1 si no dice (formato §2)
+     * @param bool                    $generador      si las páginas llevan la etiqueta `generator`; `generador` en `sitio.yml` (formato §2)
      */
     public function __construct(
         public string $nombre,
@@ -30,6 +31,7 @@ final readonly class Sitio
         public Encabezados $encabezados = new Encabezados(),
         public Imagenes $imagenes = new Imagenes(),
         public int $formato = Formato::VERSION,
+        public bool $generador = true,
     ) {
     }
 

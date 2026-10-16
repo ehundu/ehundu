@@ -23,7 +23,8 @@ final class RecursosPrueba extends TestCase
     protected function setUp(): void
     {
         $this->avisos = new Avisos();
-        $this->crearFichero('sitio.yml', "nombre: Librería La Esquina\nurl: https://www.ejemplo.com\n");
+        // Sin la etiqueta generator: aquí se comprueba el HTML al milímetro y es cosa de GeneradorPrueba
+        $this->crearFichero('sitio.yml', "nombre: Librería La Esquina\nurl: https://www.ejemplo.com\ngenerador: no\n");
 
         foreach (['reset', 'estilos', 'cabecera', 'pie', 'pagina', 'blog', 'portada'] as $nombre) {
             $this->crearFichero("publico/css/{$nombre}.css", ".{$nombre} {}");

@@ -97,13 +97,33 @@ final class Lector
         $enlacesExternos = EnlacesExternos::leer($campos['enlacesExternos'] ?? null, $lineas['enlacesExternos'] ?? null, $idiomas, $avisos);
         $encabezados = Encabezados::leer($campos['encabezados'] ?? null, $lineas['encabezados'] ?? null, $idiomas, $avisos);
         $imagenes = Imagenes::leer($campos['imagenes'] ?? null, $lineas['imagenes'] ?? null, $avisos);
+        $generador = self::leerGenerador($campos['generador'] ?? null, $lineas['generador'] ?? null, $avisos);
 
         $campos['url'] = rtrim($url, '/');
         $campos['idioma'] = $idiomas->predeterminado();
         $campos['idiomas'] = $idiomas->paraPlantillas();
         unset($campos['despliegue']);
 
-        return new Sitio($nombre, $campos['url'], $zonaHoraria, $campos, $idiomas, $enlacesExternos, $encabezados, $imagenes, $formato);
+        return new Sitio($nombre, $campos['url'], $zonaHoraria, $campos, $idiomas, $enlacesExternos, $encabezados, $imagenes, $formato, $generador);
+    }
+
+    /**
+     * Si las páginas llevan la etiqueta `generator` (formato §2): sí si falta
+     * la clave, y un valor que no es sí ni no se avisa y se ignora.
+     */
+    private static function leerGenerador(mixed $valor, ?int $linea, Avisos $avisos): bool
+    {
+        if ($valor === null) {
+            return true;
+        }
+
+        try {
+            return Campos::siNo($valor);
+        } catch (\UnexpectedValueException) {
+            $avisos->registrar('«generador» tiene que ser sí o no; se usa sí', Proyecto::SITIO, $linea);
+
+            return true;
+        }
     }
 
     /**

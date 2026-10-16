@@ -24,6 +24,7 @@ final class Almacen
 {
     public const string FICHERO = Estado::CARPETA . '/memoria.bin';
     public const string CERROJO = Estado::CARPETA . '/memoria.lock';
+    public const string CURSO = Estado::CARPETA . '/memoria-curso.json';
 
     /** Cambia cuando cambia cómo se guarda la memoria */
     public const int VERSION = 1;
@@ -136,6 +137,45 @@ final class Almacen
     public static function olvidar(Proyecto $proyecto): void
     {
         @unlink($proyecto->ruta(self::FICHERO));
+        @unlink($proyecto->ruta(self::CURSO));
+    }
+
+    /**
+     * Lo que llevan hecho, entre todas, las llamadas de una compilación repartida que aún no ha terminado: cuántas
+     * páginas han rehecho y cuánto han tardado. Sirve para que el `Informe` de la última cuente la compilación
+     * entera y no solo su parte. Si no hay, o lleva más de una hora sin avanzar, es cero.
+     *
+     * @return array{rehechas: int, segundos: float}
+     */
+    public static function leerCurso(Proyecto $proyecto): array
+    {
+        $datos = json_decode((string) @file_get_contents($proyecto->ruta(self::CURSO)), true);
+
+        if (!is_array($datos) || !is_int($datos['momento'] ?? null) || time() - $datos['momento'] > 3600) {
+            return ['rehechas' => 0, 'segundos' => 0.0];
+        }
+
+        return ['rehechas' => max(0, (int) ($datos['rehechas'] ?? 0)), 'segundos' => max(0.0, (float) ($datos['segundos'] ?? 0.0))];
+    }
+
+    /**
+     * @param array{rehechas: int, segundos: float} $curso
+     */
+    public static function guardarCurso(Proyecto $proyecto, array $curso): void
+    {
+        Estado::prepararCarpeta($proyecto);
+        $fichero = $proyecto->ruta(self::CURSO);
+        $nuevo = $fichero . '.nuevo';
+        $json = json_encode($curso + ['momento' => time()], JSON_THROW_ON_ERROR);
+
+        if (@file_put_contents($nuevo, $json) === false || !@rename($nuevo, $fichero)) {
+            @unlink($nuevo);
+        }
+    }
+
+    public static function olvidarCurso(Proyecto $proyecto): void
+    {
+        @unlink($proyecto->ruta(self::CURSO));
     }
 
     /**

@@ -85,6 +85,10 @@ final class CompiladorIncrementalEnProceso implements Compilador
             $constructor = new Constructor(incremental: true);
             $constructor->recordar($guardada['memoria'] ?? null, $guardada['guardada'] ?? 0);
 
+            // Lo que llevan hecho las llamadas anteriores de esta compilación repartida, si la memoria que quedó
+            // es la suya
+            $curso = $guardada === null ? ['rehechas' => 0, 'segundos' => 0.0] : Almacen::leerCurso($proyecto);
+
             $construccion = $constructor->construir(
                 $proyecto,
                 $this->ahora,
@@ -97,6 +101,10 @@ final class CompiladorIncrementalEnProceso implements Compilador
                 }
 
                 self::guardar($proyecto, $constructor);
+                Almacen::guardarCurso($proyecto, [
+                    'rehechas' => $curso['rehechas'] + (int) $construccion->rehechas,
+                    'segundos' => $curso['segundos'] + (hrtime(true) - $inicio) / 1e9,
+                ]);
 
                 return new Lote($construccion->paginas, $construccion->total);
             }
@@ -109,12 +117,15 @@ final class CompiladorIncrementalEnProceso implements Compilador
                 self::guardar($proyecto, $constructor);
             }
 
+            Almacen::olvidarCurso($proyecto);
+            $segundosEnTotal = $curso['segundos'] + (hrtime(true) - $inicio) / 1e9;
+
             return new Lote($construccion->total, $construccion->total, new Informe(
                 paginas: $construccion->paginas,
                 avisos: $construccion->avisos,
-                segundos: (hrtime(true) - $inicio) / 1e9,
+                segundos: $segundosEnTotal,
                 ficheros: count($construccion->copias),
-                rehechas: $construccion->rehechas,
+                rehechas: min($construccion->paginas, $curso['rehechas'] + (int) $construccion->rehechas),
             ));
         } finally {
             Almacen::soltar($cerrojo);

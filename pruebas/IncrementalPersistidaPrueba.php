@@ -105,6 +105,9 @@ final class IncrementalPersistidaPrueba extends TestCase
         self::assertTrue($lote->completo());
         self::assertGreaterThan(3, $llamadas, 'Con el presupuesto a cero, una página por llamada');
         self::assertSame(1.0, $lote->progreso());
+        // El informe cuenta la compilación entera, no solo la última llamada
+        self::assertSame($lote->informe()->paginas, $lote->informe()->rehechas);
+        self::assertFileDoesNotExist($this->carpetaTemporal() . '/.ehundu/memoria-curso.json', 'Al terminar, no queda lo acumulado');
         self::assertSame($this->arbol($completa . '/salida'), $this->arbol($this->carpetaTemporal() . '/salida'));
         self::assertSame(array_map(strval(...), $this->informeDe($completa)->avisos), array_map(strval(...), $lote->informe()->avisos));
     }
@@ -168,6 +171,11 @@ final class IncrementalPersistidaPrueba extends TestCase
 
         self::assertTrue($lote->completo());
         self::assertSame($total, $lote->informe()->paginas);
+        // La plantilla base afecta a casi todas (no al informe ni a lo que no usa plantilla), y se han rehecho entre
+        // varias llamadas: el informe las cuenta todas
+        self::assertGreaterThan(5, $lote->informe()->rehechas);
+        self::assertLessThanOrEqual($total, $lote->informe()->rehechas);
+        self::assertGreaterThanOrEqual($lote->informe()->rehechas, count($hechas), 'Con el presupuesto a cero, una página rehecha por llamada');
         self::assertSame($hechas, array_values(array_unique($hechas)), 'Lo hecho no se pierde de una llamada a otra');
 
         $completa = $this->copiaDelProyecto();

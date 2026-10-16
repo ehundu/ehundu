@@ -157,7 +157,7 @@ el nombre `<tronco>-<ancho>.<formato>`, en `publico/`.
     imagenes:
       anchos: [480, 960, 1600]
       formatos: [avif, webp]
-      sizes: (min-width: 60rem) 50rem, 100vw
+      sizes: "(min-width: 60rem) 50rem, 100vw"
 
 Sin ella, las imágenes salen como hasta ahora, sin `srcset`. Con ella:
 
@@ -169,7 +169,9 @@ Sin ella, las imágenes salen como hasta ahora, sin `srcset`. Con ella:
   navegador usa el primero que entiende. Valen `avif`, `webp`, `jpg`, `jpeg` y
   `png`, que son también la extensión de los ficheros. Por defecto, `[webp]`.
   Un formato que no vale se avisa y se ignora. El último es el de reserva: el
-  que se usa en el `<img>`.
+  que se usa en el `<img>`, y el único que verían los PDF (§10.3), que solo
+  leen bien JPEG, PNG y SVG. Un sitio con PDF que muestran el cuerpo de una
+  página con figuras acaba la lista en `jpg` o `png`.
 - `sizes` es el valor de `sizes` que llevan las imágenes del atajo `imagen` y
   las figuras del Markdown cuando no dicen otro. Por defecto, `100vw`, que
   nunca pide menos imagen de la que hace falta.
@@ -1047,8 +1049,10 @@ nombre en `parciales/atajos/`, que recibe las mismas variables.
   `sizes="…"` del atajo o, si no lo lleva, el de la sección. Una imagen sin
   ninguna variante sale como sin `imagenes` y sin aviso: no todas se procesan
   (un logotipo, una imagen pequeña). Si tiene unas variantes y le faltan otras,
-  se avisa de cada fichero que falta. Las imágenes que no son de `publico/`, o
-  que son SVG, no se tocan.
+  se avisa de cada fichero que falta. Una imagen con variantes no necesita el
+  fichero que da nombre a su tronco: puede que en `publico/` solo estén ellas, y
+  entonces no se avisa de que no existe. Las imágenes que no son de `publico/`,
+  o que son SVG, no se tocan.
 - **`video`**: `[video url="https://www.youtube.com/watch?v=…" titulo="…"]`
   admite YouTube, que se inserta desde `youtube-nocookie.com` para no poner
   cookies hasta que se reproduce, y Vimeo, con `dnt=1`. Con
@@ -1236,8 +1240,9 @@ Se genera en formato Atom si `sitio.yml` tiene una sección `feed`:
 
 Cada entrada lleva el título, la dirección completa, la fecha, la
 `descripcion` como resumen si la tiene, y el contenido completo, con los
-enlaces y las imágenes que empiezan por `/` pasados a direcciones completas,
-porque un lector de feeds no sabe de qué sitio vienen. Una página de la
+enlaces y las imágenes que empiezan por `/` pasados a direcciones completas
+(también las de cada `srcset`, §2), porque un lector de feeds no sabe de qué
+sitio vienen. Una página de la
 colección sin fecha no entra, y se avisa: Atom exige una fecha en cada
 entrada.
 

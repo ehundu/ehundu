@@ -14,6 +14,7 @@ use Ehundu\Markdown\ResolutorDeAtajos;
 use Ehundu\Pagina;
 use Ehundu\Pdf\GeneradorDePdf;
 use Ehundu\Proyecto;
+use Ehundu\Variantes;
 use Twig\Environment;
 use Twig\Error\Error;
 use Twig\Extension\CoreExtension;
@@ -84,12 +85,13 @@ final class Maquetador
         $this->twig->getExtension(CoreExtension::class)->setTimezone($zona);
 
         $this->recursos = new Recursos($proyecto, $avisos);
+        $variantes = new Variantes($proyecto, $lectura->sitio->imagenes, fn (string $fichero) => $this->registros->anotar('publico', $fichero));
         $this->extension = new ExtensionTwig($colecciones, $this->cuerpo(...), $proyecto, $avisos, $zona, $this->registros, $lectura->sitio->idiomas, $this->encabezados(...), fn (string $texto, string $idioma, bool $bloque) => $bloque
             ? $this->markdown->convertirEnBloque($texto, $idioma)
-            : $this->markdown->convertirEnLinea($texto, $idioma));
+            : $this->markdown->convertirEnLinea($texto, $idioma), $variantes);
         $this->twig->addExtension($this->extension);
 
-        $this->atajos = new Atajos($proyecto, $this->twig, $lectura, $this->extension, $avisos, $this->registros);
+        $this->atajos = new Atajos($proyecto, $this->twig, $lectura, $this->extension, $avisos, $this->registros, $variantes);
     }
 
     /**
@@ -367,6 +369,7 @@ final class Maquetador
                     'pie' => $pie === '' ? null : new \Twig\Markup($pie, 'UTF-8'),
                     'enlace' => $enlace,
                     ...$this->atajos->medidasDeFigura($src),
+                    ...$this->atajos->variantesDeFigura($src, $this->fichero, $linea),
                 ], $this->fichero, $linea);
             }
         };

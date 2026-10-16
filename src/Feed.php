@@ -146,17 +146,36 @@ final class Feed
 
     /**
      * Los enlaces y las imágenes que empiezan por `/` pasan a llevar la
-     * dirección del sitio: un lector de feeds no sabe de qué sitio vienen.
+     * dirección del sitio: un lector de feeds no sabe de qué sitio vienen. En
+     * un `srcset`, también cada una de sus direcciones (formato §10.2).
      */
     private static function urlsAbsolutas(string $html, Sitio $sitio): string
     {
-        return (string) preg_replace_callback(
+        $html = (string) preg_replace_callback(
             '~\b(href|src)="(/(?!/)[^"]*)"~',
             fn (array $partes) => $partes[1] . '="' . htmlspecialchars(
                 $sitio->absoluta(html_entity_decode($partes[2], ENT_QUOTES | ENT_HTML5, 'UTF-8')),
                 ENT_QUOTES | ENT_HTML5,
                 'UTF-8',
             ) . '"',
+            $html,
+        );
+
+        return (string) preg_replace_callback(
+            '~\bsrcset="([^"]*)"~',
+            function (array $partes) use ($sitio): string {
+                $candidatas = array_map(function (string $candidata) use ($sitio): string {
+                    $candidata = trim(html_entity_decode($candidata, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+
+                    if (preg_match('~^(/(?!/)\S*)(.*)$~s', $candidata, $partes) === 1) {
+                        $candidata = $sitio->absoluta($partes[1]) . $partes[2];
+                    }
+
+                    return htmlspecialchars($candidata, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                }, explode(',', $partes[1]));
+
+                return 'srcset="' . implode(', ', $candidatas) . '"';
+            },
             $html,
         );
     }

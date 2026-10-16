@@ -8,6 +8,7 @@ use Ehundu\Avisos;
 use Ehundu\Dimensiones;
 use Ehundu\Lectura;
 use Ehundu\Proyecto;
+use Ehundu\Variantes;
 use Twig\Environment;
 use Twig\Error\Error;
 use Twig\Markup;
@@ -21,7 +22,8 @@ use Twig\Markup;
  * Cada atajo es una plantilla de Twig que recibe sus atributos como
  * variables, `contenido` si envuelve algo, y `sitio`, `datos` y `pagina`.
  * Los de Ehundu preparan antes algunas variables: `imagen` recibe `src`,
- * `alt`, `pie`, `enlace`, `ancho` y `alto`; `video`, `insercion` o `src` y `proporcion`; `archivo`,
+ * `alt`, `pie`, `enlace`, `ancho` y `alto`, y si el sitio declara `imagenes`
+ * (formato §2) y la imagen tiene variantes, `srcset`, `sizes` y `fuentes`; `video`, `insercion` o `src` y `proporcion`; `archivo`,
  * `href`, `texto`, `tipo` y `peso`; `dato`, `valor`.
  */
 final class Atajos
@@ -41,6 +43,7 @@ final class Atajos
         private readonly ExtensionTwig $extension,
         private readonly Avisos $avisos,
         private readonly ?Registros $registros = null,
+        private readonly ?Variantes $variantes = null,
     ) {
         foreach (glob($proyecto->ruta(self::CARPETA, '*.twig')) ?: [] as $fichero) {
             $nombre = basename($fichero, '.twig');
@@ -144,7 +147,11 @@ final class Atajos
             return null;
         }
 
-        if (!$this->existe($fichero)) {
+        // Una imagen con variantes no necesita el fichero que da nombre a su
+        // tronco: puede que solo estén ellas en publico/.
+        $variantes = $this->variantesDe($fichero, $aviso);
+
+        if ($variantes === null && !$this->existe($fichero)) {
             $aviso("no existe publico/{$fichero}");
         }
 
@@ -160,8 +167,30 @@ final class Atajos
             'alt' => $alt,
             'pie' => $pie === '' ? null : new Markup(htmlspecialchars($pie, ENT_QUOTES, 'UTF-8'), 'UTF-8'),
             'enlace' => $atributos['enlace'] ?? null,
-            ...$this->medidas($fichero),
+            ...($variantes === null
+                ? $this->medidas($fichero)
+                : [...$variantes, 'sizes' => $atributos['sizes'] ?? $this->variantes?->sizes()]),
         ];
+    }
+
+    /**
+     * Las variantes de la imagen de un fichero de `publico/`, si el sitio las
+     * declara y tiene alguna. Una imagen sin ninguna sale como siempre, sin
+     * aviso: no todas se procesan.
+     *
+     * @param \Closure(string): void $aviso
+     *
+     * @return array{src: string, ancho: int, alto: int, srcset: string, fuentes: list<array{tipo: string, srcset: string}>}|null
+     */
+    private function variantesDe(string $fichero, \Closure $aviso): ?array
+    {
+        if ($this->variantes === null || !$this->variantes->activas() || !Variantes::rutaValida($fichero)) {
+            return null;
+        }
+
+        $tronco = Variantes::troncoDe($fichero);
+
+        return $tronco === null ? null : $this->variantes->buscar($tronco, $aviso);
     }
 
     /**
@@ -173,17 +202,49 @@ final class Atajos
      */
     public function medidasDeFigura(string $src): array
     {
+        $fichero = self::ficheroDeFigura($src);
+
+        return $fichero === null ? ['ancho' => null, 'alto' => null] : $this->medidas($fichero);
+    }
+
+    /**
+     * Lo que añaden las variantes a la figura de una imagen del Markdown (el
+     * atajo `imagen`, formato §8): `src`, `ancho` y `alto` de la variante más
+     * ancha, y `srcset`, `sizes` y `fuentes`. Nada si el sitio no declara
+     * `imagenes`, si la imagen no tiene variantes o si no es de `publico/`.
+     *
+     * @param string   $fichero el de la página, para los avisos de lo que falta
+     * @param int|null $linea   la de la figura
+     *
+     * @return array<string, mixed>
+     */
+    public function variantesDeFigura(string $src, string $fichero, ?int $linea): array
+    {
+        $imagen = self::ficheroDeFigura($src);
+
+        if ($imagen === null) {
+            return [];
+        }
+
+        $variantes = $this->variantesDe($imagen, fn (string $mensaje) => $this->avisos->registrar("[imagen] {$mensaje}", $fichero, $linea));
+
+        return $variantes === null ? [] : [...$variantes, 'sizes' => $this->variantes?->sizes()];
+    }
+
+    /**
+     * El fichero de `publico/` al que apunta la dirección de una figura, o null
+     * si no empieza por `/` (una dirección externa o relativa no se mira) o
+     * sale de `publico/`.
+     */
+    private static function ficheroDeFigura(string $src): ?string
+    {
         if (!str_starts_with($src, '/') || str_starts_with($src, '//')) {
-            return ['ancho' => null, 'alto' => null];
+            return null;
         }
 
         $fichero = ltrim(rawurldecode((string) strtok($src, '?#')), '/');
 
-        if ($fichero === '' || str_contains($fichero, '\\') || preg_match('#(^|/)\.\.?(/|$)#', $fichero) === 1) {
-            return ['ancho' => null, 'alto' => null];
-        }
-
-        return $this->medidas($fichero);
+        return Variantes::rutaValida($fichero) ? $fichero : null;
     }
 
     /**

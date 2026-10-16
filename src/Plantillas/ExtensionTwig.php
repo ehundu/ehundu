@@ -13,13 +13,14 @@ use Ehundu\Idiomas;
 use Ehundu\Pagina;
 use Ehundu\Proyecto;
 use Ehundu\Slug;
+use Ehundu\Variantes;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFilter;
 use Twig\TwigFunction;
 
 /**
  * Lo que Ehundu añade a Twig (formato §5.2, §6, §7, §9 y §15): las funciones
- * `coleccion()`, `svg()`, `dimensiones()`, `activo()`, `css()` y `js()`, y los filtros `slug`, `fecha`, `markdown`,
+ * `coleccion()`, `svg()`, `dimensiones()`, `variantes()`, `activo()`, `css()` y `js()`, y los filtros `slug`, `fecha`, `markdown`,
  * `orden`, `limite`, `invertir`, `sin`, `donde`, `anterior` y `siguiente`.
  *
  * Las plantillas trabajan con vistas de página; los filtros de colección
@@ -48,6 +49,8 @@ final class ExtensionTwig extends AbstractExtension
      * @param \Closure(string, string, bool): string|null $convertirMarkdown convierte a HTML un texto en Markdown (de línea, o
      *                                                  de bloque si el tercer argumento es cierto), con el idioma de la
      *                                                  página; sin ella, el filtro `markdown` escapa el texto
+     * @param Variantes|null                $variantes  de donde lee `variantes()`; sin ellas, esa función avisa de que
+     *                                                  el sitio no declara `imagenes`
      */
     public function __construct(
         private readonly Colecciones $colecciones,
@@ -59,6 +62,7 @@ final class ExtensionTwig extends AbstractExtension
         private readonly Idiomas $idiomas = new Idiomas(),
         private readonly ?\Closure $encabezados = null,
         private readonly ?\Closure $convertirMarkdown = null,
+        private readonly ?Variantes $variantes = null,
     ) {
     }
 
@@ -68,6 +72,7 @@ final class ExtensionTwig extends AbstractExtension
             new TwigFunction('coleccion', $this->coleccion(...), ['needs_context' => true]),
             new TwigFunction('svg', $this->svg(...), ['is_safe' => ['html']]),
             new TwigFunction('dimensiones', $this->dimensiones(...)),
+            new TwigFunction('variantes', $this->variantes(...)),
             new TwigFunction('activo', $this->activo(...), ['needs_context' => true]),
             new TwigFunction('css', fn (string ...$rutas) => $this->recurso('css', $rutas), ['is_safe' => ['html']]),
             new TwigFunction('js', fn (string ...$rutas) => $this->recurso('js', $rutas), ['is_safe' => ['html']]),
@@ -296,6 +301,46 @@ final class ExtensionTwig extends AbstractExtension
         }
 
         return Dimensiones::leer($this->proyecto->ruta($fichero));
+    }
+
+    /**
+     * Las variantes de ancho de una imagen de `publico/`, las que declara la
+     * sección `imagenes` de `sitio.yml`: `src`, `ancho`, `alto`, `srcset` y
+     * `fuentes` (formato §7.3). Avisa y da null si el sitio no las declara, si
+     * la ruta sale de `publico/` o si la imagen no tiene ninguna; de un SVG da
+     * null sin aviso.
+     *
+     * @return array{src: string, ancho: int, alto: int, srcset: string, fuentes: list<array{tipo: string, srcset: string}>}|null
+     */
+    public function variantes(string $ruta): ?array
+    {
+        if ($this->variantes === null || !$this->variantes->activas()) {
+            $this->avisos->registrar("variantes('{$ruta}'): el sitio no declara «imagenes» con sus «anchos» en sitio.yml; no hay variantes");
+
+            return null;
+        }
+
+        $relativa = ltrim($ruta, '/');
+
+        if (!Variantes::rutaValida($relativa)) {
+            $this->avisos->registrar("variantes('{$ruta}'): solo se leen imágenes de dentro de publico/");
+
+            return null;
+        }
+
+        $tronco = Variantes::troncoDe($relativa);
+
+        if ($tronco === null) {
+            return null;
+        }
+
+        $variantes = $this->variantes->buscar($tronco, fn (string $mensaje) => $this->avisos->registrar("variantes('{$ruta}'): {$mensaje}"));
+
+        if ($variantes === null) {
+            $this->avisos->registrar("variantes('{$ruta}'): no hay ninguna variante de {$tronco}; se busca, por ejemplo, publico/" . $this->variantes->ejemplo($tronco));
+        }
+
+        return $variantes;
     }
 
     /**

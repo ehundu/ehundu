@@ -27,6 +27,12 @@ se convierte una vez y se reutiliza donde se muestre. Lo que usa un cuerpo lo
 usa también la página que lo muestra, así que cada registro está completo
 por sí solo.
 
+Las variantes de una imagen (formato §2 y §7.3) se apuntan como cualquier otro
+fichero de `publico/`: `variantes()`, el atajo `imagen` y las figuras del
+Markdown anotan cada fichero `<tronco>-<ancho>.<formato>` que buscan, exista o
+no, así que la página se rehace cuando aparece, desaparece o cambia uno. La
+sección `imagenes` es de `sitio.yml`, y su cambio rehace todo.
+
 Además de esos registros, se recuerda lo que se leyó del proyecto y una
 huella de cada fichero de `plantillas/`, `parciales/` y `publico/`: su tamaño,
 su fecha y, si pesa menos de un mega, un resumen de su contenido. La fecha

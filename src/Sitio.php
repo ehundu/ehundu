@@ -17,6 +17,7 @@ final readonly class Sitio
      * @param Idiomas                 $idiomas     los de `idiomas`, o el de `idioma` (formato §15.1)
      * @param EnlacesExternos         $enlacesExternos la sección del mismo nombre (formato §2)
      * @param Encabezados             $encabezados    la sección del mismo nombre (formato §2)
+     * @param Imagenes                $imagenes       la sección del mismo nombre (formato §2)
      */
     public function __construct(
         public string $nombre,
@@ -26,6 +27,7 @@ final readonly class Sitio
         public Idiomas $idiomas = new Idiomas(),
         public EnlacesExternos $enlacesExternos = new EnlacesExternos(),
         public Encabezados $encabezados = new Encabezados(),
+        public Imagenes $imagenes = new Imagenes(),
     ) {
     }
 

@@ -9,6 +9,8 @@ use Ehundu\ErrorDeProyecto;
 use Ehundu\Informe;
 use Ehundu\Proyecto;
 use Ehundu\Pruebas\Apoyo\CarpetaTemporal;
+use Ehundu\Pruebas\Apoyo\Png;
+use Ehundu\Pruebas\Apoyo\Webp;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -270,6 +272,34 @@ final class CompiladorEnProcesoPrueba extends TestCase
             ['contenido/blog/sin-fecha.md: La página no tiene fecha y no entra en el feed'],
             array_map(strval(...), $informe->avisos),
         );
+    }
+
+    #[Test]
+    public function elFeedPoneDireccionesCompletasTambienEnElSrcsetDeUnaFigura(): void
+    {
+        $this->crearFichero('sitio.yml', "nombre: Prueba\nurl: https://www.ejemplo.com\nimagenes:\n  anchos: [480, 960]\n  formatos: [webp, png]\nfeed:\n  coleccion: blog\n");
+        $this->crearPlantillaMinima();
+        $this->crearFichero('contenido/blog/_datos.yml', 'etiquetas: [blog]');
+        $this->crearFichero('contenido/blog/nuevo.md', "---\ntitulo: Nuevo\nfecha: 2025-03-18\n---\n![Una foto](/img/a.jpg)\n");
+
+        foreach ([480, 960] as $ancho) {
+            $this->crearFichero("publico/img/a-{$ancho}.webp", Webp::de($ancho, intdiv($ancho * 2, 3)));
+            $this->crearFichero("publico/img/a-{$ancho}.png", Png::de($ancho, intdiv($ancho * 2, 3)));
+        }
+
+        $this->compilar();
+        $feed = $this->leerFichero('salida/feed.xml');
+
+        self::assertStringContainsString(
+            'srcset=&quot;https://www.ejemplo.com/img/a-480.webp 480w, https://www.ejemplo.com/img/a-960.webp 960w&quot;',
+            $feed,
+        );
+        self::assertStringContainsString(
+            'srcset=&quot;https://www.ejemplo.com/img/a-480.png 480w, https://www.ejemplo.com/img/a-960.png 960w&quot;',
+            $feed,
+        );
+        self::assertStringContainsString('src=&quot;https://www.ejemplo.com/img/a-960.png&quot;', $feed);
+        self::assertStringNotContainsString('=&quot;/img/', $feed);
     }
 
     /**

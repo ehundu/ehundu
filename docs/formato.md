@@ -149,6 +149,44 @@ una `etiqueta` sin `enlace` no tienen a qué aplicarse, y se ignoran sin aviso.
 Con `niveles: []` ningún encabezado recibe `id`. Cambiar esta sección rehace
 todas las páginas.
 
+La sección `imagenes` dice qué variantes de ancho tienen las imágenes del
+sitio, para que `variantes()` (§7.3), el atajo `imagen` y las figuras del
+Markdown (§8) escriban el `srcset`. El motor no las genera (§9): las busca, con
+el nombre `<tronco>-<ancho>.<formato>`, en `publico/`.
+
+    imagenes:
+      anchos: [480, 960, 1600]
+      formatos: [avif, webp]
+      sizes: (min-width: 60rem) 50rem, 100vw
+
+Sin ella, las imágenes salen como hasta ahora, sin `srcset`. Con ella:
+
+- `anchos` es la lista de anchos, en píxeles, que tienen las imágenes del sitio.
+  Es obligatoria: la sección sin ella se avisa y se ignora entera. Un valor que
+  no es un entero positivo se avisa y se ignora; los repetidos se juntan, y se
+  usan de menor a mayor.
+- `formatos` es la lista de formatos, de más a menos preferido, porque el
+  navegador usa el primero que entiende. Valen `avif`, `webp`, `jpg`, `jpeg` y
+  `png`, que son también la extensión de los ficheros. Por defecto, `[webp]`.
+  Un formato que no vale se avisa y se ignora. El último es el de reserva: el
+  que se usa en el `<img>`.
+- `sizes` es el valor de `sizes` que llevan las imágenes del atajo `imagen` y
+  las figuras del Markdown cuando no dicen otro. Por defecto, `100vw`, que
+  nunca pide menos imagen de la que hace falta.
+
+El tronco de una imagen es su ruta sin la extensión: el de `img/foto.jpg` es
+`img/foto`, y sus variantes son `img/foto-480.avif`, `img/foto-480.webp`,
+`img/foto-960.avif`… Quien las genera (un editor al subir la imagen, o un
+programa aparte) deja un fichero por cada ancho y cada formato, y no amplía
+nunca: si el original es más estrecho que un ancho, el fichero de ese ancho
+sale con el ancho del original. El número del nombre es el ancho que se pidió;
+el que cuenta en el `srcset` es el que tiene el fichero, que el motor lee
+(`dimensiones()`, §7.3). Si dos anchos pedidos dan el mismo ancho real, entra
+solo el menor, para no repetir la imagen.
+
+Cambiar esta sección rehace todas las páginas, y una página depende de cada
+fichero de variantes que mira, como de cualquier otro de `publico/`.
+
 La sección `despliegue` dice adónde publica `ehundu desplegar` (ver
 `despliegue.md`). Destinos admitidos en la v1: `carpeta`, `ftp`, `sftp` y
 `s3`. Sus campos:
@@ -268,6 +306,7 @@ Campos reservados:
 | `publicarEnSuFecha` | sí/no | Si es `sí`, no se publica antes de su `fecha` (abajo). |
 | `pdf`         | sí/no   | Si es `sí`, la página sale además en PDF (§10.3).         |
 | `agrupar`     | mapa    | La página es una plantilla que se repite por cada valor de un campo (§6.3). |
+| `paginar`     | mapa    | La página parte una colección en trozos y se repite una vez por cada uno (§6.4). |
 
 `idioma` también está reservado, pero no se escribe: sale del nombre del
 fichero (`contacto.eu.md`, §15.2).
@@ -409,6 +448,10 @@ y se usa la URL que sale de la ruta.
 En una página con `agrupar` (§6.3) vale además `{{ grupo }}`, el valor del
 grupo de cada página que genera, y el patrón tiene que usarlo. En ella,
 `{{ nombreDeFichero }}` es el del fichero que genera las páginas.
+
+En el `url` de `paginar` (§6.4) vale `{{ numero }}`, el número de cada página
+que genera, a partir del 2, y el patrón tiene que usarlo. Es el único patrón
+donde existe: el `url` de la propia página no lo tiene.
 
 ### 5.2 El filtro `slug`
 
@@ -597,7 +640,7 @@ Reglas:
   pertenecen las generadas): el build se detiene con un error que muestra la
   cadena, como en el §7.2.
 - **No es paginación.** Parte un conjunto en grupos; no parte una lista larga
-  en trozos. La paginación de listados sigue fuera de la v1 (§13).
+  en trozos. Eso es `paginar` (§6.4).
 
 `grupo` y `paginas` los tienen también las páginas generadas cuando salen de
 `coleccion()` (§7.2), que es lo que hace posible el índice de arriba.
@@ -613,6 +656,93 @@ El esquema (§11) no sabe de `agrupar`. Es cosa de quien desarrolla el sitio, y
 un editor ni la enseña ni la toca; lo que sí hace es que el editor pueda
 escribir una etiqueta nueva en una entrada sin que nadie tenga que crear antes
 su página.
+
+### 6.4 Partir una lista en páginas
+
+Un listado largo se parte en trozos, uno por página. Una página con `paginar`
+es, como con `agrupar`, una plantilla de páginas: ella misma es la primera, en
+su `url`, y el motor genera las demás.
+
+    ---
+    plantilla: blog
+    url: /blog/
+    paginar:
+      coleccion: blog          # de dónde salen las páginas; obligatorio
+      porPagina: 10            # cuántas lleva cada página; obligatorio
+      orden: fecha desc        # criterio de orden() (§6.2); opcional
+      url: "/blog/{{ numero }}/"   # la de las páginas a partir de la segunda; opcional
+    ---
+
+Una entrada nueva que llene la última página abre la siguiente sin que nadie
+cree nada, y una que se quita la cierra.
+
+- **Qué entra.** Las páginas de la colección, tal como las da `coleccion()`
+  (§6): sin borradores, sin las de `publicar` en el futuro y sin las de
+  `listada: no`, y en el idioma de la página (§15.5). La propia página que
+  pagina no entra en su colección, aunque lleve su etiqueta, ni tampoco las
+  que genera: `blog/index.md` hereda la etiqueta `blog` de su carpeta (§3) y no
+  por eso se lista a sí misma.
+- **El orden.** El de `orden`, que se escribe como el criterio del filtro
+  `orden()`; sin él, el de `coleccion()` (§6.1), de la más antigua a la más
+  reciente. Un blog suele querer `fecha desc`. Se aplica antes de partir.
+- **Los trozos.** `porPagina` es un entero mayor que cero. Cada trozo lleva
+  como mucho esa cantidad, y el último, las que sobren. Una colección sin
+  páginas no es un error: hay un solo trozo, vacío, y la página sale, para
+  que un listado sin entradas siga existiendo. Un `porPagina` que no es un
+  entero mayor que cero se avisa y la página es una más, sin partir.
+- **La URL.** La primera es la `url` de la página (§5), con las reglas de
+  siempre. Las siguientes, la de `paginar.url`, que es un patrón del §5.1 con
+  `{{ numero }}` (el número de la página, desde el 2) y que tiene que
+  usarlo; sin `paginar.url`, la de la primera más `pagina/2/`, `pagina/3/`…
+  (`/blog/` da `/blog/pagina/2/`). Esa forma por defecto exige que la `url`
+  de la primera acabe en `/`: si no es así, y no hay `paginar.url`, se avisa y
+  no se genera ninguna más. Sin `{{ numero }}` en el patrón todas irían al
+  mismo fichero: se avisa y tampoco se genera ninguna. Lo demás del §5 vale:
+  el prefijo de idioma (§15.3) y el error si dos páginas van al mismo
+  fichero. `paginar.url` existe para quien migra y ya tiene otra forma
+  (`/blog/2/`, `/page/2/`) y no quiere perder direcciones.
+- **Lo que ve la plantilla.** Cada página, la primera también, lleva los
+  campos de la que la define (con la cascada del §3) y además:
+    - `paginas`: las páginas de su trozo, con la forma de las que da
+      `coleccion()` (§7.2) y en el orden pedido;
+    - `paginacion`: `actual` y `total` (cuántas páginas hay), `porPagina`,
+      `cantidad` (cuántas hay en la colección), `primera` y `ultima` (sus URL),
+      `anterior` y `siguiente` (la URL, o nada en la primera y en la última) y
+      `enlaces`, una lista con un elemento por página, con `numero`, `url` y
+      `actual` (`true` en la que se está), para pintar el índice de páginas.
+
+  Como `contenido` (§7.2), las dos tapan un campo del front matter que se
+  llame igual. El título es el de la página que define: la plantilla añade
+  «Página 2» con `pagina.paginacion.actual`.
+- **Colecciones y sitemap.** La primera es una página como cualquier otra, con
+  la etiqueta y el sitemap que le toquen. Las que genera no entran en ninguna
+  colección, tampoco en `todo`, ni en el sitemap, como las de `listada: no`
+  (§4): se llega a ellas por los enlaces de la paginación.
+- **Idiomas.** Cada idioma tiene su propia página con `paginar`
+  (`blog.md`, `blog.eu.md`) y parte las páginas de ese idioma. Una página
+  generada no tiene traducciones (§15.8).
+- **Con `agrupar`.** Una página no puede llevar las dos claves: se avisa y
+  `paginar` se ignora. Partir cada grupo en páginas queda reservado, sin
+  definir. `paginar` no se hereda: en un `_datos.yml` se avisa y se ignora,
+  porque todas las páginas de la carpeta serían plantillas de páginas.
+- **Los avisos y los errores.** Un `paginar` al que le falta `coleccion` o
+  `porPagina` avisa, con su línea, y no parte nada. Una clave que no admite se
+  avisa y se ignora. Si ni siquiera es un mapa (`paginar: sí`), se avisa, se
+  ignora y la página es una más. Un `orden` que no es un criterio válido se
+  avisa y se usa el de `coleccion()`.
+- **Sin vueltas.** Una página con `paginar` no puede depender de las páginas
+  que genera ella misma ni de otra que dependa de ella: el build se detiene
+  con un error que muestra la cadena, como en el §6.3 y el §7.2.
+
+La compilación incremental da siempre lo mismo que la completa. Las páginas que
+se generan, o dejan de generarse, se deciden de nuevo en cada compilación, y
+una se rehace cuando cambia lo que la define, o su trozo: que entre, salga o
+cambie de sitio una página, o cambien los campos de alguna de ellas. Cómo se
+consigue es cosa de `docs/compilacion.md`.
+
+El esquema (§11) no sabe de `paginar`: es cosa de quien desarrolla el sitio, y
+un editor ni la enseña ni la toca. Lo que sí consigue es que quien edita añada
+una entrada y la lista se reparta sola.
 
 ---
 
@@ -690,7 +820,9 @@ filtrar ni ordenar (§6.2).
 
 Una página que genera otra con `agrupar` (§6.3) tiene además `pagina.grupo`,
 el valor, y `pagina.paginas`, las páginas del grupo. Las páginas generadas
-las tienen también cuando salen de `coleccion()`.
+las tienen también cuando salen de `coleccion()`. Una página con `paginar`
+(§6.4), y las que genera, tienen `pagina.paginas`, las de su trozo, y
+`pagina.paginacion`.
 
 Un campo que falta sale vacío, como en Nunjucks: `{% if pagina.imagen %}`
 funciona sin comprobar antes si existe. Twig escapa el HTML de todo lo que
@@ -710,6 +842,30 @@ escribe, salvo `pagina.contenido` y lo que devuelve `svg()`.
   GIF, WebP, AVIF); no procesa la imagen. De un SVG o de un fichero que no es
   imagen da `null`, sin aviso. Si el fichero no existe o la ruta sale de
   `publico/`, avisa y da `null`.
+- `variantes(ruta)` da las variantes de ancho de una imagen, las que declara la
+  sección `imagenes` de `sitio.yml` (§2), para escribir `srcset`. Admite el
+  tronco (`img/foto`) o el fichero (`img/foto.jpg`): quita la extensión si es
+  la de una imagen. Da un mapa con:
+    - `src`, la dirección de la variante más ancha del último formato, con `/`
+      delante, y `ancho` y `alto` de ese fichero;
+    - `srcset`, las variantes del último formato, de menor a mayor ancho y con
+      su ancho real: `/img/foto-480.webp 480w, /img/foto-960.webp 960w`;
+    - `fuentes`, una lista con un elemento por cada formato anterior al último,
+      en el orden de `formatos`, cada uno con su `tipo` (`image/avif`) y su
+      `srcset`. Con un solo formato está vacía.
+
+  La plantilla escribe el HTML y decide el `sizes`, que el motor no sabe:
+
+      {% set f = variantes('img/foto') %}
+      <picture>
+        {% for fuente in f.fuentes %}<source type="{{ fuente.tipo }}" srcset="{{ fuente.srcset }}" sizes="100vw">{% endfor %}
+        <img src="{{ f.src }}" srcset="{{ f.srcset }}" sizes="100vw" width="{{ f.ancho }}" height="{{ f.alto }}" alt="">
+      </picture>
+
+  Avisa y da `null` si el sitio no declara `imagenes`, si la ruta sale de
+  `publico/` o si no hay ninguna variante de la imagen. Avisa de cada fichero
+  de variante que falta, y sigue con los que hay; un formato sin ninguna
+  variante no entra. De un SVG no da nada, sin aviso.
 - `activo(url)` dice si la página actual es esa URL o está dentro de ella:
   `activo('/blog/')` es cierto en `/blog/` y en `/blog/un-articulo/`. `/` solo
   es activo en la portada, y la raíz de cada idioma (`/eu/`), en la suya
@@ -794,7 +950,8 @@ Dos añadidos forman parte del contrato:
   convertido: `![El **escaparate** en otoño](/img/escaparate.jpg)` lleva
   `alt="El escaparate en otoño"` y el pie `El <strong>escaparate</strong> en
   otoño`. Si la dirección empieza por `/` y es una imagen de `publico/`,
-  lleva también su ancho y su alto, como el atajo. Un sitio que quiera otro
+  lleva también su ancho y su alto, como el atajo, y, si el sitio declara
+  `imagenes` (§2) y la imagen tiene variantes, su `srcset` (§8.2). Un sitio que quiera otro
   marcado para sus figuras (una clase, un `loading="lazy"`) lo da con su
   propia plantilla `imagen`.
 - **Enlaces externos.** Un enlace escrito en Markdown a otro dominio recibe
@@ -881,6 +1038,17 @@ nombre en `parciales/atajos/`, que recibe las mismas variables.
   `pie` (ya en HTML), `enlace`, `ancho` y `alto` (`null` si no se pueden
   leer). Se avisa si falta `alt` o si el fichero no existe; sin `fichero` no
   se inserta nada.
+
+  Si el sitio declara `imagenes` (§2), el atajo busca las variantes de la
+  imagen (`variantes()`, §7.3) y, si las hay, la plantilla recibe además
+  `srcset`, `sizes` y `fuentes`, y `src`, `ancho` y `alto` son los de la variante
+  más ancha del último formato; la plantilla del motor escribe `<picture>` si
+  hay `fuentes` y un `<img srcset>` si no. `sizes` es el del atributo
+  `sizes="…"` del atajo o, si no lo lleva, el de la sección. Una imagen sin
+  ninguna variante sale como sin `imagenes` y sin aviso: no todas se procesan
+  (un logotipo, una imagen pequeña). Si tiene unas variantes y le faltan otras,
+  se avisa de cada fichero que falta. Las imágenes que no son de `publico/`, o
+  que son SVG, no se tocan.
 - **`video`**: `[video url="https://www.youtube.com/watch?v=…" titulo="…"]`
   admite YouTube, que se inserta desde `youtube-nocookie.com` para no poner
   cookies hasta que se reproduce, y Vimeo, con `dnt=1`. Con
@@ -922,7 +1090,10 @@ forma de permitirlo.
 
 Las imágenes no se procesan durante el build. Si hacen falta varios tamaños,
 los genera otra herramienta (por ejemplo, un editor al subir la imagen, §11.6)
-y deja los ficheros en `publico/`.
+y deja los ficheros en `publico/`, con el nombre que dice la sección `imagenes`
+de `sitio.yml` (§2). El motor solo los lee: `variantes()` (§7.3), el atajo
+`imagen` y las figuras del Markdown (§8) escriben el `srcset` con lo que
+encuentran.
 
 ### 9.1 CSS y JavaScript de cada página
 
@@ -1667,14 +1838,17 @@ cumple esto es un error del esquema. El motor no lee el esquema y no cambia: lo
 ## 13. Fuera de la v1
 
 Catálogo de componentes con parámetros y consultas, tokens de estilo por sitio,
-generación de imágenes en varios tamaños, paginación de listados, procesadores
-sobre el HTML ya generado, pasos posteriores al build y búsqueda. El
-multiidioma estuvo aquí hasta la 0.3 (§15). Una página por cada valor de un
-campo (`agrupar`, §6.3) no es paginación y no está aquí. El PDF de una página (§10.3) no
+generación de imágenes en varios tamaños, procesadores sobre el HTML ya
+generado, pasos posteriores al build y búsqueda. El multiidioma estuvo aquí
+hasta la 0.3 (§15), y la paginación de listados (`paginar`, §6.4), hasta la
+0.11. Una página por cada valor de un campo (`agrupar`, §6.3) no es
+paginación y no está aquí. El PDF de una página (§10.3) no
 es un procesador sobre el HTML ya generado: es una salida más de la página,
 con su propia plantilla, que no toca el HTML de nadie. Los `id` de los
 encabezados (§8) tampoco lo son: se escriben al convertir el Markdown, y el
-HTML ya convertido no se vuelve a recorrer.
+HTML ya convertido no se vuelve a recorrer. Y leer las variantes de ancho de
+una imagen que otra herramienta ya generó (`variantes()`, §7.3) no es generar
+imágenes: el motor no procesa ninguna, solo busca ficheros.
 
 Ninguna de estas cosas debería obligar a cambiar lo de arriba cuando llegue.
 Si al añadirlas hay que romper el contrato, el contrato estaba mal.
@@ -2084,6 +2258,58 @@ un sitio de la v1 no debe usarlo como campo propio.
     por sitio fuera del proyecto (el zip del proyecto no se llevaría cómo se
     comporta) y un botón único «Guardar y publicar» para todo. No cambia nada en
     el motor.
+120. **Cerrada.** El motor lee las variantes de ancho de una imagen, con la sección
+    `imagenes` de `sitio.yml` (§2), la función `variantes()` (§7.3) y el
+    `srcset` del atajo `imagen` y de las figuras del Markdown (§8.2). No genera
+    ninguna: la generación sigue fuera del build (§9, §13). Salió de que tres
+    sitios, cada uno por su lado, preparaban sus fotos en WebP a 480, 960 y
+    1600 px con un programa propio y las leían con una plantilla de
+    `<img srcset>` copiada de uno a otro, con los anchos escritos a mano, y de
+    que un cuarto sirve otros cuatro anchos en AVIF: las convenciones empezaban
+    a divergir antes de congelar el formato. Se descartaron: generar las
+    variantes al compilar, porque un proyecto en zip dejaría de dar el mismo
+    HTML en cualquier máquina (§12, regla 3: sin la extensión GD no habría
+    `srcset`, y con otra versión de ella los ficheros serían otros), exigiría
+    una caché en disco que la compilación incremental no tiene y cargaría el
+    proceso web con la decodificación de fotos de varios megapíxeles; descubrir
+    los anchos buscando `foto-*.webp` en la carpeta, porque un `iphone-12.webp`
+    o un `hoja-2.webp` pasaría por variante y la compilación incremental
+    necesitaría un tipo de dependencia nuevo (el listado de una carpeta);
+    escribir los anchos en cada llamada, porque repetiría la lista en cada
+    plantilla y el atajo y las figuras no podrían usarla; y un solo formato,
+    porque un sitio que ya sirve AVIF tendría que escribir su propia plantilla.
+    La lista de anchos va en `sitio.yml` y no en `esquema.json` porque es del
+    sitio y no del editor (§11): quien genere las variantes, sea un editor al
+    subir la imagen o un programa aparte, y el motor leen la misma lista. El
+    número del nombre es el ancho pedido y el del `srcset` el real del fichero,
+    porque quien genera no amplía una foto estrecha. Una imagen sin ninguna
+    variante sale en el atajo y las figuras como siempre y sin aviso, porque no
+    todas se procesan; en `variantes()` avisa, porque quien la llama las pide.
+    `sizes` no lo sabe el motor: lo da la plantilla, o la sección, o el
+    atributo del atajo, y por defecto es `100vw`, que no pide menos imagen de
+    la que hace falta. Los sitios sin la sección no cambian.
+121. **Cerrada.** Una página con `paginar` parte una colección en trozos y se
+    repite una vez por cada uno (§6.4): la primera está en su `url` y el motor
+    genera las demás. Sale a la vez que la 120 por la misma razón, que la 1.0
+    congela el formato y esto toca la URL, que es contrato. Hasta ahora, un sitio
+    que venía de Eleventy con una lista paginada la sustituía por páginas
+    sueltas escritas por el programa de migración, y esas páginas no se rehacen
+    cuando se publica una entrada: la última página se queda corta y la
+    siguiente nunca se crea. Es una clave nueva, `paginar`, y no una ampliación
+    de `agrupar`: esta es lo contrario (reparte por valores, no por tamaño, y su
+    `campo` no tiene sentido para el blog entero, §6.3). Se descartó dejarlo a
+    mano con filtros (`desde(n)`), porque no resuelve que una entrada nueva cree
+    su página. La URL de las páginas a partir de la segunda es, por defecto,
+    la de la primera más `pagina/N/`, en español y sin chocar con un artículo
+    llamado `2`; y se puede cambiar con `paginar.url`, con `{{ numero }}`
+    (§5.1), porque quien migra no puede perder direcciones y cada generador
+    numera a su manera (`/blog/2/`, `/page/2/`). Las páginas generadas no entran en
+    colecciones ni en el sitemap, para que «Blog, página 2» no salga en un menú
+    ni en un listado. Partir cada grupo de `agrupar` queda reservado: una página
+    con las dos claves avisa y `paginar` se ignora. Ningún sitio lo usa hoy, y
+    definirlo después no rompe nada, mientras que definirlo ahora fijaría
+    algo que nadie ha probado. La paginación se calcula antes de cualquier
+    plantilla y no ejecuta código del sitio (§12, regla 4).
 
 ---
 

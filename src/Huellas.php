@@ -16,6 +16,8 @@ namespace Ehundu;
  * calcular la próxima vez, porque podría cambiar otra vez sin que se note en
  * la fecha. Así, después de la primera, cada toma cuesta poco más que mirar
  * la fecha de cada fichero.
+ *
+ * @internal
  */
 final class Huellas
 {

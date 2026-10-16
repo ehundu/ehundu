@@ -59,6 +59,9 @@ final class Lector
         $campos = Yaml::leerCampos($yaml, $fichero);
         $lineas = Yaml::lineasDeClaves($yaml);
 
+        // Lo primero: de un formato que no se entiende, lo demás no se puede juzgar
+        $formato = Formato::leer($campos['formato'] ?? null, $fichero, $lineas['formato'] ?? null, $avisos);
+
         $nombre = $campos['nombre'] ?? null;
         if ($nombre === null) {
             throw new ErrorDeProyecto('Falta el campo «nombre»', $fichero);
@@ -100,7 +103,7 @@ final class Lector
         $campos['idiomas'] = $idiomas->paraPlantillas();
         unset($campos['despliegue']);
 
-        return new Sitio($nombre, $campos['url'], $zonaHoraria, $campos, $idiomas, $enlacesExternos, $encabezados, $imagenes);
+        return new Sitio($nombre, $campos['url'], $zonaHoraria, $campos, $idiomas, $enlacesExternos, $encabezados, $imagenes, $formato);
     }
 
     /**

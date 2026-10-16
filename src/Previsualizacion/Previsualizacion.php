@@ -20,6 +20,8 @@ use Ehundu\TiposMime;
  * hay una construcción nueva y, si la hay, recarga. Si la última
  * construcción falló, las páginas muestran el error; los demás ficheros se
  * siguen sirviendo de la última construcción buena.
+ *
+ * @internal
  */
 final class Previsualizacion
 {

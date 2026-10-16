@@ -9,6 +9,8 @@ namespace Ehundu;
  * cabecera con `getimagesize`, que trae PHP sin extensiones: JPEG, PNG, GIF,
  * WebP y AVIF, entre otros. Un SVG no tiene dimensiones que se puedan leer
  * así, y tampoco un fichero que no es una imagen.
+ *
+ * @internal
  */
 final class Dimensiones
 {

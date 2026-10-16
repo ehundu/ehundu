@@ -15,6 +15,8 @@ use Twig\Source;
  * con su ruta desde la raíz del proyecto, `plantillas/base.twig` o
  * `parciales/cabecera.twig`, y Twig no puede leer nada fuera de esas dos
  * carpetas: ni los datos, ni el contenido, ni los secretos.
+ *
+ * @internal
  */
 final class CargadorDePlantillas implements LoaderInterface
 {

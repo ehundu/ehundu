@@ -12,6 +12,8 @@ namespace Ehundu;
  *
  * Cada fichero que se mira, exista o no, se apunta con `$anotar`: si aparece,
  * desaparece o cambia, la página que lo pidió se rehace.
+ *
+ * @internal
  */
 final class Variantes
 {

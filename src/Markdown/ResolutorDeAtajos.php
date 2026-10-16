@@ -7,6 +7,8 @@ namespace Ehundu\Markdown;
 /**
  * Lo que el Markdown necesita saber de los atajos de un sitio: cuáles hay y
  * cómo se convierten en HTML. El conversor no sabe nada de plantillas.
+ *
+ * @internal
  */
 interface ResolutorDeAtajos
 {

@@ -11,6 +11,8 @@ namespace Ehundu;
  *
  * Trae castellano, euskera, inglés y alemán. Con cualquier otro idioma, los
  * nombres salen en inglés, que son los de PHP.
+ *
+ * @internal
  */
 final class Fecha
 {

@@ -14,6 +14,8 @@ use Ehundu\Proyecto;
  * Compara la huella de cada fichero (ver `Huellas`): no necesita extensiones
  * ni procesos aparte, y en un proyecto de unos cientos de ficheros tarda
  * unos milisegundos.
+ *
+ * @internal
  */
 final class Vigilante
 {

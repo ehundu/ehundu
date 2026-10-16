@@ -11,6 +11,8 @@ namespace Ehundu;
  *
  * El motor no genera ninguna variante: las busca (`Variantes`). Sin la sección,
  * o sin ningún ancho válido, las imágenes salen como siempre.
+ *
+ * @internal
  */
 final readonly class Imagenes
 {

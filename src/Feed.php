@@ -11,6 +11,8 @@ namespace Ehundu;
  * En un sitio en varios idiomas hay uno por idioma, en la raíz de cada uno
  * (formato §15.10): el del predeterminado siempre, y los demás si tienen
  * alguna entrada.
+ *
+ * @internal
  */
 final class Feed
 {

@@ -11,6 +11,8 @@ namespace Ehundu;
  *
  * Lo que no vale se avisa, con la línea de la sección, y se ignora: nunca
  * detiene la compilación. Los avisos nombran la sección y el campo.
+ *
+ * @internal
  */
 final readonly class TextosPorIdioma
 {

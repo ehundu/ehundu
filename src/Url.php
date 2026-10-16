@@ -7,6 +7,8 @@ namespace Ehundu;
 /**
  * La URL de cada página y el fichero de `salida/` que le corresponde
  * (formato §5).
+ *
+ * @internal
  */
 final class Url
 {

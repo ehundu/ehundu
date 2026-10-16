@@ -32,6 +32,8 @@ use Twig\Loader\FilesystemLoader;
  * De cada página y de cada cuerpo queda un registro de lo que han usado y de
  * los avisos que han dado (ver `Registro`): es lo que permite a la
  * compilación incremental reutilizar lo que no ha cambiado.
+ *
+ * @internal
  */
 final class Maquetador
 {

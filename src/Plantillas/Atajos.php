@@ -25,6 +25,8 @@ use Twig\Markup;
  * `alt`, `pie`, `enlace`, `ancho` y `alto`, y si el sitio declara `imagenes`
  * (formato §2) y la imagen tiene variantes, `srcset`, `sizes` y `fuentes`; `video`, `insercion` o `src` y `proporcion`; `archivo`,
  * `href`, `texto`, `tipo` y `peso`; `dato`, `valor`.
+ *
+ * @internal
  */
 final class Atajos
 {

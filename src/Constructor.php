@@ -17,6 +17,8 @@ use Ehundu\Plantillas\Registro;
  * que ha cambiado (ver `Plan`). El resultado es siempre el mismo que el de
  * una construcción completa. Si una construcción falla, la siguiente empieza
  * de cero.
+ *
+ * @internal
  */
 final class Constructor
 {

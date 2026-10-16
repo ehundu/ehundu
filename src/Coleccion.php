@@ -7,6 +7,8 @@ namespace Ehundu;
 /**
  * Los filtros que se aplican a una colección (formato §6.2). Reciben una
  * lista de páginas y devuelven otra; no modifican la original.
+ *
+ * @internal
  */
 final class Coleccion
 {

@@ -9,6 +9,8 @@ namespace Ehundu;
  * o solo el de `idioma` en un sitio de un solo idioma. El primero es el
  * predeterminado, que va sin prefijo en las URL; los demás llevan el suyo
  * (`/eu`).
+ *
+ * @internal
  */
 final readonly class Idiomas
 {

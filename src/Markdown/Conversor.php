@@ -42,6 +42,8 @@ use League\CommonMark\Renderer\Inline\NewlineRenderer;
  * Si el sitio lo pide, los encabezados reciben un `id` y, a su elección, un
  * enlace permanente (`Encabezados`); no es un paso sobre el HTML ya generado,
  * sino algo que se hace al convertir.
+ *
+ * @internal
  */
 final class Conversor
 {

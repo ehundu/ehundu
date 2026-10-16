@@ -9,6 +9,8 @@ namespace Ehundu;
  * Markdown reciben un `id` y si llevan un enlace permanente al final (§8).
  *
  * Sin la sección, ninguno recibe `id`. Con ella, y sin `niveles`, los del 2 al 6.
+ *
+ * @internal
  */
 final readonly class Encabezados
 {

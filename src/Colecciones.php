@@ -16,6 +16,8 @@ namespace Ehundu;
  * Una colección tiene las páginas de todos los idiomas, y se puede pedir la
  * de uno solo (formato §15.5). Aparte, se sabe qué traducciones publicadas
  * tiene cada página, también las de `listada: no` (formato §15.8).
+ *
+ * @internal
  */
 final class Colecciones
 {

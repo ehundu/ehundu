@@ -18,6 +18,8 @@ use Twig\Markup;
  * plantilla.
  *
  * @implements \ArrayAccess<string, mixed>
+ *
+ * @internal
  */
 final class VistaDePagina implements \ArrayAccess
 {

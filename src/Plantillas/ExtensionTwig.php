@@ -26,6 +26,8 @@ use Twig\TwigFunction;
  * Las plantillas trabajan con vistas de página; los filtros de colección
  * trabajan con páginas. Esta clase traduce entre unas y otras, y usa siempre
  * la misma vista para la misma página.
+ *
+ * @internal
  */
 final class ExtensionTwig extends AbstractExtension
 {

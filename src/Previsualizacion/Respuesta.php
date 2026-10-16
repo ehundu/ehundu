@@ -7,6 +7,8 @@ namespace Ehundu\Previsualizacion;
 /**
  * Una respuesta HTTP de la previsualización: un contenido en memoria, un
  * fichero del proyecto que se envía tal cual, o una redirección.
+ *
+ * @internal
  */
 final readonly class Respuesta
 {

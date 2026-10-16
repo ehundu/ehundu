@@ -16,6 +16,8 @@ use Ehundu\Proyecto;
  * La orden de consola. Es una envoltura fina: interpreta los argumentos,
  * llama a la biblioteca y escribe el resultado. Nada de la biblioteca
  * depende de esta clase.
+ *
+ * @internal
  */
 final class Aplicacion
 {

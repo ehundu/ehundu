@@ -8,6 +8,8 @@ namespace Ehundu;
  * La sección `enlacesExternos` de `sitio.yml` (formato §2): lo que llevan los
  * enlaces a otros dominios escritos en Markdown, además de `target="_blank"` y
  * `rel="noopener"`, que llevan siempre (formato §8).
+ *
+ * @internal
  */
 final readonly class EnlacesExternos
 {

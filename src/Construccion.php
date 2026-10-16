@@ -7,6 +7,8 @@ namespace Ehundu;
 /**
  * Un sitio construido en memoria, listo para escribirse en `salida/` o para
  * servirse tal cual desde la previsualización.
+ *
+ * @internal
  */
 final readonly class Construccion
 {

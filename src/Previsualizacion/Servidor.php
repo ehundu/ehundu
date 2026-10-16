@@ -15,6 +15,8 @@ use Ehundu\Proyecto;
  *
  * Atiende las peticiones una a una y, entre ellas, cada medio segundo
  * pregunta al vigilante si ha cambiado algo; si es así, reconstruye.
+ *
+ * @internal
  */
 final class Servidor
 {

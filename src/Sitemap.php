@@ -8,6 +8,8 @@ namespace Ehundu;
  * El `sitemap.xml` del sitio (formato §10.1 y §15.10): las páginas HTML de
  * la colección `todo`, de todos los idiomas y en su orden, sin la
  * `404.html` de ninguno, con `lastmod` cuando la página tiene fecha.
+ *
+ * @internal
  */
 final class Sitemap
 {

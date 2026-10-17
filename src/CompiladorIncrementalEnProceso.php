@@ -84,7 +84,7 @@ final class CompiladorIncrementalEnProceso implements Compilador
 
             $guardada = Almacen::cargar($proyecto);
             $constructor = new Constructor(incremental: true);
-            $constructor->recordar($guardada['memoria'] ?? null, $guardada['guardada'] ?? 0);
+            $constructor->recordar($guardada['memoria'] ?? null);
 
             // Lo que llevan hecho las llamadas anteriores de esta compilación repartida, si la memoria que quedó
             // es la suya

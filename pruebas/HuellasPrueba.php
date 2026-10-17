@@ -27,6 +27,21 @@ final class HuellasPrueba extends TestCase
     }
 
     #[Test]
+    public function recuerdaCuandoEmpezoLaUltimaToma(): void
+    {
+        $this->crearSitioMinimo();
+        $huellas = new Huellas($this->proyecto());
+        self::assertSame(0, $huellas->tomadas(), 'Antes de tomar nada no hay momento');
+
+        $antes = time();
+        $huellas->tomar(['sitio.yml']);
+        $despues = time();
+
+        self::assertGreaterThanOrEqual($antes, $huellas->tomadas());
+        self::assertLessThanOrEqual($despues, $huellas->tomadas());
+    }
+
+    #[Test]
     public function notaUnCambioDelMismoTamanoEnElMismoSegundo(): void
     {
         $this->crearSitioMinimo();

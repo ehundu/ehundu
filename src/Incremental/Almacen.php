@@ -33,7 +33,7 @@ final class Almacen
     private const float SONDEO = 0.1;
 
     /** Cambia cuando cambia cómo se guarda la memoria */
-    public const int VERSION = 1;
+    public const int VERSION = 2;
 
     private const string MARCA = 'EHUNDU-MEMORIA';
 
@@ -247,17 +247,60 @@ final class Almacen
     }
 
     /**
-     * Una huella de lo que hace el motor: el tamaño y la fecha de cada fichero de su código y de sus recursos.
-     * Una memoria guardada por otra versión (o con otro código) no se aprovecha, porque podría dar un resultado
-     * distinto al de una compilación completa de esta. No se lee el contenido, que cuesta unos cientos de
-     * milisegundos en cada proceso; un cambio de código cambia la fecha, aunque no cambie el tamaño.
+     * Una huella de lo que decide el HTML que sale: el contenido de cada fichero del código y de los recursos
+     * del motor, las versiones de todos los paquetes que tiene instalados (Twig, CommonMark, `symfony/yaml`,
+     * dompdf…) y la versión menor de PHP. Una memoria guardada con otra cosa no se aprovecha, porque podría dar un
+     * resultado distinto al de una compilación completa de esta.
+     *
+     * Se lee el contenido y no se mira la fecha: leer unos cien ficheros cuesta unos 5 ms, y la fecha cambia con
+     * cualquier despliegue que reescriba los ficheros sin cambiarlos y no cambia si alguien la conserva.
      */
     public static function huellaDelMotor(): string
     {
-        if (self::$huella !== null) {
-            return self::$huella;
+        return self::$huella ??= self::componerHuella(self::contenidoDelCodigo(), self::paquetesInstalados(), PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION);
+    }
+
+    /**
+     * @param array<string, string> $codigo   el resumen del contenido de cada fichero, por ruta
+     * @param array<string, string> $paquetes la versión de cada paquete instalado, por nombre
+     * @param string                $php      la versión menor de PHP
+     */
+    public static function componerHuella(array $codigo, array $paquetes, string $php): string
+    {
+        ksort($codigo, SORT_STRING);
+        ksort($paquetes, SORT_STRING);
+
+        return substr(md5(serialize([$codigo, $paquetes, $php])), 0, 16);
+    }
+
+    /**
+     * La versión y la referencia de cada paquete que Composer tiene instalado; vacío si el motor no se carga
+     * con Composer.
+     *
+     * @return array<string, string>
+     */
+    public static function paquetesInstalados(): array
+    {
+        if (!class_exists(\Composer\InstalledVersions::class)) {
+            return [];
         }
 
+        $paquetes = [];
+
+        foreach (\Composer\InstalledVersions::getInstalledPackages() as $nombre) {
+            $paquetes[$nombre] = (\Composer\InstalledVersions::getVersion($nombre) ?? '') . '@' . (\Composer\InstalledVersions::getReference($nombre) ?? '');
+        }
+
+        return $paquetes;
+    }
+
+    /**
+     * El resumen del contenido de cada fichero de `src/` y `recursos/`.
+     *
+     * @return array<string, string>
+     */
+    private static function contenidoDelCodigo(): array
+    {
         $raiz = dirname(__DIR__, 2);
         $partes = [];
 
@@ -270,13 +313,11 @@ final class Almacen
 
             foreach ($recorrido as $fichero) {
                 if ($fichero->isFile()) {
-                    $partes[substr(str_replace('\\', '/', $fichero->getPathname()), strlen($raiz))] = $fichero->getSize() . '|' . $fichero->getMTime();
+                    $partes[substr(str_replace('\\', '/', $fichero->getPathname()), strlen($raiz))] = (string) @hash_file('xxh128', $fichero->getPathname());
                 }
             }
         }
 
-        ksort($partes, SORT_STRING);
-
-        return self::$huella = substr(md5(serialize($partes)), 0, 16);
+        return $partes;
     }
 }

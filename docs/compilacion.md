@@ -138,7 +138,8 @@ y guardarla), frente a los 35–45 s de una compilación completa.
 
 **Cuándo no vale lo guardado.** Si el fichero falta, está cortado o dañado, lo
 escribió otra versión de la memoria o del motor (se compara una huella del
-tamaño y la fecha de su código), o es de otro proyecto (otra ruta), se ignora y
+contenido de su código, de las versiones de sus dependencias y de la versión
+menor de PHP), o es de otro proyecto (otra ruta), se ignora y
 se compila entero: nunca es un error. Solo se guarda cuando una compilación
 sale bien, y si no se ha rehecho ninguna página no se vuelve a escribir. Las
 huellas de `plantillas/`, `parciales/` y `publico/` que tomó el proceso anterior

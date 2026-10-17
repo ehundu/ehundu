@@ -26,7 +26,7 @@ final class Constructor
     private ?Huellas $huellas = null;
     private ?string $raizDeLasHuellas = null;
 
-    /** @var array{huellas: array<string, string>, momento: int}|null las huellas que tomó otro proceso, para sembrar las de este */
+    /** @var array{huellas: array<string, string>, momento: int}|null las huellas que tomó otro proceso, para sembrar las de este, y cuándo empezó esa toma */
     private ?array $semilla = null;
 
     /**
@@ -39,14 +39,14 @@ final class Constructor
 
     /**
      * Parte de lo que recordó otro proceso (`Incremental\Almacen`): la siguiente construcción lo
-     * aprovecha como si fuera la última de este.
-     *
-     * @param int $momento cuándo se guardó esa memoria (segundos desde 1970), para saber qué huellas valen
+     * aprovecha como si fuera la última de este. Qué huellas valen lo dice el momento en que se tomaron
+     * (`Memoria::$huellasTomadas`), no el de guardar la memoria: una compilación larga las toma al empezar y
+     * guarda mucho después.
      */
-    public function recordar(?Memoria $memoria, int $momento = 0): void
+    public function recordar(?Memoria $memoria): void
     {
         $this->memoria = $memoria;
-        $this->semilla = $memoria === null ? null : ['huellas' => $memoria->huellas, 'momento' => $momento];
+        $this->semilla = $memoria === null ? null : ['huellas' => $memoria->huellas, 'momento' => $memoria->huellasTomadas];
     }
 
     /**
@@ -194,7 +194,7 @@ final class Constructor
         if ($cortada) {
             // Incompleta: sin copias, sitemap ni feed, y con lo hecho en la memoria para que la siguiente siga
             if ($this->incremental) {
-                $this->memoria = new Memoria($proyecto->raiz, $conBorradores, $lectura, $huellas, $publicadas, $maquetador->cuerpos(), $hechas);
+                $this->memoria = new Memoria($proyecto->raiz, $conBorradores, $lectura, $huellas, $publicadas, $maquetador->cuerpos(), $hechas, $this->huellas($proyecto)->tomadas());
             }
 
             return new Construccion($nuevos, [], count($hechas), [], $rehechas, completa: false, total: $total);
@@ -210,7 +210,7 @@ final class Constructor
         }
 
         if ($this->incremental) {
-            $this->memoria = new Memoria($proyecto->raiz, $conBorradores, $lectura, $huellas, $publicadas, $maquetador->cuerpos(), $hechas);
+            $this->memoria = new Memoria($proyecto->raiz, $conBorradores, $lectura, $huellas, $publicadas, $maquetador->cuerpos(), $hechas, $this->huellas($proyecto)->tomadas());
         }
 
         return new Construccion($escritos, $copias, $paginas, [...$lectura->avisos, ...$avisos->todos()], $rehechas, total: $total);

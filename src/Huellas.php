@@ -27,6 +27,9 @@ final class Huellas
     /** @var array<string, string> huellas de ficheros que llevan un rato sin tocarse, por ruta, tamaño y fecha */
     private array $estables = [];
 
+    /** El momento (segundos desde 1970) en que empezó la última toma; 0 si aún no hay ninguna. */
+    private int $tomadas = 0;
+
     /**
      * @param bool $ocultos si se miran los ficheros y carpetas que empiezan por punto
      */
@@ -44,7 +47,9 @@ final class Huellas
      * se calcularán de nuevo, como si el proceso empezara de cero.
      *
      * @param array<string, string> $huellas las que se tomaron, por ruta
-     * @param int                   $momento cuándo se tomaron (segundos desde 1970)
+     * @param int                   $momento cuándo empezó esa toma (segundos desde 1970), que es el que cuenta
+     *                                       para saber si un fichero llevaba un rato sin tocarse; no cuándo
+     *                                       se guardaron, que puede ser mucho después
      */
     public function sembrar(array $huellas, int $momento): void
     {
@@ -55,6 +60,15 @@ final class Huellas
                 $this->estables["{$ruta}|{$partes[0]}|{$partes[1]}"] = $huella;
             }
         }
+    }
+
+    /**
+     * Cuándo empezó la última toma (segundos desde 1970): las huellas que dio son de ese momento, y lo que
+     * guarda quien las recuerda para sembrarlas en otro proceso (`sembrar`).
+     */
+    public function tomadas(): int
+    {
+        return $this->tomadas;
     }
 
     /**
@@ -70,6 +84,7 @@ final class Huellas
         clearstatcache();
 
         $ahora = time();
+        $this->tomadas = $ahora;
         $huellas = [];
         $estables = [];
 

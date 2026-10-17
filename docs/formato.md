@@ -1427,8 +1427,9 @@ consola no la necesita y no la ofrece.
 - **Cuándo no vale.** Si falta, está dañada o a medio escribir, es de otra
   versión de la memoria o del motor, o es de otro proyecto (otra ruta), se
   ignora y se hace una compilación completa. Nunca es un error. Cambiar de
-  versión del motor, o tocar su código, hace que la primera compilación sea
-  completa.
+  versión del motor, de alguna de sus dependencias o de PHP, o tocar el código
+  del motor, hace que la primera compilación sea completa: lo que puede
+  cambiar el HTML que sale no se mezcla con lo que se recordó con otra cosa.
 - **Cuándo se guarda.** Solo cuando una llamada sale bien. Un error del
   proyecto deja la memoria y `salida/` como estaban, y el siguiente cambio
   vuelve a aprovecharla.

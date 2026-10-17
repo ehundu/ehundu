@@ -25,6 +25,8 @@ final readonly class Memoria
      * @param array<string, array{html: string, registro: Registro, encabezados: list<array{nivel: int, texto: string, id: string}>}> $cuerpos cuerpos convertidos, por ruta
      * @param array<string, array{html: string, pdf: string|null, paquetes: array<string, string>, registro: Registro}> $paginas HTML, PDF si lo tiene y
      *                                                                                                                         ficheros de CSS y JS que enlaza, de cada página escrita, por ruta
+     * @param int                                                     $huellasTomadas cuándo empezó la toma de las huellas (segundos desde 1970): no
+     *                                                                                cuándo se guardó la memoria, que puede ser mucho después
      */
     public function __construct(
         public string $raiz,
@@ -34,6 +36,7 @@ final readonly class Memoria
         public array $publicadas,
         public array $cuerpos,
         public array $paginas,
+        public int $huellasTomadas = 0,
     ) {
     }
 }

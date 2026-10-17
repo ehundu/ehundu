@@ -344,6 +344,18 @@ despliegue:
     }
 
     #[Test]
+    public function conTodoElPresupuestoDeTiempoSeIgnoraYSeSubeTodoEnUnaLlamada(): void
+    {
+        $this->crearSitio();
+
+        $informe = $this->desplegar(todo: true, segundos: 0.0);
+
+        self::assertTrue($informe->completo, 'Repartido no terminaría nunca: cada llamada volvería a empezar por el primer fichero');
+        self::assertSame(0, $informe->pendientes);
+        self::assertSame(['css/a.css', 'index.html', 'otra/index.html', 'sitemap.xml'], $informe->subidos);
+    }
+
+    #[Test]
     public function conUnPresupuestoDeTiempoSubeUnFicheroPorLlamadaYAlFinalEstaTodo(): void
     {
         $this->crearSitio();

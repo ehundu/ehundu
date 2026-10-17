@@ -53,7 +53,10 @@ final class Desplegador
      * @param float|null                            $segundos  lo que puede durar la subida (formato decisión 125): al
      *                                                         agotarse, guarda el manifiesto y para, y el informe dice
      *                                                         que no está completo; la llamada siguiente sigue donde se
-     *                                                         quedó. La tarea que ha empezado se termina. Sin él, sube todo
+     *                                                         quedó. La tarea que ha empezado se termina. Sin él, sube todo.
+     *                                                         Con `$todo` se ignora: subirlo todo otra vez no se puede
+     *                                                         repartir, porque la llamada siguiente volvería a empezar por
+     *                                                         el primer fichero
      * @param Informe|null                          $compilado el de una compilación ya hecha, por ejemplo repartida con
      *                                                         `avanzar` (formato §10.5), para no volver a compilar en cada llamada
      *
@@ -71,6 +74,7 @@ final class Desplegador
         ?Informe $compilado = null,
     ): InformeDeDespliegue {
         $inicio = hrtime(true);
+        $segundos = $todo ? null : $segundos;
         $avisos = new Avisos();
         $hechos = ['subidos' => [], 'borrados' => []];
         $completo = true;

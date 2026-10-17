@@ -123,6 +123,7 @@ final class Conversor
 
         $entorno->addBlockStartParser(new ParserDeAtajosDeBloque($contexto, SintaxisDeAtajos::conCierre($markdown)), 100);
         $entorno->addInlineParser(new ParserDeAtajosEnLinea($contexto), 100);
+        $entorno->addInlineParser(new ParserDeAtajosMalEscritos($contexto), 50);
 
         $entorno->addRenderer(AtajoEnLinea::class, Renderizadores::atajoEnLinea($contexto));
         $entorno->addRenderer(AtajoDeBloque::class, Renderizadores::atajoDeBloque($contexto));

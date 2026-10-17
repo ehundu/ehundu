@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace Ehundu;
 
 /**
- * La versión de Ehundu, la que escribe `ehundu --version`. Se cambia al preparar cada versión, en el mismo
- * commit que el README; entre versiones lleva `-dev`. No es la versión del formato (`Formato::VERSION`).
- *
- * @internal
+ * La versión de Ehundu, la que escribe `ehundu --version`: `0.15.0` en una versión publicada y `0.16.0-dev` entre
+ * una y otra. Se cambia al preparar cada versión, en el mismo commit que el README. No es la versión del formato
+ * (`Formato::VERSION`).
  */
 final class Version
 {

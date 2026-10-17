@@ -306,7 +306,10 @@ final class Constructor
             $escritos['sitemap.xml'] = Sitemap::generar($lectura->sitio, $colecciones->coleccion(Colecciones::TODO));
         }
 
-        foreach (Feed::generar($lectura->sitio, $colecciones, $maquetador->cuerpo(...), $avisos, $destinos->ocupado(...)) as $fichero => $feed) {
+        $existe = static fn (string $etiqueta): bool => $etiqueta === Colecciones::TODO
+            || array_filter($lectura->paginas, static fn (Pagina $pagina): bool => in_array($etiqueta, $pagina->campos['etiquetas'] ?? [], true)) !== [];
+
+        foreach (Feed::generar($lectura->sitio, $colecciones, $maquetador->cuerpo(...), $avisos, $destinos->ocupado(...), $existe) as $fichero => $feed) {
             $escritos[$fichero] = $feed;
         }
 

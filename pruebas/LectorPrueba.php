@@ -388,7 +388,6 @@ final class LectorPrueba extends TestCase
         // Puede ser una traducción preparada de antemano: el sitio todavía no declara ese idioma
         $this->crearSitioEnDosIdiomas();
         $this->crearFichero('contenido/contacto.fr.md', 'Contact');
-        $this->crearFichero('contenido/sitemap.xml.twig', '<urlset/>');
         $this->crearFichero('datos/menus.fr.yml', 'a: 1');
 
         $lectura = $this->leer();
@@ -397,8 +396,35 @@ final class LectorPrueba extends TestCase
         self::assertSame([
             'datos/menus.fr.yml: El punto en el nombre está reservado para el idioma, y «fr» no es un idioma del sitio (formato §15.2); este fichero no se lee',
             'contenido/contacto.fr.md: El punto en el nombre está reservado para el idioma, y «fr» no es un idioma del sitio (formato §15.2); este fichero no se compila',
-            'contenido/sitemap.xml.twig: El punto en el nombre está reservado para el idioma, y «xml» no es un idioma del sitio (formato §15.2); este fichero no se compila',
         ], $this->avisos($lectura));
+    }
+
+    /**
+     * @return iterable<string, array{string, string}> el fichero y lo que el error recomienda
+     */
+    public static function ficherosQueSeQuierenGenerarConSuExtension(): iterable
+    {
+        yield 'robots.txt.twig' => ['contenido/robots.txt.twig', 'llama a la página «robots» y escribe «url: /robots.txt»'];
+        yield 'llms.txt.md' => ['contenido/llms.txt.md', 'llama a la página «llms» y escribe «url: /llms.txt»'];
+        yield 'sitemap.xml.twig' => ['contenido/sitemap.xml.twig', 'llama a la página «sitemap» y escribe «url: /sitemap.xml»'];
+        yield 'feed.json.twig' => ['contenido/feed.json.twig', 'llama a la página «feed» y escribe «url: /feed.json»'];
+        yield 'datos con extensión' => ['datos/tabla.csv.yml', 'quita el punto del nombre'];
+    }
+
+    #[Test]
+    #[\PHPUnit\Framework\Attributes\DataProvider('ficherosQueSeQuierenGenerarConSuExtension')]
+    public function unNombreConLaExtensionDeUnFicheroDetieneElBuildDiciendoComoLlamarlo(string $fichero, string $recomienda): void
+    {
+        $this->crearSitioMinimo();
+        $this->crearFichero($fichero, str_contains($fichero, 'datos') ? 'a: 1' : 'Texto');
+
+        try {
+            $this->leer();
+            self::fail('Tenía que detener el build');
+        } catch (ErrorDeProyecto $error) {
+            self::assertSame($fichero, $error->fichero);
+            self::assertStringContainsString($recomienda, $error->getMessage());
+        }
     }
 
     #[Test]
@@ -664,18 +690,36 @@ final class LectorPrueba extends TestCase
     }
 
     #[Test]
+    public function avisaDeUnaPaginaConLaExtensionEnMayusculasOComoMarkdownYLaCopiaTalCual(): void
+    {
+        $this->crearSitioMinimo();
+        $this->crearFichero('contenido/LEEME.MD', 'Texto');
+        $this->crearFichero('contenido/post.markdown', 'Texto');
+        $this->crearFichero('contenido/vista.TWIG', 'Texto');
+        $this->crearFichero('contenido/doc.txt', 'Texto');
+
+        $lectura = $this->leer();
+
+        self::assertSame([], $lectura->paginas);
+        self::assertSame(['LEEME.MD', 'doc.txt', 'post.markdown', 'vista.TWIG'], $lectura->ficheros);
+        self::assertSame([
+            'contenido/LEEME.MD: Parece una página, pero solo se compilan los ficheros .md y .twig, con la extensión en minúsculas; se copia tal cual a salida/',
+            'contenido/post.markdown: Parece una página, pero solo se compilan los ficheros .md y .twig, con la extensión en minúsculas; se copia tal cual a salida/',
+            'contenido/vista.TWIG: Parece una página, pero solo se compilan los ficheros .md y .twig, con la extensión en minúsculas; se copia tal cual a salida/',
+        ], $this->avisos($lectura));
+    }
+
+    #[Test]
     public function avisaYSaltaLasPaginasConUnCodigoDeIdiomaQueElSitioNoDeclara(): void
     {
         $this->crearSitioMinimo();
         $this->crearFichero('contenido/contacto.en.md', 'Contact');
-        $this->crearFichero('contenido/sitemap.xml.twig', '<urlset/>');
 
         $lectura = $this->leer();
 
         self::assertSame([], $lectura->paginas);
         self::assertSame([
             'contenido/contacto.en.md: El punto en el nombre está reservado para el idioma, y «en» no es un idioma del sitio (formato §15.2); este fichero no se compila',
-            'contenido/sitemap.xml.twig: El punto en el nombre está reservado para el idioma, y «xml» no es un idioma del sitio (formato §15.2); este fichero no se compila',
         ], $this->avisos($lectura));
     }
 

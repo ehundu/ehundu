@@ -356,6 +356,14 @@ final class Lector
                     continue;
                 } elseif (!str_starts_with($nombre, '_')) {
                     FicherosPhp::comprobar(Proyecto::CONTENIDO . "/{$ruta}");
+
+                    if (in_array(strtolower(pathinfo($nombre, PATHINFO_EXTENSION)), [...self::FORMATOS, 'markdown'], true)) {
+                        $avisos->registrar(
+                            'Parece una página, pero solo se compilan los ficheros .md y .twig, con la extensión en minúsculas; se copia tal cual a salida/',
+                            Proyecto::CONTENIDO . "/{$ruta}",
+                        );
+                    }
+
                     $ficheros[] = $ruta;
                 } elseif (str_starts_with($nombre, '_datos.') && $nombre !== Cascada::FICHERO && str_ends_with($nombre, '.yml')) {
                     $nombreEIdioma = self::nombreEIdioma(substr($nombre, 0, -4), $idiomas, Proyecto::CONTENIDO . "/{$ruta}");
@@ -486,6 +494,9 @@ final class Lector
      *                         `guia.antigua.es`): saltarse el fichero con un aviso haría que el despliegue borrara
      *                         la página del sitio publicado, como con un front matter roto (decisión 135)
      */
+    /** Las extensiones de los ficheros que un sitio suele generar, que no pueden ser nunca un idioma (formato §15.2). */
+    private const array EXTENSIONES_DE_FICHERO = ['txt', 'xml', 'json', 'css', 'js', 'html', 'htm', 'svg', 'csv', 'yml', 'yaml', 'md', 'php', 'ico', 'pdf'];
+
     private static function nombreEIdioma(string $nombre, Idiomas $idiomas, string $fichero): array|string
     {
         $punto = strrpos($nombre, '.');
@@ -496,6 +507,18 @@ final class Lector
 
         $base = substr($nombre, 0, $punto);
         $codigo = substr($nombre, $punto + 1);
+
+        // `robots.txt.twig`, `sitemap.xml.twig`: la extensión de un fichero que se quiere generar, no un idioma
+        if (in_array($codigo, self::EXTENSIONES_DE_FICHERO, true)) {
+            $salida = str_starts_with($fichero, Proyecto::DATOS . '/')
+                ? "quita el punto del nombre, que en datos/ se lee como el nombre de los datos"
+                : "llama a la página «{$base}» y escribe «url: /{$nombre}» en su front matter";
+
+            throw new ErrorDeProyecto(
+                "«{$nombre}» parece un fichero con su extensión, y el punto en el nombre está reservado para el idioma (formato §15.2): {$salida}",
+                $fichero,
+            );
+        }
 
         if (str_contains($base, '.') || !Idiomas::esCodigo($codigo)) {
             throw new ErrorDeProyecto(

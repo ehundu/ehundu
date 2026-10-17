@@ -250,6 +250,20 @@ final class ConversorPrueba extends TestCase
     }
 
     #[Test]
+    public function avisaDeUnAtajoRegistradoConLosAtributosMalEscritosYLoDejaComoTexto(): void
+    {
+        $html = $this->convertir("Foto [imagen fichero=a.png alt=x] y [imagen fichero=\"b.png\" alt=x] y [nota = importante] y [archivo](/a.pdf).");
+
+        self::assertSame('<p>Foto [imagen fichero=a.png alt=x] y [imagen fichero=&quot;b.png&quot; alt=x] y [nota = importante] y <a href="/a.pdf">archivo</a>.</p>' . "
+", $html);
+        // Los dos dicen lo mismo en la misma línea: un solo aviso
+        self::assertSame([
+            'contenido/a.md:5: El atajo «imagen» está mal escrito: cada atributo se escribe nombre="valor", con comillas dobles; se deja como texto',
+        ], $this->avisos());
+        self::assertSame([], $this->atajos);
+    }
+
+    #[Test]
     public function avisaDeUnCierreSinApertura(): void
     {
         $this->convertir('Texto [/aviso] suelto.');

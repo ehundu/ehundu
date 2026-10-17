@@ -28,15 +28,24 @@ final class Feed
      * @param \Closure(Pagina): string     $cuerpo  da el contenido de una página ya en HTML
      * @param (\Closure(string): bool)|null $ocupado si el proyecto ya tiene algo en ese fichero de
      *                                               salida; entonces gana lo suyo
+     * @param (\Closure(string): bool)|null $existe  si alguna página, publicada o no, lleva esa etiqueta; si no,
+     *                                               la colección del feed seguramente está mal escrita
      *
      * @return array<string, string> cada feed, por su fichero en `salida/`; ninguno si el sitio no tiene
      */
-    public static function generar(Sitio $sitio, Colecciones $colecciones, \Closure $cuerpo, Avisos $avisos, ?\Closure $ocupado = null): array
+    public static function generar(Sitio $sitio, Colecciones $colecciones, \Closure $cuerpo, Avisos $avisos, ?\Closure $ocupado = null, ?\Closure $existe = null): array
     {
         $configuracion = self::configuracion($sitio, $avisos);
 
         if ($configuracion === null) {
             return [];
+        }
+
+        if ($existe !== null && !$existe($configuracion[0])) {
+            $avisos->registrar(
+                "«feed.coleccion» es «{$configuracion[0]}», y ninguna página lleva esa etiqueta; el feed sale vacío",
+                Proyecto::SITIO,
+            );
         }
 
         $feeds = [];

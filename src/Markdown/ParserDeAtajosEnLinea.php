@@ -10,8 +10,9 @@ use League\CommonMark\Parser\InlineParserContext;
 
 /**
  * Reconoce los atajos simples dentro del texto. Solo los registrados: un
- * `[algo]` sin atributos es texto normal; con atributos, o si es un cierre
- * suelto, se deja como texto y se avisa.
+ * `[algo]` sin atributos que no es un atajo es texto normal; con atributos, o
+ * si es un cierre suelto, se deja como texto y se avisa. Uno registrado es
+ * siempre una llamada, lleve atributos o no.
  *
  * @internal
  */

@@ -324,6 +324,42 @@ final class CompiladorEnProcesoPrueba extends TestCase
     }
 
     #[Test]
+    public function unaColeccionDelFeedQueNingunaPaginaUsaSeAvisaYUnaSoloConBorradoresNo(): void
+    {
+        $this->crearFichero('sitio.yml', "nombre: Prueba
+url: https://www.ejemplo.com
+feed:
+  coleccion: bolg
+");
+        $this->crearFichero('plantillas/pagina.twig', '{{ pagina.contenido }}');
+        $this->crearFichero('contenido/blog/_datos.yml', "etiquetas: [blog]
+");
+        $this->crearFichero('contenido/blog/uno.md', "---
+titulo: Uno
+fecha: 2025-01-01
+borrador: sí
+---
+Uno.
+");
+
+        $informe = $this->compilar();
+
+        self::assertSame(
+            ['sitio.yml: «feed.coleccion» es «bolg», y ninguna página lleva esa etiqueta; el feed sale vacío'],
+            array_map('strval', $informe->avisos),
+        );
+
+        // Una colección que existe pero cuyas páginas son borradores no es una errata: el blog todavía no tiene entradas
+        $this->crearFichero('sitio.yml', "nombre: Prueba
+url: https://www.ejemplo.com
+feed:
+  coleccion: blog
+");
+
+        self::assertSame([], $this->compilar()->avisos);
+    }
+
+    #[Test]
     public function noTocaLaSalidaSiLaLecturaFalla(): void
     {
         try {

@@ -92,7 +92,7 @@ final class CompiladorIncrementalEnProceso implements Compilador
             $construccion = $constructor->construir(
                 $proyecto,
                 $this->ahora,
-                limite: $segundos === null ? null : $inicio + (int) round($segundos * 1e9),
+                limite: $segundos === null ? null : Presupuesto::limite($inicio, $segundos),
             );
 
             if (!$construccion->completa) {

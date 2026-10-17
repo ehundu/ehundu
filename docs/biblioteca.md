@@ -51,6 +51,11 @@ Para un proceso web que no puede dedicarle de una vez todo lo que hace falta
 ([`formato.md`](formato.md), §10.4). Por dónde va se guarda en
 `.ehundu/lote.json`, en el proyecto.
 
+El presupuesto de `avanzar` (`$segundos`), igual en los lotes, en la incremental y
+en el `Desplegador`, se cuenta desde que empieza la llamada. Uno negativo o que no
+es un número (`NAN`) vale 0, que sigue haciendo una tarea, la mínima; y uno de más
+de un día, un día, de modo que `INF` o `PHP_INT_MAX` quieren decir «sin límite».
+
 - **`CompiladorPorLotes`** (interfaz): `iniciar(Proyecto): Lote`, que empieza un
   lote nuevo, descarta el que hubiera y comprueba, antes de escribir nada, lo
   que detendría una compilación completa; `avanzar(Proyecto, float $segundos): Lote`,

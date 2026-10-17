@@ -11,6 +11,7 @@ use Ehundu\CompiladorEnProceso;
 use Ehundu\ErrorDeProyecto;
 use Ehundu\Informe;
 use Ehundu\Lector;
+use Ehundu\Presupuesto;
 use Ehundu\Proyecto;
 
 /**
@@ -145,7 +146,7 @@ final class Desplegador
             return true;
         }
 
-        $limite = $segundos === null ? null : hrtime(true) + (int) ($segundos * 1e9);
+        $limite = $segundos === null ? null : Presupuesto::limite(hrtime(true), $segundos);
         $hechas = 0;
 
         $manifiesto = new Manifiesto($anterior?->ficheros() ?? [], $url);

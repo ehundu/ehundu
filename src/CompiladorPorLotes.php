@@ -28,7 +28,8 @@ interface CompiladorPorLotes
      * cambiado desde la llamada anterior, empieza de nuevo; si está completo,
      * no hace nada.
      *
-     * @param float $segundos lo que puede durar esta llamada; la tarea que ha empezado se termina
+     * @param float $segundos lo que puede durar esta llamada; la tarea que ha empezado se termina. Negativo
+     *                        o `NAN` vale 0, y más de un día, un día: `INF` quiere decir «sin límite»
      *
      * @throws ErrorDeProyecto si el proyecto no se puede compilar
      */

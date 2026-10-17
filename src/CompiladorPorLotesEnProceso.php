@@ -226,7 +226,7 @@ final class CompiladorPorLotesEnProceso implements CompiladorPorLotes
         $destinosDeCopias = array_keys($copias);
         $hastaPaginas = count($paginas);
         $hastaCopias = $hastaPaginas + count($copias);
-        $limite = $inicio + (int) ($segundos * 1e9);
+        $limite = Presupuesto::limite($inicio, $segundos);
         $sinGuardar = 0;
         $guardado = hrtime(true);
         $completo = false;

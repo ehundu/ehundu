@@ -32,7 +32,7 @@ final class Manifiesto
     }
 
     /**
-     * @throws \UnexpectedValueException si no es un manifiesto de Ehundu
+     * @throws \UnexpectedValueException si no es un manifiesto de Ehundu, o si alguna ruta no es de dentro del sitio
      */
     public static function leer(string $json): self
     {
@@ -51,6 +51,11 @@ final class Manifiesto
         $ficheros = [];
 
         foreach ($datos['ficheros'] as $ruta => $fichero) {
+            // El manifiesto vive en el destino: quien pueda escribirlo allí no puede hacer que Ehundu borre otra cosa
+            if (!self::esRutaDelSitio((string) $ruta)) {
+                throw new \UnexpectedValueException("la ruta «{$ruta}» no es una ruta de dentro del sitio");
+            }
+
             if (!is_array($fichero) || !is_string($fichero['md5'] ?? null) || !is_int($fichero['tamano'] ?? null)) {
                 throw new \UnexpectedValueException("la entrada de «{$ruta}» no se entiende");
             }
@@ -59,6 +64,31 @@ final class Manifiesto
         }
 
         return new self($ficheros, $url);
+    }
+
+    /**
+     * Si una ruta es relativa y no sale del sitio: sin barra al principio ni barras invertidas, sin letra de unidad
+     * (`C:`), sin bytes nulos y sin tramos vacíos, `.` ni `..`. Las rutas que escribe Ehundu siempre lo son.
+     */
+    private static function esRutaDelSitio(string $ruta): bool
+    {
+        if ($ruta === '' || str_contains($ruta, "\0") || str_contains($ruta, '\\') || str_starts_with($ruta, '/')) {
+            return false;
+        }
+
+        $tramos = explode('/', $ruta);
+
+        if (preg_match('/^[A-Za-z]:$/', $tramos[0]) === 1) {
+            return false;
+        }
+
+        foreach ($tramos as $tramo) {
+            if ($tramo === '' || $tramo === '.' || $tramo === '..') {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

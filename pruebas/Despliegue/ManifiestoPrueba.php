@@ -89,6 +89,61 @@ final class ManifiestoPrueba extends TestCase
         Manifiesto::leer('{"ehundu": 1, "ficheros": {"a.html": {"md5": 3}}}');
     }
 
+    /**
+     * El manifiesto vive en el destino y dice qué borrar: una ruta que sale del sitio no se lee.
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function rutasQueSalenDelSitio(): iterable
+    {
+        yield 'un tramo ..' => ['../fuera.html'];
+        yield 'un .. en medio' => ['css/../../fuera.html'];
+        yield 'un .. al final' => ['css/..'];
+        yield 'una ruta absoluta' => ['/etc/passwd'];
+        yield 'una unidad de Windows' => ['C:/Windows/sistema.ini'];
+        yield 'barras invertidas' => ['css\\a.css'];
+        yield '.. con barra invertida' => ['..\\fuera.html'];
+        yield 'un byte nulo' => ["a.html\0.txt"];
+        yield 'un tramo vacío' => ['css//a.css'];
+        yield 'un tramo .' => ['./a.html'];
+        yield 'una ruta vacía' => [''];
+    }
+
+    #[Test]
+    #[\PHPUnit\Framework\Attributes\DataProvider('rutasQueSalenDelSitio')]
+    public function unaRutaQueSaleDelSitioNoSeLee(string $ruta): void
+    {
+        $json = json_encode(['ehundu' => 1, 'ficheros' => [$ruta => ['md5' => md5('x'), 'tamano' => 1]]], JSON_THROW_ON_ERROR);
+
+        $this->expectException(\UnexpectedValueException::class);
+        $this->expectExceptionMessage('no es una ruta de dentro del sitio');
+
+        Manifiesto::leer($json);
+    }
+
+    #[Test]
+    public function lasRutasNormalesSeLeenTambienConPuntosEspaciosYTildes(): void
+    {
+        $rutas = ['index.html', 'css/a.css', '.well-known/security.txt', '.htaccess', 'img/foto.v2.jpg', 'fotos/la casa.jpg', 'niños/ñandú.html', 'a..b/c.txt', 'C:foto.jpg', 'dir/C:'];
+        $ficheros = array_fill_keys($rutas, ['md5' => md5('x'), 'tamano' => 1]);
+
+        $leido = Manifiesto::leer(json_encode(['ehundu' => 1, 'ficheros' => $ficheros], JSON_THROW_ON_ERROR));
+
+        self::assertSame($rutas, array_keys($leido->ficheros()));
+    }
+
+    #[Test]
+    public function elDesplieguePasaPorElErrorDelManifiestoDeSiempre(): void
+    {
+        // Lo que se lee en el destino llega a `Desplegador` como UnexpectedValueException y este lo cuenta como un manifiesto roto
+        try {
+            Manifiesto::leer('{"ehundu": 1, "ficheros": {"../x": {"md5": "a", "tamano": 1}}}');
+            self::fail('Tenía que lanzar');
+        } catch (\UnexpectedValueException $error) {
+            self::assertSame('la ruta «../x» no es una ruta de dentro del sitio', $error->getMessage());
+        }
+    }
+
     private function md5(string $texto): string
     {
         return md5($texto);

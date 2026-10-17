@@ -231,6 +231,24 @@ final class DesplegadorPrueba extends TestCase
     }
 
     #[Test]
+    public function unManifiestoConUnaRutaQueSaleDelSitioNoHaceBorrarNadaFuera(): void
+    {
+        $this->crearSitio();
+        $this->destino->ficheros['fuera.html'] = 'no es del sitio';
+        $this->destino->ficheros[Manifiesto::FICHERO] = json_encode(['ehundu' => 1, 'ficheros' => ['../fuera.html' => ['md5' => md5('x'), 'tamano' => 1]]], JSON_THROW_ON_ERROR);
+
+        try {
+            $this->desplegar();
+            self::fail('Tenía que fallar');
+        } catch (ErrorDeProyecto $error) {
+            self::assertStringStartsWith('El .ehundu.json del destino la ruta «../fuera.html» no es una ruta de dentro del sitio.', $error->getMessage());
+        }
+
+        self::assertSame([], $this->destino->operaciones, 'No se ha tocado nada del destino');
+        self::assertArrayHasKey('fuera.html', $this->destino->ficheros);
+    }
+
+    #[Test]
     public function unFicheroDelSitioNoPuedeLlamarseComoElManifiesto(): void
     {
         $this->crearSitio();

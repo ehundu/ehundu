@@ -57,10 +57,8 @@ Reglas:
   reconoce igual, y se puede pasar de uno a otro, o migrar muchos, sin
   averiguar cómo está organizado cada uno.
 - Todo fichero de texto del proyecto (YAML, JSON, Markdown, plantillas, CSS,
-  JavaScript, SVG) es UTF-8. El motor ignora un BOM al principio y pasa `
-` y
-  `` a `
-`; si un fichero no es UTF-8, el build se detiene con un error que
+  JavaScript, SVG) es UTF-8. El motor ignora un BOM al principio y pasa `\r\n` y
+  `\r` a `\n`; si un fichero no es UTF-8, el build se detiene con un error que
   nombra el fichero.
 
 **Cerrado:** nombres de carpeta en español. La documentación está en español,
@@ -1229,7 +1227,7 @@ Reglas:
   lleva atributos, o es un cierre sin su apertura, además se avisa. Nunca se
   rompe el build. Un `[algo]` sin atributos que no está registrado es texto
   normal; uno registrado es siempre una llamada, lleve atributos o no (en
-  «Adjunta el [archivo] firmado», `[archivo]` es el atajo y avisa de que falta
+  «Adjunta el `[archivo]` firmado», `[archivo]` es el atajo y avisa de que falta
   `fichero`; para escribirlo como texto, `\[archivo]`). Un atajo registrado
   cuyos atributos no se pueden leer (sin comillas, por ejemplo) se deja como
   texto y se avisa (decisión 147). `[imagen](…)`, `[imagen][ref]` y

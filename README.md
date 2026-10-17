@@ -11,7 +11,7 @@ Ehundu es un generador de sitios estáticos escrito en PHP. Toma una carpeta con
 contenido en Markdown, datos en YAML y plantillas Twig, y produce un sitio web
 de HTML plano que se puede alojar en cualquier servidor.
 
-> **Estado: 0.15.** Compila sitios reales, también en varios idiomas, los
+> **Estado: 0.16.** Compila sitios reales, también en varios idiomas, los
 > previsualiza y los publica, saca en PDF las páginas que lo piden, genera una
 > página por cada etiqueta, publica las entradas en su fecha, deja las páginas
 > de una carpeta sin la carpeta en la URL, avisa a los lectores de pantalla de
@@ -30,12 +30,16 @@ de HTML plano que se puede alojar en cualquier servidor.
 > `generator` (que se quita con `generador: no`), y lleva la versión del
 > formato (`formato: 1` en `sitio.yml`) y una lista corta y documentada de lo que se promete de la
 > biblioteca ([`docs/biblioteca.md`](docs/biblioteca.md)), que es lo que la 1.0
-> congelará. La 0.15 repasa el contrato contra el código antes de congelarlo:
-> lo que el motor hacía sin decirlo queda escrito, lo que antes tomaba a ciegas
-> (un `formato` que no es un número, una `url` con ruta, un punto en el nombre de
-> una página que no es de idioma) detiene el build o avisa, el registro de
-> decisiones pasa al final del documento, el esquema tiene el suyo
-> ([`docs/esquema.md`](docs/esquema.md)) y `ehundu --version` dice qué versión es.
+> congelará. La 0.16 es la relectura final del contrato: tres lectores
+> comprobaron cada afirmación contra el código, lo que el motor hacía sin decirlo
+> queda escrito, lo que antes tomaba a ciegas (un `formato` que no es un número,
+> una `url` con ruta, un punto en el nombre de una página que no es de idioma, un
+> `robots.txt.twig`) detiene el build o avisa, las fechas de un campo propio caen
+> en la zona del sitio, y lo que la incremental recuerda entre procesos se guarda y
+> se lee por registros, con bastante menos memoria de PHP y un aviso claro si no
+> cabe en el `memory_limit`. El registro de decisiones está al final del
+> documento, el esquema tiene el suyo ([`docs/esquema.md`](docs/esquema.md)) y
+> `ehundu --version` dice qué versión es.
 > Hasta la 1.0 el formato del proyecto todavía puede cambiar; cada cambio
 > queda anotado, con su motivo, en el registro de decisiones de
 > [`docs/formato.md`](docs/formato.md).
@@ -304,7 +308,7 @@ ilustraciones de Nidel que hay en `marca/`: sus condiciones están en
 
 Ehundu is a static site generator written in PHP, designed to build sites both
 from the command line and from within a web process on ordinary shared PHP
-hosting. The current version is 0.15: it builds Markdown and Twig sites,
+hosting. The current version is 0.16: it builds Markdown and Twig sites,
 multilingual ones included, renders the pages that ask for it as PDF (with
 the optional dompdf), generates one page per tag, publishes entries on their
 date, drops a folder name from its pages' URLs, flags external links to screen
@@ -323,12 +327,14 @@ tag (`generador: no` turns it off), and deploys them to a folder, FTP, SFTP or a
 PHP 8.4 or later with `mbstring` and nothing else, and ships as a single `ehundu.phar` or as
 the Composer package `ehundu/ehundu`. Projects declare the version of the
 format they use (`formato: 1`), and `docs/biblioteca.md` lists the short part
-of the PHP library that 1.0 will promise to keep. Version 0.15 reviews the
-contract against the code before it is frozen: what the engine did without
-saying so is now written down, and a few inputs it used to take at face value
-(a malformed `formato`, a `url` with a path, a dot in a page name that is not a
-language) now stop the build or raise a warning. `ehundu --version` prints the
-version.
+of the PHP library that 1.0 will promise to keep. Version 0.16 is the final
+read-through of the contract: every claim was checked against the code, what the
+engine did without saying so is now written down, and a few inputs it used to
+take at face value (a malformed `formato`, a `url` with a path, a dot in a page
+name that is not a language, a `robots.txt.twig`) now stop the build or raise a
+warning. What the incremental build remembers between processes is saved and
+read record by record, with much less PHP memory and a clear warning when it does
+not fit in `memory_limit`. `ehundu --version` prints the version.
 
 Its project format is deliberately in Spanish (folder names, front matter
 fields), as a commitment to Spanish-speaking web developers; the usual English

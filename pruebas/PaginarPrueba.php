@@ -57,7 +57,7 @@ final class PaginarPrueba extends TestCase
         $this->crearSitio();
         $this->crearFichero(
             'plantillas/lista.twig',
-            '{% set p = pagina.paginacion %}{{ p.cantidad }}|{{ p.porPagina }}|{{ p.primera }}|{{ p.ultima }}',
+            '{% set p = pagina.paginacion %}{{ p.entradas }}|{{ p.porPagina }}|{{ p.primera }}|{{ p.ultima }}',
         );
 
         $construccion = $this->construir();

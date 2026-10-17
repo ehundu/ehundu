@@ -831,7 +831,8 @@ cree nada, y una que se quita la cierra.
     - `paginas`: las páginas de su trozo, con la forma de las que da
       `coleccion()` (§7.2) y en el orden pedido;
     - `paginacion`: `actual` y `total` (cuántas páginas hay), `porPagina`,
-      `cantidad` (cuántas hay en la colección), `primera` y `ultima` (sus URL),
+      `entradas` (cuántas hay en la colección, repartidas en esas páginas),
+      `primera` y `ultima` (sus URL),
       `anterior` y `siguiente` (la URL, o nada en la primera y en la última) y
       `enlaces`, una lista con un elemento por página, con `numero`, `url` y
       `actual` (`true` en la que se está), para pintar el índice de páginas.
@@ -1635,6 +1636,15 @@ vez de tener que entender todos los 1.x (decisión 139).
 6. La biblioteca PHP y la orden de consola prometen lo que dice
    [`biblioteca.md`](biblioteca.md), con la misma regla: lo que no está allí
    puede cambiar en cualquier versión.
+7. Los nombres siguen una regla, y los nuevos la cumplen. Los campos, las claves
+   de `sitio.yml` y las variables que ve una plantilla se escriben en español,
+   en una palabra o en camelCase, sin guiones (`porPagina`, `imagenAlt`,
+   `publicarEnSuFecha`). Las funciones y los filtros de Twig siguen la
+   convención de Twig: una palabra o con guion bajo (`css_fichero`, como
+   `number_format` o `json_encode`). Los nombres que ya hay no se renombran (regla
+   5), pero pueden recibir un alias. Las palabras que se repiten con otro
+   sentido según dónde estén (`orden`, `grupo`, `carpeta`, `fichero`,
+   `excluir`) están en una tabla de [`esquema.md`](esquema.md).
 
 ---
 
@@ -2824,3 +2834,33 @@ si hace falta, la anterior lleva una nota entre paréntesis.
     páginas que no cambian, que bajaría el pico a unos 50 MB, queda para si hace
     falta: obliga a cambiar cómo el compilador entrega las páginas a quien las
     escribe.
+142. **Cerrada.** Los nombres siguen una regla, escrita en el §12 (regla 7), y
+    `paginacion.cantidad` pasa a llamarse `paginacion.entradas`. Salió de revisar
+    lo que se iba a congelar: quedan para siempre los nombres que hay, porque
+    quitar uno es una versión mayor (§12, regla 5), y se miró cuáles confundían.
+    `css_fichero()` y `js_fichero()` son la única mezcla de guion bajo y camelCase
+    que hay, pero no es un descuido: las funciones y los filtros de Twig se
+    escriben así (`number_format`, `json_encode`, `date_modify`), las demás
+    funciones de Ehundu son de una palabra, y el camelCase es de los campos, las
+    claves y las variables (`porPagina`, `imagenAlt`). Quedan como están, con la
+    regla escrita para que lo sea. Renombrarlas obligaba a cambiar la plantilla
+    base de nueve sitios, dos de ellos del panel, a la vez que el motor, porque
+    un sitio con el nombre viejo dejaría de compilar; un alias (`cssFichero`) deja
+    dos nombres para siempre sin que nadie lo haya pedido, y se puede añadir en
+    cualquier versión menor si alguien lo echa en falta. En `paginacion`, `total`
+    es el número de páginas y `cantidad` era el de entradas de la colección, y
+    esa palabra no decía de qué. Como ningún sitio usa `paginar` (llegó en la 0.11
+    y solo se ha probado en copias), el cambio no cuesta nada ahora y después sí:
+    se renombra, sin alias, que dejaría el nombre ambiguo para siempre. `total`
+    sigue siendo el de páginas, que es lo que pide el uso corriente («Página 2 de
+    5» es `actual` y `total`). Quien usara `pagina.paginacion.cantidad` desde la
+    0.11 tiene que cambiarlo, y no lo avisa nada: Twig pinta vacío un nombre que
+    no existe. No se toca `paginar.orden` frente al campo `orden`: son de la
+    misma familia (el criterio de un orden y el número con que se ordena a mano)
+    y ya están en la tabla de palabras repetidas de `esquema.md`, que ahora
+    enlaza la regla 7. Tampoco que `primera`, `ultima`, `anterior` y `siguiente`
+    de `paginacion` sean URL mientras que los filtros `anterior()` y
+    `siguiente()` devuelven una página: está dicho en el §6.4, y `enlaces` da lo
+    necesario para un índice. Se descartaron conservar `cantidad` como alias y
+    renombrar también `total` (`totalPaginas`, `totalEntradas`), que rompe el uso
+    más común para ganar poco. Ningún sitio de prueba cambia.

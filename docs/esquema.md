@@ -36,7 +36,8 @@ Dos reglas valen para todo el esquema:
   y dónde.
 
 Estas palabras se repiten con otro sentido según dónde estén, y ya no se pueden
-renombrar. Una clave nueva evitará darles un sentido más:
+renombrar (la regla 7 del [§12 del formato](formato.md) dice cómo se escriben los
+nombres). Una clave nueva evitará darles un sentido más:
 
 | Palabra    | Dónde                                   | Qué es |
 |------------|-----------------------------------------|--------|

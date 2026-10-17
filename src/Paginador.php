@@ -109,8 +109,8 @@ final class Paginador
 
         $miembros = self::miembros($definidora, $definicion, $colecciones, $avisos, $fichero);
         $porPagina = $definicion['porPagina'];
-        $cantidad = count($miembros);
-        $total = max(1, intdiv($cantidad + $porPagina - 1, $porPagina));
+        $entradas = count($miembros);
+        $total = max(1, intdiv($entradas + $porPagina - 1, $porPagina));
         $urls = $this->urls($definidora, $patron, $total, $sitio, $avisos, $fichero);
 
         if ($urls === null) {
@@ -135,7 +135,7 @@ final class Paginador
                 'actual' => $numero,
                 'total' => $total,
                 'porPagina' => $porPagina,
-                'cantidad' => $cantidad,
+                'entradas' => $entradas,
                 'primera' => $urls[1],
                 'ultima' => $urls[$total],
                 'anterior' => $urls[$numero - 1] ?? null,

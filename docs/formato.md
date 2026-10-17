@@ -40,7 +40,8 @@ Estado: borrador. Las decisiones cerradas están en §14.
 
 Reglas:
 
-- Todo lo que afecta al resultado vive dentro de esta carpeta.
+- Todo lo que afecta al resultado vive dentro de esta carpeta, salvo el momento
+  en que se compila (§12, regla 3).
 - El motor solo lee de aquí y solo escribe en `salida/` y, en una compilación
   por lotes (§10.4) o incremental entre procesos (§10.5), en `.ehundu/`. Fuera
   del proyecto solo escribe la caché de tipografías de dompdf, si se piden PDF
@@ -1070,8 +1071,9 @@ Todas las fechas se escriben en la zona horaria del sitio (§2), también las
 del filtro `date` de Twig, que por sí solo usaría la de la máquina.
 
 Las plantillas pueden usar `random()` de Twig para elegir al azar, y la fecha
-del momento (`'now'|date('Y')`, para el año del pie). Son las dos únicas
-formas de que el mismo proyecto dé otro HTML (§12, regla 3), y tienen un precio: con
+del momento (`'now'|date('Y')`, para el año del pie). Con la misma versión del
+motor, son las dos únicas formas de que el mismo proyecto dé otro HTML en las
+páginas que salen (§12, regla 3), y tienen un precio: con
 `random()`, cada compilación completa elige de nuevo, así que esa página
 cambia y se vuelve a subir en cada despliegue. La previsualización, que
 compila de forma incremental, conserva lo elegido, o la fecha, mientras no
@@ -2092,8 +2094,14 @@ cumple esto es un error del esquema. El motor no lee el esquema y no cambia: lo
 2. La orden de consola y cualquier programa que incruste el motor usan la
    misma API; la orden es una envoltura fina.
 3. Un proyecto exportado en zip compila en cualquier máquina con PHP y da el
-   mismo HTML, salvo lo que una plantilla elija al azar con `random()` o
-   saque de la fecha del momento (§7.3).
+   mismo HTML con la misma versión del motor y de sus dependencias, salvo lo
+   que una plantilla elija al azar con `random()` o saque de la fecha del
+   momento (§7.3), y salvo qué páginas salen, que depende del momento en que se
+   compila (`publicar` y `publicarEnSuFecha`, §4). Entre versiones del motor no
+   se promete el mismo HTML byte a byte: Twig 3, CommonMark 2 y dompdf 3, que
+   Composer deja actualizar dentro de su versión mayor, deciden partes del
+   resultado (el escapado, las listas, las tablas y las notas al pie, los bytes
+   de un PDF), y lo que cambie se anota en las notas de la versión.
 4. El motor no ejecuta código propio del sitio (PHP que venga del proyecto), y
    no lo hará dentro de una versión mayor del formato (§2): es una promesa,
    como la de la regla 5.
@@ -2902,6 +2910,25 @@ si hace falta, la anterior lleva una nota entre paréntesis.
     es un entero mayor que cero (`"2"` entre comillas, `0`) detiene el build en
     vez de avisarse y tomarse por 1, porque la decisión 122 existe para no leer a
     ciegas un proyecto de otro formato; ningún sitio de prueba lo escribía así.
+137. **Cerrada.** El contrato promete el mismo HTML con la misma versión del
+    motor y de sus dependencias, y no entre versiones: lo que cambie al
+    actualizar se anota en las notas de la versión (§12, regla 3). Salió de
+    revisar lo que se iba a congelar: «las dos únicas formas» de que el mismo
+    proyecto dé otro HTML (`random()` y la fecha del momento) estaban
+    incompletas, porque qué páginas salen también depende del reloj
+    (`publicar`, `publicarEnSuFecha`), y la regla de que todo lo que afecta al
+    resultado vive en la carpeta no incluía el reloj; y el contrato no decía si
+    el mismo proyecto da el mismo HTML con dos versiones del motor, cuando Twig,
+    CommonMark y dompdf, que Composer deja actualizar dentro de su versión mayor
+    (`^3.30`, `^2.10`, `^3.1`), deciden partes del resultado. Importa no
+    obligar a subir de nuevo todas las páginas (la decisión 127 lo muestra), y
+    por eso el motor lo cuida, pero no lo promete. Se descartó prometer
+    estabilidad byte a byte, que exigiría un corpus de referencia y fijar las
+    dependencias a una versión menor, de modo que una corrección de seguridad de
+    Twig obligaría a publicar una versión de Ehundu, y prometer solo lo que el
+    contrato nombra, que deja sin decir justo lo que más puede cambiar. Cuesta
+    que un `composer update` puede cambiar bytes de un sitio sin que Ehundu
+    cambie; el aviso es la nota de la versión.
 
 ---
 

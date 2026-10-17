@@ -83,6 +83,18 @@ final class ConversorPrueba extends TestCase
     }
 
     #[Test]
+    public function elDominioDelSitioNoDistingueMayusculas(): void
+    {
+        $html = $this->convertir('[propio](https://EJEMPLO.com/a) [con www](https://WWW.Ejemplo.COM/b) [fuera](https://OTRO.com/c)');
+
+        self::assertStringContainsString('<a href="https://EJEMPLO.com/a">propio</a>', $html);
+        self::assertStringContainsString('<a href="https://WWW.Ejemplo.COM/b">con www</a>', $html);
+        self::assertStringContainsString('<a rel="noopener" target="_blank" href="https://OTRO.com/c">fuera</a>', $html);
+        self::assertTrue(\Ehundu\EnlacesExternos::esExterno('https://OTRO.com/c', 'https://www.ejemplo.com'));
+        self::assertFalse(\Ehundu\EnlacesExternos::esExterno('//Ejemplo.com/c', 'https://www.ejemplo.com'));
+    }
+
+    #[Test]
     public function unaImagenSolaEnSuParrafoEsUnaFigura(): void
     {
         $html = $this->convertir("Antes.\n\n![Un **escaparate** en otoño](/img/escaparate.jpg)\n\nDespués.");

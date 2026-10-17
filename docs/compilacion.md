@@ -106,11 +106,11 @@ siempre.
 
 ## Lo que queda fuera
 
-Dos cosas no se vigilan. La primera, la hora: una plantilla que escriba la
-fecha actual con `"now"|date` no se rehace al cambiar de día, igual que no se
-rehacía antes de haber compilación incremental. Las páginas con `publicar` sí
+Tres cosas no se vigilan. La primera, la hora: una plantilla que escriba la
+fecha actual con `"now"|date` no se rehace al cambiar de día. La segunda, lo que
+elige `random()`: una página que no se rehace conserva lo que eligió. Las páginas con `publicar` sí
 entran solas cuando llega su fecha, porque eso se comprueba en cada
-compilación. La segunda, un fichero de `publico/` que cambie sin cambiar ni
+compilación. La tercera, un fichero de `publico/` que cambie sin cambiar ni
 de tamaño ni de fecha después de llevar un rato sin tocarse; solo pasa si un
 programa restaura a propósito la fecha antigua.
 
@@ -130,8 +130,8 @@ recursos ni conexiones, así que se pueden serializar y guardar fuera del
 proceso. La previsualización no guarda nada en disco: al arrancar, hace una
 compilación completa. Quien incruste el motor sí puede guardarlo:
 `CompiladorIncrementalEnProceso` ([`biblioteca.md`](biblioteca.md), formato §10.5)
-lo escribe en `.ehundu/memoria.bin` después de cada compilación y la siguiente,
-aunque sea de otro proceso, lo aprovecha. En el sitio más grande de
+lo escribe en `.ehundu/memoria.bin` después de cada compilación en la que se
+rehace alguna página, y la siguiente, aunque sea de otro proceso, lo aprovecha. En el sitio más grande de
 los de prueba (1.204 páginas), cambiar el cuerpo de una página rehace una y
 tarda unos 3 s en total (leer el proyecto, cargar la memoria, comparar `salida/`
 y guardarla), frente a los 35–45 s de una compilación completa. La memoria pesa
@@ -146,11 +146,13 @@ plantilla, que rehace todas; con la memoria guardada en una sola cadena eran 332
 352 y 416. En otros dos sitios de 27 y 29 MB de memoria guardada, de 770 y 295
 páginas, el peor caso es de 80 y 82 MB. Lo que cuenta es el peso del HTML, no el
 número de páginas, y la regla que sale es unas 2,5 veces lo que mide
-`.ehundu/memoria.bin` más unos 10 MB en el peor caso: con 128 MB caben memorias
-de hasta unos 45 MB, con 256 MB hasta unos 95, y con 512 MB hasta unos 200. El
-motor, antes de cargarla, usa tres veces su tamaño más 16 MB y, si eso no cabe en
-el `memory_limit`, compila entero y avisa (`compilar`) o falla con el límite que
-hace falta (`avanzar`). La primera compilación, sin fichero que medir, no se
+`.ehundu/memoria.bin` más unos 10 MB en el peor caso: lo medido cabe con 128 MB
+hasta una memoria de unos 45 MB, con 256 MB hasta unos 95, y con 512 MB hasta unos
+200. El motor es más conservador, porque no sabe qué se va a rehacer: antes de
+cargarla pide tres veces su tamaño más 16 MB, y descuenta lo que ya ocupa el
+proceso, así que acepta memorias de hasta unos 37 MB con 128 MB, 80 con 256 y 170
+con 512. Si no cabe en el `memory_limit`, `compilar` compila entero y avisa, y
+`avanzar` falla con el límite que hace falta. La primera compilación, sin fichero que medir, no se
 comprueba. Una compilación completa sin memoria (`CompiladorEnProceso`) pide
 menos: unos 136 MB en ese sitio.
 

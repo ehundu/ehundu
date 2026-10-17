@@ -17,7 +17,7 @@ de HTML plano que se puede alojar en cualquier servidor.
 > de una carpeta sin la carpeta en la URL, avisa a los lectores de pantalla de
 > los enlaces que abren otra pestaña, da un `id`, y si se quiere un enlace
 > permanente, a los encabezados del Markdown, para enlazar a un apartado o
-> hacer un índice, ordena los textos como un diccionario español, sin contar
+> hacer un índice, ordena los textos al estilo español, sin contar
 > los signos `¿` y `¡`, enlaza el CSS y el JavaScript de una página como un
 > fichero con la huella de su contenido en el nombre, para que el navegador lo
 > guarde, convierte a HTML el texto con formato de un campo, de una línea o
@@ -61,8 +61,10 @@ necesita ejecutar programas externos ni extensiones poco habituales. Si un
 alojamiento compartido ejecuta PHP, puede ejecutar Ehundu.
 
 **Tu contenido son ficheros.** Todo lo que define un sitio vive en su carpeta:
-Markdown, YAML, plantillas y archivos estáticos. Sin base de datos y sin estado
-oculto. Una carpeta copiada a otra máquina compila igual.
+Markdown, YAML, plantillas y archivos estáticos. Sin base de datos y sin nada
+oculto que cambie el resultado (lo que el motor recuerda entre compilaciones vive
+en una carpeta `.ehundu/` que se puede borrar). Una carpeta copiada a otra máquina
+compila igual.
 
 **Sin dependencia de servicios.** Ehundu se apoya en software libre que se
 puede conservar y mantener, nunca en servicios cuyas condiciones pueden cambiar
@@ -182,7 +184,7 @@ servidor no lo toca nunca. Con `--simular` dice qué haría sin hacerlo.
   automáticos. Una imagen sola en su párrafo es una figura con su pie, y los
   enlaces a otros dominios se abren aparte.
 - **Atajos** para lo que el Markdown no tiene, sin meter lógica en el texto:
-  `[imagen …]`, `[video …]` (YouTube y Vimeo sin cookies), `[archivo …]` (con
+  `[imagen …]`, `[video …]` (YouTube sin cookies y Vimeo sin seguimiento), `[archivo …]` (con
   su tipo y su peso) y `[dato …]`. Un sitio puede añadir los suyos o cambiar
   el marcado de estos con una plantilla.
 - **Plantillas Twig** con colecciones por etiqueta, filtros para ordenarlas y
@@ -318,7 +320,7 @@ several calls of a few seconds each (for a web process with a time limit),
 remembers what it built between one process and the next so that a change
 rebuilds only the pages it affects, marks its pages with a `generator` meta
 tag (`generador: no` turns it off), and deploys them to a folder, FTP, SFTP or any S3-compatible storage. It needs
-PHP 8.4 or later and nothing else, and ships as a single `ehundu.phar` or as
+PHP 8.4 or later with `mbstring` and nothing else, and ships as a single `ehundu.phar` or as
 the Composer package `ehundu/ehundu`. Projects declare the version of the
 format they use (`formato: 1`), and `docs/biblioteca.md` lists the short part
 of the PHP library that 1.0 will promise to keep. Version 0.15 reviews the

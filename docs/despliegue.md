@@ -8,15 +8,30 @@ un servidor FTP o SFTP, o un cubo de S3 o de un servicio compatible. Los
 campos de cada destino y los secretos están en el §2 del formato.
 
 Con `--simular` dice qué subiría y qué borraría, sin tocar el destino; sí se
-conecta, para saber qué hay allí. Con `--todo` lo sube todo aunque no haya
+conecta, para saber qué hay allí. Un destino `carpeta` que todavía no existe no se
+crea. Con `--todo` lo sube todo aunque no haya
 cambiado, que es lo que hace falta si alguien ha tocado a mano los ficheros
 del servidor o si el sitio ha cambiado de dirección.
 
 ## Qué se sube y qué se borra
 
 Ehundu deja en el destino un fichero, `.ehundu.json`, con lo que ha subido:
-la `url` del sitio y la ruta, el MD5 y el tamaño de cada fichero, y nada
-más. Al desplegar lo lee, compara con lo que acaba de compilar y sube solo
+la versión del manifiesto, la `url` del sitio y la ruta, el MD5 y el tamaño de
+cada fichero, y nada más. Es un JSON así:
+
+    {
+      "ehundu": 1,
+      "url": "https://ejemplo.com",
+      "ficheros": {
+        "css/estilo.css": { "md5": "…", "tamano": 1234 },
+        "index.html": { "md5": "…", "tamano": 5678 }
+      }
+    }
+
+`ehundu` es la versión del manifiesto (un Ehundu 1.x lee el de cualquier versión
+anterior, y no lee uno que diga otra cosa), `url` puede faltar (un despliegue de
+la 0.1) y las rutas van sin barra al principio, sin `..` y ordenadas. Al
+desplegar lo lee, compara con lo que acaba de compilar y sube solo
 lo nuevo o lo que ha cambiado. El manifiesto vive en el propio destino para
 que cualquier máquina que despliegue el sitio vea lo mismo, y para que el
 motor no tenga que escribir nada en el proyecto fuera de `salida/`. Se puede
@@ -55,8 +70,8 @@ gana en el siguiente despliegue.
 ## En qué orden
 
 Primero se suben los ficheros (CSS, imágenes, documentos), después las
-páginas y al final el sitemap y el feed, para que una página nueva no enlace
-algo que todavía no está. Los borrados van al final. FTP y SFTP no permiten
+páginas y al final el sitemap y el feed (también el de cada idioma, `eu/feed.xml`),
+para que una página nueva no enlace algo que todavía no está. Los borrados van al final. FTP y SFTP no permiten
 cambiarlo todo de golpe, así que durante unos segundos conviven lo nuevo y lo
 viejo; este orden hace que lo que se ve en ese rato funcione.
 
@@ -73,7 +88,8 @@ después de al menos un fichero, y el `InformeDeDespliegue` dice que no está
 completo (`$completo`) y cuántos ficheros quedan (`$pendientes`). La llamada
 siguiente traza el plan otra vez, ve en el manifiesto lo que ya está subido y
 sigue por el resto. Con `$todo` no se reparte, porque sube todo sin mirar el
-manifiesto: la primera llamada lleva `$todo` y las siguientes no.
+manifiesto. Por eso con `$todo` el presupuesto se ignora y se sube todo en una
+sola llamada.
 
 Junto con una compilación repartida en llamadas que ya ha terminado
 (`CompiladorIncrementalEnProceso::avanzar`), se pasa su `Informe` como
@@ -83,7 +99,8 @@ Junto con una compilación repartida en llamadas que ya ha terminado
 
 **Carpeta.** Una ruta de esta máquina: la raíz de un servidor web local, una
 carpeta sincronizada, un disco de red. Si es relativa, se cuenta desde el
-proyecto, y no puede estar dentro de él. Se crea si no existe.
+proyecto, y no puede estar dentro de él. Si no existe, se crea al subir el primer
+fichero, no antes.
 
 **FTP.** Con la extensión `ftp` de PHP, que viene con PHP pero puede estar
 desactivada (en Windows se activa en `php.ini` con `extension=ftp`). Usa una
@@ -98,7 +115,7 @@ de fichero, sea cual sea su contenido, y ahí repetir no sirve. Por eso, como
 primera normal y el resto añadido al final (APPE), partiendo por otro punto si
 tampoco así, y comprobando con SIZE que al final mide lo que tiene que medir
 (si el servidor no responde a SIZE, valen sus dos respuestas). Queda dicho en
-un aviso. Los ficheros de menos de 7.000 bytes no se parten. La segunda parte
+un aviso. Los ficheros de 7.000 bytes o menos no se parten. La segunda parte
 sale de un fichero temporal del sistema, fuera del proyecto, que se borra al
 terminar, porque la extensión solo sabe mandar APPE desde un fichero. Si
 tampoco sube en dos partes, es un error. Un fichero que se queda a medias no
@@ -119,8 +136,10 @@ con quien administra el servidor y se anote; si no coincide, se detiene.
 **S3.** Cualquier servicio compatible: AWS, Scaleway, Cloudflare R2,
 Backblaze, Hetzner. Las peticiones se firman en el propio motor, sin el SDK
 de Amazon, y van por HTTPS con lo que trae PHP (la extensión `openssl`). El cubo va en el nombre del
-servidor (`cubo.s3.fr-par.scw.cloud`), salvo si lleva puntos o el servidor es
-local, que va en la ruta. Cada fichero sube con su tipo MIME y con su MD5,
+servidor (`cubo.s3.fr-par.scw.cloud`), salvo si su nombre lleva puntos o
+mayúsculas, o si el servidor lleva puerto, es `localhost` o es una dirección IP:
+entonces va en la ruta. `servidor` puede llevar `http://` o un puerto, para un
+servicio local; sin esquema, es HTTPS. Cada fichero sube con su tipo MIME y con su MD5,
 para que el servicio compruebe que le ha llegado entero. Que el cubo sirva un
 sitio web se configura en el servicio; el motor no lo toca.
 

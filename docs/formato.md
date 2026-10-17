@@ -35,25 +35,33 @@ Estado: borrador. Las decisiones cerradas están en el apéndice A (§14).
       esquema.json           tipos de contenido y campos (lo usan los editores)
       .secretos.yml          credenciales de despliegue (nunca se versiona)
       salida/                resultado del build (nunca se versiona)
-      .ehundu/               lo que recuerda el motor entre compilaciones: por dónde va un lote
-                             y la memoria de la incremental (nunca se versiona)
+      .ehundu/               lo que recuerda el motor entre compilaciones: la memoria de la
+                             incremental (§10.5) y el estado de un lote (nunca se versiona)
 
 Reglas:
 
 - Todo lo que afecta al resultado vive dentro de esta carpeta, salvo el momento
   en que se compila (§12, regla 3).
-- El motor solo lee de aquí y solo escribe en `salida/` y, en una compilación
-  por lotes (§10.4) o incremental entre procesos (§10.5), en `.ehundu/`. Fuera
-  del proyecto solo escribe la caché de tipografías de dompdf, si se piden PDF
-  (§10.3), en la carpeta temporal del sistema.
+- Al compilar, el motor solo lee de aquí y solo escribe en `salida/` y en
+  `.ehundu/`, lo que recuerda entre compilaciones (§10.5). Fuera del proyecto
+  solo escribe la caché de tipografías de dompdf, si se piden PDF (§10.3), en la
+  carpeta temporal del sistema. El despliegue (§2, `despliegue`) escribe en el
+  destino que se le pide, y lee del disco el fichero de la clave privada si se
+  le da uno.
 - `.ehundu/` es del motor: lo crea él, lleva dentro su propio `.gitignore` para
   que no se versione, no se publica ni se lee como contenido, y no afecta al
-  resultado. Se puede borrar cuando se quiera: lo único que se pierde es lo
-  avanzado en una compilación por lotes a medias y lo que la incremental
-  recordaba, y la siguiente compilación será completa.
+  resultado. Se puede borrar cuando se quiera: lo único que se pierde es lo que
+  el motor recordaba (lo avanzado en una compilación por lotes a medias, la
+  memoria de la incremental), y la siguiente compilación será completa.
 - Los nombres de carpeta son fijos; no se configuran. Un proyecto siempre se
   reconoce igual, y se puede pasar de uno a otro, o migrar muchos, sin
   averiguar cómo está organizado cada uno.
+- Todo fichero de texto del proyecto (YAML, JSON, Markdown, plantillas, CSS,
+  JavaScript, SVG) es UTF-8. El motor ignora un BOM al principio y pasa `
+` y
+  `` a `
+`; si un fichero no es UTF-8, el build se detiene con un error que
+  nombra el fichero.
 
 **Cerrado:** nombres de carpeta en español. La documentación está en español,
 como el formato (decisión 140).
@@ -87,8 +95,11 @@ ellos no se pueden generar ni el sitemap ni el feed.
 
 `formato` es la versión de este formato para la que está escrito el proyecto:
 un número entero, `1`. No hay versión menor, porque dentro de una versión
-mayor el formato solo crece (§12): un proyecto del formato 1 compila igual con
-cualquier Ehundu que entienda el 1. Si falta, es `1`, y sin avisar, así que los
+mayor el formato solo crece (§12): un proyecto escrito para el formato 1 sigue
+significando lo mismo en cualquier Ehundu posterior que entienda el 1 (el HTML
+puede variar en lo que deciden Twig o CommonMark, §12, regla 3). Uno que use algo
+añadido en una versión menor necesita un motor que lo tenga: uno anterior ignora
+los campos que no conoce. Si falta, es `1`, y sin avisar, así que los
 proyectos escritos antes de que existiera la clave no cambian. Un valor que no
 es un entero mayor que cero (`"2"` entre comillas, `0`) detiene el build con un
 error: tomarlo por `1` podría hacer pasar por bueno un proyecto de otro
@@ -112,6 +123,13 @@ todo el sitio. Con `idioma`, `generador`, `feed`, `enlacesExternos`,
 `encabezados` e `imagenes`, que solo ajustan un añadido, se avisa y se usa su
 valor por defecto, o se ignora la sección.
 
+**Claves reservadas.** Las que el motor lee de `sitio.yml` son `formato`,
+`nombre`, `url`, `idioma`, `idiomas`, `zonaHoraria`, `despliegue`, `generador`,
+`feed`, `enlacesExternos`, `encabezados` e `imagenes`. Cualquier otra clave llega
+a las plantillas como `sitio.<clave>` (§7.2), y es del sitio. Una clave nueva que
+un motor posterior reserve se anuncia en una versión menor, y ese motor avisa a
+los sitios que ya la usaban como propia (§12, regla 5).
+
 **Una sección vacía.** Una sección sin valor (`encabezados:`) es lo mismo que no
 ponerla. Un mapa vacío (`encabezados: {}`) la pone con todo por defecto: en
 `encabezados` activa los `id` del nivel 2 al 6, y en `enlacesExternos` no cambia
@@ -120,9 +138,9 @@ y se ignora.
 
 `idioma` es el código del idioma del sitio: dos o tres letras minúsculas, como
 `es`, `eu` o `en`. Lo usan `fecha()` (§7.3) y el feed, y las plantillas lo ven
-también en `pagina.idioma`. Si falta, es `es`; si no es un código así, se
-avisa y se usa `es`. Un sitio en varios idiomas los declara en `idiomas`
-(§15.1).
+también en `pagina.idioma`. Si falta, es `es` (o el primero de `idiomas`, si el
+sitio los declara, §15.1); si no es un código así, se avisa y se usa `es`. Un
+sitio en varios idiomas los declara en `idiomas`.
 
 La sección `feed` pide un `feed.xml` y dice de qué colección sale (§10.2).
 
@@ -190,7 +208,8 @@ opcionales:
   pantalla solo lee su símbolo.
 
 Un valor que no vale en cualquiera de ellos se avisa y se ignora. Una `clase` o
-una `etiqueta` sin `enlace` no tienen a qué aplicarse, y se ignoran sin aviso.
+una `etiqueta` válidas sin `enlace` no tienen a qué aplicarse, y se ignoran sin
+aviso; si no valen, se avisa igual.
 Con `niveles: []` ningún encabezado recibe `id`. Cambiar esta sección rehace
 todas las páginas.
 
@@ -213,10 +232,11 @@ Sin ella, las imágenes salen sin `srcset`. Con ella:
 - `formatos` es la lista de formatos, de más a menos preferido, porque el
   navegador usa el primero que entiende. Valen `avif`, `webp`, `jpg`, `jpeg` y
   `png`, que son también la extensión de los ficheros. Por defecto, `[webp]`.
-  Un formato que no vale se avisa y se ignora. El último es el de reserva: el
-  que se usa en el `<img>`, y el único que verían los PDF (§10.3), que solo
-  leen bien JPEG, PNG y SVG. Un sitio con PDF que muestran el cuerpo de una
-  página con figuras acaba la lista en `jpg` o `png`.
+  Un formato que no vale se avisa y se ignora. El de reserva es el último de
+  la lista que tenga alguna variante de la imagen en `publico/`: el que se usa
+  en el `<img>`, y el único que verían los PDF (§10.3), que solo leen bien
+  JPEG, PNG y SVG. Un sitio con PDF que muestran el cuerpo de una página con
+  figuras acaba la lista en `jpg` o `png`.
 - `sizes` es el valor de `sizes` que llevan las imágenes del atajo `imagen` y
   las figuras del Markdown cuando no dicen otro. Por defecto, `100vw`, que
   nunca pide menos imagen de la que hace falta.
@@ -252,13 +272,13 @@ HTML, y esta clave la quita:
 - **Sin versión.** El contenido es siempre `Ehundu`. Con la versión, cada
   actualización del motor cambiaría todas las páginas de todos los sitios y
   obligaría a volver a subirlas (decisión 127).
-- **Valores.** `no` o `false` la quita; `sí`, `true` o no poner la clave es lo
-  mismo, que salga. Otro valor se avisa y se ignora. Cambiar la clave rehace
+- **Valores.** `no` o `false` la quita; `sí`, `true` o no poner la clave son lo
+  mismo: la etiqueta sale. Otro valor se avisa y se ignora. Cambiar la clave rehace
   todas las páginas, como cualquier otro cambio de `sitio.yml`.
 
 La sección `despliegue` dice adónde publica `ehundu desplegar` (ver
-`despliegue.md`). Destinos admitidos hoy: `carpeta`, `ftp`, `sftp` y
-`s3`. Sus campos:
+`despliegue.md`). Destinos del formato 1: `carpeta`, `ftp`, `sftp` y `s3`; se
+podrán añadir otros (§12, regla 5). Sus campos:
 
 | Campo      | Destinos        | Significado                                                  |
 |------------|-----------------|--------------------------------------------------------------|
@@ -279,8 +299,9 @@ Los secretos van en `.secretos.yml`, con la misma forma y solo con ellos:
       clavePrivada: '~/.ssh/id_ed25519'        # sftp, en lugar de clave
       frase: 'la-de-la-clave-privada'          # si la tiene
 
-Los secretos van entre comillas simples, y una comilla simple dentro se
-escribe doble (`'l''arte'`). Sin comillas, YAML lee algunas contraseñas de
+`clavePrivada` es la ruta de un fichero con la clave (relativa al proyecto,
+absoluta o que empieza por `~/`), no su contenido. Los secretos van entre
+comillas simples, y una comilla simple dentro se escribe doble (`'l''arte'`). Sin comillas, YAML lee algunas contraseñas de
 otra forma sin avisar: lo que va detrás de ` #` es un comentario y se pierde,
 `1e3` es el número 1000, y una que empieza por `!`, `*`, `@` o `%` ni
 siquiera se lee. Si `.secretos.yml` no es YAML válido, el error dice el
@@ -313,7 +334,8 @@ bajos.
 
 En un sitio en varios idiomas, un fichero puede llevar el código de un idioma
 antes de la extensión (`menus.eu.yml`): en las páginas de ese idioma se mezcla
-con el común (§15.6).
+con el común (§15.6). El punto en el nombre está reservado para eso: uno que no
+es el de un idioma (`menus.v2.yml`, `tabla.csv.yml`) detiene el build (§15.2).
 
 **Por carpeta.** Un `_datos.yml` dentro de cualquier carpeta de `contenido/`
 aplica a todo lo que cuelga de ella, incluidas las subcarpetas. Los valores más
@@ -332,7 +354,9 @@ cada nivel se suman a los heredados, sin repetir y de lo más general a lo más
 concreto. Un artículo que declara `etiquetas: [novela, recomendaciones]` sigue
 estando en la colección `blog` que le pone su carpeta, y el CSS que añade una
 sección se suma al de todo el sitio. Los demás campos, listas y mapas
-incluidos, se sustituyen enteros; no se mezclan por dentro.
+incluidos, se sustituyen enteros; no se mezclan por dentro. Un campo en blanco
+(`plantilla:`) cuenta como un valor más: sustituye al heredado, salvo en
+`etiquetas`, `css` y `js`, donde no suma nada (decisión 145).
 
 En un sitio en varios idiomas, cada carpeta puede tener además un `_datos.yml`
 por idioma (`_datos.eu.yml`), y cada página, un `.yml` con sus campos comunes a
@@ -342,12 +366,18 @@ todos los idiomas (§15.6, §15.7).
 
 ## 4. Ficheros de contenido
 
-Extensiones reconocidas: `.md` (Markdown) y `.twig` (plantilla). Cualquier otra
+Extensiones reconocidas: `.md` (Markdown) y `.twig` (plantilla), en minúsculas:
+un `.MD`, un `.TWIG` o un `.markdown` no se compilan, se copian como cualquier
+otro fichero y se avisa. El punto en el nombre de una página está reservado para
+el idioma (`contacto.eu.md`, §15.2): uno que no lo es (`guia.v2.md`) detiene el
+build, y también un nombre con la extensión de un fichero que se quiere generar
+(`robots.txt.twig`, `sitemap.xml.twig`): para sacar un `robots.txt`, la página se
+llama `robots.twig` y lleva `url: /robots.txt` (decisión 143). Cualquier otra
 cosa dentro de `contenido/` se copia tal cual a `salida/`, con su misma ruta
 (`contenido/blog/foto.jpg` → `blog/foto.jpg`), salvo los ficheros que empiezan
 por guion bajo, como `_datos.yml`, y el `.yml` que lleva el nombre de una
 página, que son sus campos comunes (§15.7). Lo que empieza por punto
-(`.gitkeep`, `.git/`) se ignora. Las plantillas y los datos de otros generadores (`.njk`,
+(`.gitkeep`, `.git/`), `Thumbs.db` y `desktop.ini` se ignoran. Las plantillas y los datos de otros generadores (`.njk`,
 `.liquid`, `.vto`, `.webc`, `.11ty.js`, `.11tydata.js`, `.11tydata.json`) no
 se copian nunca, y se avisa: publicar el código de una plantilla no es lo que
 se quiere, y en una migración es fácil que alguno se quede atrás.
@@ -379,21 +409,24 @@ Campos reservados:
 | `publicar`    | fecha   | No se publica antes de esa fecha.                         |
 | `publicarEnSuFecha` | sí/no | Si es `sí`, no se publica antes de su `fecha` (abajo). |
 | `pdf`         | sí/no   | Si es `sí`, la página sale además en PDF (§10.3).         |
+| `componentes` | —       | Reservado para el catálogo de componentes (§13): no hace nada, y avisa si una página lo usa. |
 | `agrupar`     | mapa    | La página es una plantilla que se repite por cada valor de un campo (§6.3). |
 | `paginar`     | mapa    | La página parte una colección en trozos y se repite una vez por cada uno (§6.4). |
 
 `idioma` también está reservado, pero no se escribe: sale del nombre del
 fichero (`contacto.eu.md`, §15.2).
 
-Cualquier otro campo se pasa a la plantilla sin tocarlo, salvo que tenga el
-nombre de uno de los que el motor escribe en `pagina` (§7.2). El motor no valida
+Cualquier otro campo se pasa a la plantilla como lo lee YAML, salvo que tenga el
+nombre de uno de los que el motor escribe en `pagina` (§7.2) y salvo los días sin
+hora, que llegan en la zona del sitio (**fecha**, abajo). El motor no valida
 campos desconocidos: eso es tarea del esquema (§11) y del editor. Un campo con
 el nombre mal escrito es, para el motor, un campo desconocido más.
 
 Lo que sí comprueba es el valor de los campos reservados. Si no vale (una fecha
-imposible, un `orden` que no es un número), avisa con fichero y línea y trata
-el campo como si no estuviera. Nunca detiene el build por eso. Un campo en
-blanco (`imagen:`) no es un error: pasa vacío y sin aviso. La excepción es
+imposible, un `orden` que no es un número), avisa con el fichero y, cuando se
+puede, la línea, y trata el campo como si no estuviera. Nunca detiene el build
+por eso. Un campo en blanco (`imagen:`) no es un error: pasa vacío y sin aviso, y
+cuenta como un valor que sustituye al heredado (§3). La excepción es
 `titulo`: una página que genera HTML sin título, o con el título vacío,
 avisa, porque su `<title>` saldría vacío. Un fragmento (`url: false`) o una
 página que genera otra cosa (`/robots.txt`) no lo necesitan.
@@ -410,14 +443,20 @@ Detalles de los tipos:
   últimos, así que el motor traduce los otros tres; y `true` y `false` solo
   valen sin comillas, como los lee YAML: `"true"` entre comillas es un texto y
   se avisa.
-- **fecha** se escribe `AAAA-MM-DD`, con o sin comillas. Es ese día en la
-  zona horaria del sitio (§2), desde su medianoche: `publicar: 2026-10-01`
+- **fecha** se escribe `AAAA-MM-DD`, con o sin comillas, con dos cifras para el
+  mes y el día (sin comillas, YAML también lee `2026-1-5`, pero entre comillas
+  no). Es ese día en la zona horaria del sitio (§2), desde su medianoche: `publicar: 2026-10-01`
   publica a las 00:00 del 1 de octubre en esa zona. Es un día y nada más: si
   se escribe también una hora (`2026-10-01 18:30:00`, `2026-10-01T18:30`) o una
   zona, la hora no cuenta, se toma solo el día y se avisa (decisión 129). Una
   fecha sin comillas que no existe (`2026-13-01`) se lee como el texto que es:
   en `fecha` y `publicar` avisa, como cualquier fecha imposible, y en un campo
-  que no es reservado llega así a la plantilla, sin aviso (decisión 88).
+  que no es reservado llega así a la plantilla, sin aviso (decisión 88). Una
+  fecha llega a la plantilla como una fecha, no como un texto: se escribe con
+  el filtro `fecha` o con `date` (§7.3), y `{{ pagina.fecha }}` sin filtro
+  detiene el build. En cualquier otro campo, en `datos/` y en `sitio.yml`, un día
+  sin hora y sin comillas (`inicio: 2026-10-17`) es también ese día en la zona del
+  sitio; con hora, es el instante que lee YAML (decisión 144).
 - **texto** admite un número, que se toma como texto (`titulo: 2024`).
 - **número** admite un número entre comillas (`orden: "2"`).
 - **`etiquetas`**, **`css`** y **`js`** admiten un texto suelto, que cuenta
@@ -481,14 +520,16 @@ le añade. Lo que se escribe en `salida/` depende de cómo acaba:
 
 - en `/`: un `index.html` dentro de esa carpeta (`/contacto/` →
   `contacto/index.html`);
-- en un nombre con extensión: ese fichero tal cual (`/404.html`,
-  `/robots.txt`);
+- en un nombre con extensión, es decir, cuyo último tramo acaba en un punto
+  seguido de letras o números: ese fichero tal cual (`/404.html`, `/robots.txt`,
+  `/v1.2`; `/foo.bar-baz` no la tiene);
 - en otra cosa (`/contacto`): se avisa y se toma como `/contacto/`.
 
 Una URL nunca escribe fuera de `salida/`. Si lleva tramos `.` o `..`, o
 caracteres que no caben en un nombre de fichero (`\ ? # : * " < > |`), se avisa
-y se usa la URL que sale de la ruta. Un `url` en blanco también deja la de la
-ruta.
+y se usa la URL que sale de la ruta. Un `url` en blanco, o de solo espacios,
+también deja la de la ruta, y las barras repetidas se juntan en una (`/x//y/` da
+`/x/y/`).
 
 En un sitio en varios idiomas, las páginas que no son del predeterminado
 llevan delante el prefijo de su idioma, también cuando su URL se escribe en
@@ -540,12 +581,15 @@ Convierte un texto en un tramo de URL:
 - pasa a minúsculas y convierte las letras de la tabla de abajo, que quita
   tildes y diéresis (`ü` → `u`, `ñ` → `n`, `ç` → `c`, `ș` → `s`) y descompone
   algunas ligaduras (`ß` → `ss`, `æ` → `ae`, `œ` → `oe`);
-- `&` se convierte en `y`, y el punto volado del catalán desaparece
-  (`col·legi` → `collegi`);
+- `&` se convierte en la palabra `y`, con guiones alrededor (`Tom&Jerry` →
+  `tom-y-jerry`), y el punto volado del catalán desaparece (`col·legi` →
+  `collegi`); las marcas combinantes sueltas de un texto descompuesto (una `n` y
+  una tilde aparte) se quitan antes de aplicar la tabla;
 - cualquier otro carácter que no sea una letra `a` a `z` o un número se
   convierte en guion, sin guiones repetidos ni en los extremos. Eso incluye las
-  letras de otros alfabetos (griego, cirílico…) y las del latino que la tabla no
-  recoge (las del vietnamita, por ejemplo), que desaparecen.
+  letras de otros alfabetos (griego, cirílico…), las del latino que la tabla no
+  recoge (las del vietnamita, por ejemplo), los símbolos como `€` y el
+  apóstrofo: `abcβdef` da `abc-def` y `Don't` da `don-t`.
 
 `Cómo elegir un buen libro: guía` da `como-elegir-un-buen-libro-guia`.
 
@@ -580,15 +624,16 @@ dan a la derecha (cada una, también en mayúscula):
 **La tabla y la conversión de `&` en `y` son parte del contrato y no cambian
 dentro de una versión mayor** (decisión 134). Añadir una letra cambiaría la
 dirección de toda página cuyo título la lleve, que hoy sale con un guion. El
-mismo filtro fija el orden alfabético de los textos (§6.1), los grupos de
+mismo filtro fija el orden alfabético de los textos (§6.2), los grupos de
 `agrupar` (§6.3) y los `id` de los encabezados (§8): lo que se decide aquí vale
 también para ellos.
 
 Para los títulos habituales en español da lo mismo que el filtro `slugify` de
 Eleventy. Difiere en la diéresis (Eleventy da `ue`: `bilingüe` →
-`bilinguee`), en `&` (Eleventy da `and`) y en símbolos como `€` (Eleventy da
-`e`; aquí desaparece). Al migrar, las páginas afectadas conservan su dirección
-con un `url` explícito.
+`bilinguee`), en `&` (Eleventy da `and`), en símbolos como `€` (Eleventy da `e`;
+aquí, un guion) y en el apóstrofo (Eleventy lo quita: `Don't` → `dont`; aquí,
+`don-t`). Al migrar, las páginas afectadas conservan su dirección con un `url`
+explícito.
 
 ### 5.3 Fragmentos y colisiones
 
@@ -613,7 +658,9 @@ Toda página con URL está además en la colección implícita `todo`. Por eso
 `todo` no se puede usar como etiqueta: si aparece, se avisa y se quita.
 
 En un sitio en varios idiomas, las colecciones están acotadas al idioma de la
-página que las consulta, y se puede pedir otro (§15.5).
+página que las consulta, y se puede pedir otro (§15.5). El nombre de una
+colección se compara exacto, con mayúsculas y sin recortar espacios:
+`coleccion('Blog')` no es `coleccion('blog')`.
 
 No entran en ninguna colección, tampoco en `todo`, los borradores, las páginas
 con `publicar` en el futuro y las de `listada: no`. Este último es el caso de
@@ -627,8 +674,9 @@ Desde una plantilla:
 ### 6.1 Orden de una colección
 
 `coleccion()` devuelve las páginas por fecha, de la más antigua a la más
-reciente, y a igual fecha por ruta. Las que no tienen fecha van al final,
-también por ruta.
+reciente, y a igual fecha por ruta: la del fichero, con su extensión y su código
+de idioma, comparada byte a byte (`blog/a-b.md` va antes que `blog/a.md`, porque
+`-` es menor que `.`). Las que no tienen fecha van al final, también por ruta.
 
 Es el mismo orden que usa Eleventy, salvo en las páginas sin fecha: Eleventy
 les da la fecha de creación del fichero, que cambia de una máquina a otra, y
@@ -646,15 +694,20 @@ un proyecto tiene que dar el mismo resultado en cualquiera.
   entre las «c», no antes de la «a». Es una comparación del valor de cada
   carácter, no la de un diccionario entero: un número escrito en un texto se
   compara como texto («Capítulo 10» va antes que «Capítulo 2») y las letras de
-  otros alfabetos se ordenan por su código. A igualdad, las páginas quedan en
-  el orden que tenían.
+  otros alfabetos se ordenan por su código. Dos valores de distinto tipo se
+  comparan como texto, y entre dos sí/no el `no` va antes. A igualdad, las
+  páginas quedan en el orden que tenían. Un criterio que no vale
+  (`orden('fecha descendente')`) detiene el build; `paginar.orden` (§6.4), en
+  cambio, avisa y usa el de `coleccion()`.
 - `limite(n)` deja las `n` primeras.
 - `invertir` da la vuelta a la lista.
 - `sin(pagina)` quita una página, normalmente la actual.
 - `donde(campo, valor)` deja las páginas en las que el campo vale eso. Si el
   campo es una lista, las que lo contienen: `donde('etiquetas', 'novela')`.
-  Una fecha se compara con su día (`donde('fecha', '2025-03-15')`). Los
-  textos se comparan exactos: con mayúsculas, tildes y espacios.
+  Una fecha se compara con su día (`donde('fecha', '2025-03-15')`). Si los dos
+  valores parecen números, se comparan como números (`donde('codigo', '7')`
+  encuentra `codigo: "007"`); los demás textos se comparan exactos: con
+  mayúsculas, tildes y espacios.
 - `anterior(pagina)` y `siguiente(pagina)` no filtran: devuelven la página que
   va antes o después de la indicada en la lista, o nada si es la primera, la
   última o no está. Con el orden de `coleccion()`, la anterior es la más
@@ -668,9 +721,9 @@ campos del front matter, con la cascada, y además `url`, la URL ya resuelta
 (vacía en un fragmento), `ruta`, la del fichero dentro de `contenido/`, e
 `idioma`, el código del idioma de la página (§15.8).
 `donde('url', '/contacto/')` encuentra la página aunque su URL salga de la
-ruta y no esté escrita en el front matter. `contenido` no cuenta: para
-filtrar u ordenar por él habría que convertir el cuerpo de todas las páginas
-de la lista. Tampoco cuenta `markdown` (§7.2).
+ruta y no esté escrita en el front matter. No cuentan `contenido`, `markdown`,
+`encabezados` ni `traducciones` (§7.2): para filtrar u ordenar por `contenido`
+habría que convertir el cuerpo de todas las páginas de la lista.
 
 Como `orden` respeta el orden previo en los empates, `orden('fecha desc')` no
 es lo mismo que `invertir` cuando hay páginas con la misma fecha: la primera
@@ -821,7 +874,8 @@ cree nada, y una que se quita la cierra.
   usarlo; sin `paginar.url`, la de la primera más `pagina/2/`, `pagina/3/`…
   (`/blog/` da `/blog/pagina/2/`). Esa forma por defecto exige que la `url`
   de la primera acabe en `/`: si no es así, y no hay `paginar.url`, se avisa y
-  la página es una más, sin partir. Sin `{{ numero }}` en el patrón todas irían
+  la página es una más, sin partir, aunque hoy todo quepa en un trozo (con la
+  entrada que lo llene, la página dejaría de partirse). Sin `{{ numero }}` en el patrón todas irían
   al mismo fichero: se avisa y pasa lo mismo. Lo demás del §5 vale:
   el prefijo de idioma (§15.3) y el error si dos páginas van al mismo
   fichero. `paginar.url` existe para quien migra y ya tiene otra forma
@@ -833,7 +887,8 @@ cree nada, y una que se quita la cierra.
     - `paginacion`: `actual` y `total` (cuántas páginas hay), `porPagina`,
       `entradas` (cuántas hay en la colección, repartidas en esas páginas),
       `primera` y `ultima` (sus URL),
-      `anterior` y `siguiente` (la URL, o nada en la primera y en la última) y
+      `anterior` y `siguiente` (la URL, o nada en la primera y en la última; los
+      filtros del mismo nombre, §6.2, devuelven una página) y
       `enlaces`, una lista con un elemento por página, con `numero`, `url` y
       `actual` (`true` en la que se está), para pintar el índice de páginas.
 
@@ -883,7 +938,10 @@ reutilizables en `parciales/`.
 ### 7.1 Plantillas y parciales
 
 Dentro de Twig, las plantillas y los parciales se nombran con su ruta desde la
-raíz del proyecto, y Twig no puede leer nada fuera de esas dos carpetas:
+raíz del proyecto, y Twig no puede leer nada fuera de esas dos carpetas, salvo las
+plantillas de los atajos que trae el motor, bajo `@ehundu/`: son suyas, un sitio
+no debe incluirlas (para cambiar un atajo, §8.1) y pueden cambiar o quitarse en
+cualquier versión (decisión 145):
 
     {% extends 'plantillas/base.twig' %}
     {% include 'parciales/cabecera.twig' %}
@@ -911,8 +969,10 @@ de cualquier otra página.
 
 ### 7.2 Variables
 
-- `sitio`: lo que hay en `sitio.yml` (sin la sección de despliegue), más
-  `sitio.idiomas` (§15.8).
+- `sitio`: lo que hay en `sitio.yml` sin la sección `despliegue`, con `url` sin la
+  barra final y con `idioma` (el predeterminado) e `idiomas` (la lista de
+  `{codigo, nombre, url}`, §15.8) siempre, aunque el fichero no los declare. Los
+  días sin hora, en la zona del sitio (§4).
 - `datos`: los ficheros de `datos/`, con los del idioma de la página (§15.6).
 - `pagina`: el front matter de la página actual, más `pagina.url`,
   `pagina.contenido` (el cuerpo ya convertido a HTML), `pagina.ruta`,
@@ -962,7 +1022,7 @@ tapa el suyo (decisión 133):
 | `url`          | su dirección (§5)                               | siempre | reservado (§4)               |
 | `idioma`       | su idioma (§15.2)                               | siempre | reservado: se avisa y se ignora |
 | `pdf`          | la dirección de su PDF (§10.3)                  | con `pdf: sí` | reservado: en el front matter es sí/no |
-| `ruta`         | su fichero, desde `contenido/`                  | siempre | se avisa y se ignora |
+| `ruta`         | su fichero, desde `contenido/`; en lo que genera `agrupar` o `paginar`, el del fichero que lo define con `#` y el `slug` del grupo o el número (`etiqueta.md#cultura-pop`, `blog/index.md#2`) | siempre | se avisa y se ignora |
 | `contenido`    | su cuerpo ya convertido a HTML                  | siempre | se avisa y se ignora |
 | `markdown`     | su cuerpo en Markdown, sin convertir            | en una página `.md` | se avisa y se ignora |
 | `encabezados`  | sus encabezados con `id` (§8)                   | siempre, vacía si no hay | se avisa y se ignora |
@@ -985,9 +1045,15 @@ que la plantilla pida lo contrario con `|raw`.
 ### 7.3 Funciones y filtros
 
 - `coleccion(nombre)` y los filtros de colección del §6.2.
+
+Las funciones que nombran un fichero de `publico/` (`svg`, `dimensiones`,
+`variantes`, `css`, `js`, `css_fichero`, `js_fichero` y `version`) admiten la
+ruta con o sin `/` delante.
+
 - `svg(ruta)` incrusta un SVG de `publico/`, tal cual; solo le quita la
-  declaración `<?xml ?>` y el `DOCTYPE`, que no caben dentro de HTML:
-  `{{ svg('svg/telefono.svg') }}`. Si el fichero no existe, no es un `.svg` o
+  declaración `<?xml ?>` y el `DOCTYPE` (con su subconjunto interno, si lo lleva),
+  que no caben dentro de HTML, estén donde estén antes de la etiqueta `<svg>`;
+  los comentarios se dejan: `{{ svg('svg/telefono.svg') }}`. Si el fichero no existe, no es un `.svg` o
   la ruta sale de `publico/`, se avisa y no se inserta nada.
 - `dimensiones(ruta)` da el ancho y el alto de una imagen de `publico/`, en
   píxeles, para `width`, `height` o `aspect-ratio`:
@@ -1041,7 +1107,8 @@ que la plantilla pida lo contrario con `|raw`.
   `18 marzo 2025`, y sin formato, `18 de marzo de 2025`. Una letra que tiene
   que salir tal cual se escapa
   con dos barras dentro de la plantilla, igual que con `date`:
-  `fecha('j \\d\\e F')` da `18 de marzo`.
+  `fecha('j \\d\\e F')` da `18 de marzo`. Un valor vacío no da nada; uno que no es una
+  fecha detiene el build.
 - `markdown` convierte a HTML un texto en Markdown, para los campos del front
   matter o de `datos/` que llevan formato: un titular con una palabra en
   cursiva, un resumen con una negrita. Con `titular: "Una cocina que *viaja*"`,
@@ -1073,7 +1140,7 @@ del filtro `date` de Twig, que por sí solo usaría la de la máquina.
 
 Las plantillas pueden usar `random()` de Twig para elegir al azar, y la fecha
 del momento (`'now'|date('Y')`, para el año del pie). Con la misma versión del
-motor, son las dos únicas formas de que el mismo proyecto dé otro HTML en las
+motor y de sus dependencias, son las dos únicas formas de que el mismo proyecto dé otro HTML en las
 páginas que salen (§12, regla 3), y tienen un precio: con
 `random()`, cada compilación completa elige de nuevo, así que esa página
 cambia y se vuelve a subir en cada despliegue. La previsualización, que
@@ -1086,7 +1153,9 @@ cambie nada de lo que la página usa.
 
 CommonMark, más tablas, notas al pie, tachado (`~~texto~~`) y enlaces
 automáticos: una dirección escrita tal cual (`https://ejemplo.com`,
-`www.ejemplo.com`) se convierte en enlace. Se admite HTML escrito a mano.
+`www.ejemplo.com`) se convierte en enlace, y también una de correo
+(`info@ejemplo.com` pasa a `mailto:`) o una `ftp://`, que es un enlace externo.
+Se admite HTML escrito a mano.
 Las etiquetas vacías salen como en HTML5, sin barra final: `<img …>`, `<br>`.
 
 También los bloques de código sangrados de CommonMark: un párrafo que empieza
@@ -1104,7 +1173,8 @@ Dos añadidos forman parte del contrato:
   la vez el `alt` de la imagen, en texto plano, y el pie, con su Markdown
   convertido: `![El **escaparate** en otoño](/img/escaparate.jpg)` lleva
   `alt="El escaparate en otoño"` y el pie `El <strong>escaparate</strong> en
-  otoño`. Si la dirección empieza por `/` y es una imagen de `publico/`,
+  otoño`. Los enlaces dentro del texto alternativo no llegan al pie (sale su
+  texto), y el título entre comillas de la imagen en Markdown no se usa. Si la dirección empieza por `/` y es una imagen de `publico/`,
   lleva también su ancho y su alto, como el atajo, y, si el sitio declara
   `imagenes` (§2) y la imagen tiene variantes, su `srcset` (§8.2). Un sitio que quiera otro
   marcado para sus figuras (una clase, un `loading="lazy"`) lo da con su
@@ -1113,9 +1183,10 @@ Dos añadidos forman parte del contrato:
   `target="_blank"` y `rel="noopener"`. El dominio del sitio es el de `url`
   en `sitio.yml`, con y sin `www.`: un enlace es a otro dominio si su dirección
   empieza por `http://`, `https://` u otro esquema con dominio, o por `//`, y
-  ese dominio no es el del sitio (un subdominio como `blog.ejemplo.com` sí es
-  otro). Una ruta, un ancla, un `mailto:` o un `tel:` no lo son, y un enlace con
-  un esquema inseguro (`javascript:`) sale sin dirección. El HTML escrito a mano
+  ese dominio no es el del sitio, sin distinguir mayúsculas (un subdominio como
+  `blog.ejemplo.com` sí es otro). Una ruta, un ancla, un `mailto:` o un `tel:` no
+  lo son, y un enlace con un esquema inseguro (`javascript:`, `vbscript:`,
+  `file:`, y `data:` salvo en las imágenes) sale sin dirección. El HTML escrito a mano
   y los enlaces de las plantillas no se tocan. La sección `enlacesExternos` de `sitio.yml`
   (§2) añade `noreferrer` y un aviso para los lectores de pantalla. Una
   imagen enlazada a otro dominio, sea una figura o el atajo `imagen` con
@@ -1127,7 +1198,9 @@ Y un añadido opcional, que solo existe si el sitio lo pide con la sección
 
 - **Encabezados con `id`.** Los encabezados del Markdown de los niveles que se
   indiquen reciben un `id`: el `slug` (§5.2) de su texto plano, sin enlaces ni
-  énfasis. Si ya hay otro igual en la página, se le añade `-2`, `-3`… hasta el
+  énfasis, y sin el texto alternativo de las imágenes ni los atajos en línea
+  (`## Con ![foto](/a.png) imagen` da `con-imagen`); el código en línea sí
+  cuenta. Si ya hay otro igual en la página, se le añade `-2`, `-3`… hasta el
   primer número libre; y si el `slug` sale vacío, el `id` es `seccion`. Con
   `enlace`, el encabezado termina en un enlace permanente, pegado a su texto:
   `<h2 id="un-apartado">Un apartado<a class="ancla" href="#un-apartado"
@@ -1154,8 +1227,13 @@ Reglas:
 - Solo se reconocen los nombres registrados: los que trae el motor y los que
   define el sitio. Un nombre que no está registrado se deja como texto; si
   lleva atributos, o es un cierre sin su apertura, además se avisa. Nunca se
-  rompe el build. Un `[algo]` sin atributos es texto normal, y `[imagen](…)`
-  sigue siendo un enlace de Markdown.
+  rompe el build. Un `[algo]` sin atributos que no está registrado es texto
+  normal; uno registrado es siempre una llamada, lleve atributos o no (en
+  «Adjunta el [archivo] firmado», `[archivo]` es el atajo y avisa de que falta
+  `fichero`; para escribirlo como texto, `\[archivo]`). Un atajo registrado
+  cuyos atributos no se pueden leer (sin comillas, por ejemplo) se deja como
+  texto y se avisa (decisión 147). `[imagen](…)`, `[imagen][ref]` y
+  `[imagen]: …` siguen siendo enlaces de Markdown.
 - Los atributos son siempre cadenas con nombre, entre comillas dobles o
   simples: `nombre="valor"` o `nombre='valor'`. No hay expresiones, ni
   variables, ni condicionales, ni acceso a colecciones: eso es lógica y la
@@ -1164,7 +1242,9 @@ Reglas:
   números y guiones; el de un atributo empieza por una letra y lleva letras y
   números, sin guiones ni guiones bajos (`pie`, `siFalta`). El valor termina en
   la misma comilla con que empieza y no admite escape: uno que lleve comillas
-  dobles y simples a la vez no se puede escribir.
+  dobles y simples a la vez no se puede escribir. Se admiten espacios alrededor
+  del `=`; si un atributo se repite, gana el último; y la apertura de un atajo
+  que envuelve puede llevar hasta tres espacios de sangría.
 - Un atajo simple puede ir en medio del texto. Si va solo en su párrafo y lo
   que produce es un bloque (una figura, un `div`, un vídeo…), sustituye al
   párrafo entero, porque un bloque no cabe dentro de un `<p>`. Si produce
@@ -1173,16 +1253,22 @@ Reglas:
   `blockquote`, `details`, `div`, `dl`, `fieldset`, `figure`, `footer`, `form`,
   `h1` a `h6`, `header`, `hr`, `iframe`, `nav`, `ol`, `p`, `picture`, `pre`,
   `section`, `table`, `ul` y `video`. Con cualquier otra (`main`, `dialog`…) el
-  atajo se queda dentro del `<p>`.
+  atajo se queda dentro del `<p>`. Si el párrafo lleva más texto, o dos atajos
+  en líneas seguidas, el bloque queda dentro del `<p>` y el HTML no es válido:
+  conviene ponerlo en su propio párrafo. Un atajo que no inserta nada (porque
+  avisa) deja un `<p></p>` vacío.
 - Un atajo que envuelve contenido lleva la apertura y el cierre cada uno en
-  su línea. Lo que hay entre ellos es Markdown y llega convertido a HTML. Si
-  falta el cierre, se avisa y el atajo se cierra al final del texto.
+  su línea. Lo que hay entre ellos es Markdown y llega convertido a HTML. Un
+  atajo envuelve si en algún sitio de la página hay una línea `[/nombre]`; si no
+  hay ninguna, `[nombre]` es un atajo simple, sin `contenido`. Si hay cierres
+  pero a una apertura le falta el suyo, se avisa y el atajo se cierra al final
+  del texto. El primer `[/nombre]` cierra la apertura más externa: dos atajos
+  del mismo nombre no se anidan (con nombres distintos, sí).
 - Los atajos se reconocen al convertir el Markdown, así que uno escrito dentro
   de código, o empezado con `\[`, se queda como texto. Su HTML se inserta
   después, sin que el convertidor lo toque.
-- Los atajos son cosa de quien desarrolla el sitio: un editor puede ofrecer
-  botones para insertar los que el sitio declare, sin que quien escribe el
-  contenido tenga que poner atributos a mano.
+- Los atajos son cosa de quien desarrolla el sitio. El esquema (§11) no los
+  declara: un editor no sabe qué atajos hay ni qué atributos llevan.
 
 Cada atajo es una plantilla de Twig. Los del sitio están en
 `parciales/atajos/`, con el nombre del atajo: `parciales/atajos/aviso.twig`.
@@ -1201,7 +1287,8 @@ variable que el motor calcula para ese atajo (§8.2: `src`, `alt`, `ancho`,
 ### 8.2 Atajos incluidos en el motor
 
 Un sitio puede sustituir cualquiera de ellos con su propia plantilla del mismo
-nombre en `parciales/atajos/`, que recibe las mismas variables.
+nombre en `parciales/atajos/`, que recibe las mismas variables. Un `fichero` que
+sale de `publico/` (con `..` o barras invertidas) se avisa y no inserta nada.
 
 - **`imagen`**: `[imagen fichero="img/escaparate.jpg" alt="…" pie="…"]`, con
   `fichero` dentro de `publico/`. Da `<figure>` con la imagen y, si hay pie,
@@ -1235,21 +1322,26 @@ nombre en `parciales/atajos/`, que recibe las mismas variables.
   cookies hasta que se reproduce, y Vimeo, con `dnt=1`. Con
   `fichero="video/visita.mp4"` inserta un vídeo de `publico/`. La proporción es
   16:9 salvo que se indique otra con `proporcion="4:3"`, y se aplica con
-  `aspect-ratio`. `titulo` es el nombre accesible del vídeo (`Vídeo` si
+  `aspect-ratio` (a la plantilla llega como `16 / 9`). Para YouTube valen las
+  formas `watch?v=`, `embed/`, `shorts/` y `youtu.be/`; si hay `url` y `fichero`,
+  gana `url`. `titulo` es el nombre accesible del vídeo (`Vídeo` si
   falta). Con otra dirección, se avisa y no se inserta nada. La plantilla
   recibe `insercion` (la dirección para el `iframe`) o `src` (la del fichero),
   `proporcion` y `titulo`.
 - **`archivo`**: `[archivo fichero="docs/tarifas.pdf" texto="Tarifas 2025"]`
   da `<a href="/docs/tarifas.pdf">Tarifas 2025</a> (PDF, 1,2 MB)`, con el
   tipo y el peso leídos del fichero de `publico/` al compilar (en KB por
-  debajo de 1 MB). Sin `texto`, el nombre del fichero. Si el fichero no
+  debajo de 1 MB; los múltiplos son de 1024 y se redondea: 1.048.000 bytes salen
+  como «1023 KB»). `tipo` es la extensión en mayúsculas. Sin `texto`, el nombre
+  del fichero. Si el fichero no
   existe, se avisa y el enlace sale sin peso. La plantilla recibe `href`,
   `texto`, `tipo` y `peso`.
 - **`dato`**: `[dato clave="cliente.nombre"]` escribe un valor de `datos/`,
   escapado. Es lo que necesitan los textos legales, que repiten el nombre, la
   razón social o la dirección del titular. Con `siFalta="…"` se escribe ese
   texto si el dato no existe o está vacío; sin él, se avisa y no se escribe
-  nada. La plantilla recibe `valor`.
+  nada. Una lista, un mapa o una fecha avisan y no se escriben; `0` y `false` no
+  cuentan como vacío (se escriben `0` y `no`). La plantilla recibe `valor`.
 
 Lo que escriben las plantillas de Ehundu va en castellano: el título `Vídeo`
 de `video`, el peso de `archivo` con coma decimal (`1,2 MB`), y `sí` o `no` en
@@ -1306,8 +1398,11 @@ escribe en un solo sitio.
 
 Cada fichero sale una sola vez por página, en el orden en que se declara al
 construirla, de arriba abajo; los del campo `css` van al final, para que
-puedan sobrescribir a los demás. Se insertan tal cual. Un fichero que no
-existe, o que no es un `.css` de dentro de `publico/`, se avisa y se salta. Si
+puedan sobrescribir a los demás, y uno ya declarado no cambia de sitio (si el
+layout declara `css/a.css` y el front matter lo repite, sigue donde lo puso el
+layout). Se insertan con los saltos de línea normalizados (§1), unidos por un
+salto de línea. Un fichero que no existe, o que no es un `.css` de dentro de
+`publico/`, se avisa y se salta; uno que no es UTF-8 detiene el build. Si
 una página declara CSS y ninguna plantilla escribe `{{ css() }}` (ni
 `{{ css_fichero() }}`, más abajo), se avisa.
 
@@ -1331,7 +1426,8 @@ mismo CSS en cada página y el navegador no puede guardarlo. `css_fichero()` y
 `js_fichero()` hacen lo mismo que `css()` y `js()` con lo que la página ha
 declarado (los mismos ficheros, en el mismo orden, una vez cada uno), pero en
 lugar de su contenido escriben la etiqueta que enlaza un fichero que contiene
-ese contenido:
+ese contenido, el paquete de esa página (el CSS o el JavaScript que declara,
+reunido en uno):
 
 - `{{ css_fichero() }}` escribe `<link rel="stylesheet" href="/css/3fa9c1d2ab.css">`.
 - `{{ js_fichero() }}` escribe `<script src="/js/7c01e4b9d3.js" defer></script>`.
@@ -1381,15 +1477,16 @@ paquete reúne ficheros de carpetas distintas. En la plantilla de un PDF
 
 En `salida/` van las páginas, lo que se copia de `publico/` y de
 `contenido/`, el PDF de las páginas que lo piden (§10.3) y los ficheros que
-genera el motor: `sitemap.xml`; `feed.xml`, si el sitio lo pide; y, si una
+genera el motor: `sitemap.xml`; `feed.xml`, si el sitio lo pide (uno por idioma
+en un sitio en varios, §15.10); y, si una
 página los declara y usa `css_fichero()` o `js_fichero()`, los paquetes
 `css/<huella>.css` y `js/<huella>.js` (§9.1). Nada más: los añadidos van como
 ficheros normales dentro de `contenido/` o de `publico/`. El manifiesto del
 despliegue (`.ehundu.json`) se escribe en el destino, no en `salida/`: lleva su
 propia versión (`"ehundu": 1`), y un Ehundu 1.x lee el que dejó cualquier
 versión anterior, también el de un despliegue de la 0.x. Lo que hay en
-`.ehundu/` (`lote.json`, `memoria.bin`) no se promete: es del motor y se puede
-tirar (§1). Una página con `url: /404.html` se escribe como `404.html`, igual
+`.ehundu/` (`memoria.bin`, `lote.json` y sus cerrojos) no se promete: es del
+motor y se puede tirar (§1). Una página con `url: /404.html` se escribe como `404.html`, igual
 que cualquier otra.
 
 Si dos cosas van al mismo fichero de salida (dos páginas, una página y un
@@ -1416,11 +1513,13 @@ genera. Los detalles están en `docs/despliegue.md`.
 ### 10.1 `sitemap.xml`
 
 Lleva las páginas HTML de la colección `todo` (las publicadas, con URL y sin
-`listada: no`; §6), en su orden, salvo `/404.html`; en un sitio en varios
+`listada: no`; §6), en el orden de `coleccion('todo')` (§6.1; en un sitio en
+varios idiomas se intercalan por fecha), salvo `/404.html`; en un sitio en varios
 idiomas, las de todos ellos, sin la `404.html` de ninguno (§15.10). Una página
 es HTML si su URL acaba en `/` o en `.html`: `robots.txt` o un XML no entran.
 Cada una lleva su dirección completa, la `url` del sitio más la de la página, y
-`<lastmod>` con su fecha en la zona horaria del sitio, solo si la tiene.
+`<lastmod>` con su fecha (`AAAA-MM-DD`) en la zona horaria del sitio, solo si la
+tiene.
 
 ### 10.2 `feed.xml`
 
@@ -1432,12 +1531,15 @@ Se genera en formato Atom si `sitio.yml` tiene una sección `feed`:
       titulo: Novedades   # el nombre del sitio si no se indica
 
 Cada entrada lleva el título, la dirección completa, la fecha, la
-`descripcion` como resumen si la tiene, y el contenido completo, con los
-enlaces y las imágenes que empiezan por `/` pasados a direcciones completas
-(también las de cada `srcset`, §2), porque un lector de feeds no sabe de qué
-sitio vienen. Una página de la
-colección sin fecha no entra, y se avisa: Atom exige una fecha en cada
-entrada.
+`descripcion` como resumen si la tiene, y el contenido completo (el cuerpo de la
+página, `pagina.contenido`, no la página con su plantilla), con el `href` y el
+`src` que empiezan por `/` pasados a direcciones completas (también las de cada
+`srcset`, §2), porque un lector de feeds no sabe de qué sitio vienen; solo
+se reescriben los atributos entre comillas dobles. Las entradas van de la más
+reciente a la más antigua y, a igual fecha, por ruta. Una página de la
+colección sin fecha no entra, y se avisa: Atom exige una fecha en cada entrada.
+Los fragmentos (`url: false`) no entran. Si ninguna página lleva la etiqueta de
+`coleccion`, se avisa, porque seguramente está mal escrita, y el feed sale vacío.
 
 Un lector de feeds identifica cada entrada por su `<id>`, que es la dirección
 completa de la entrada, y el del feed es la dirección de la raíz de su idioma;
@@ -1461,6 +1563,8 @@ maqueta distinto de una web, y las dos comparten los datos, no el marcado. Se
 pide página a página, y no para todo el sitio, porque cada PDF cuesta unas
 décimas de segundo.
 
+- **La página.** Con `plantilla: false` no hay plantilla de PDF que buscar, y
+  `pdf: sí` detiene el build.
 - **La plantilla** es la de la página con `.pdf` antes de la extensión: con
   `plantilla: menu`, `plantillas/menu.pdf.twig`. Recibe las mismas variables
   que la de la página (`sitio`, `datos` y `pagina`, §7.2) y escribe un
@@ -1480,7 +1584,8 @@ décimas de segundo.
 - **Lo que admite.** CSS 2.1 con algo de CSS3, y nada de `flex` ni de rejilla.
   La hoja es A4 salvo que el CSS diga otra cosa con `@page { size: … }`. El CSS
   se declara con `css('…')` y `{{ css() }}` en la plantilla del PDF y en sus
-  parciales, como en una página (§9.1), pero sin `css_fichero()`; el campo `css`
+  parciales, como en una página (§9.1), pero sin `css_fichero()` (que en una
+  plantilla de PDF queda vacío, sin aviso); el campo `css`
   del front matter no cuenta, porque es el de la web. Las direcciones que empiezan por `/` se leen
   de `publico/`; nada remoto se carga, y lo que dompdf no entiende (una
   propiedad de CSS, una imagen que no encuentra) sale como aviso, con la
@@ -1502,10 +1607,10 @@ décimas de segundo.
 - **La biblioteca** es dompdf, que es PHP puro, sin binarios, y necesita las
   extensiones `dom` y `mbstring`. Es una dependencia opcional: un sitio sin
   `pdf: sí` no la necesita, y con `pdf: sí` y sin ella el build se detiene y
-  dice cómo instalarla. El `ehundu.phar` no la trae: para generar PDF hay que
-  usar el motor con Composer. Su caché de tipografías va a la carpeta temporal del
+  dice cómo instalarla. El `ehundu.phar` (el ejecutable de un solo fichero que acompaña a cada versión)
+  no la trae: para generar PDF hay que usar el motor con Composer. Su caché de tipografías va a la carpeta temporal del
   sistema, no junto a su código: el motor no escribe en `vendor/` ni en el
-  proyecto fuera de `salida/`.
+  proyecto fuera de `salida/` y `.ehundu/`.
 
 En la previsualización, un PDF se rehace cuando cambia algo de lo que usó su
 plantilla o de lo que lee de `publico/`, igual que su página
@@ -1514,23 +1619,18 @@ plantilla o de lo que lee de `publico/`, igual que su página
 
 ### 10.4 Compilación por lotes (no se promete)
 
-El motor trae una compilación por lotes (`CompiladorPorLotes`): reparte una
-compilación **completa** en tareas (cada página, cada fichero que se copia, el
-sitemap con el feed y la limpieza final) y las hace en varias llamadas, cada una
-con un presupuesto de tiempo, sin recordar nada del sitio entre ellas. Por dónde
-va lo guarda en `.ehundu/lote.json` (§1). Gasta poca memoria a cambio de volver
-a leer el proyecto y hacer todas las páginas cada vez. Cómo funciona se cuenta
-en `compilacion.md`.
+El motor trae una compilación por lotes (`CompiladorPorLotes`), que reparte una
+compilación completa en llamadas con un presupuesto de tiempo y guarda por
+dónde va en `.ehundu/lote.json` (§1). **No se promete** (decisión 128):
+`CompiladorPorLotes` y `CompiladorPorLotesEnProceso` son `@internal` y pueden
+cambiar o desaparecer en cualquier versión. Lo que se promete para repartir una
+compilación en llamadas con un presupuesto de tiempo es `avanzar` de la
+compilación incremental (§10.5). De este apartado, del formato solo vale que
+`.ehundu/` es del motor (§1) y que `lote.json` es un nombre que el motor puede
+usar en él. Cómo funciona se cuenta en `compilacion.md`.
 
-**No forma parte de lo que promete la 1.0** (decisión 128): `CompiladorPorLotes`
-y `CompiladorPorLotesEnProceso` son `@internal` y pueden cambiar o desaparecer
-en cualquier versión. Lo que se promete para repartir una compilación en
-llamadas con un presupuesto de tiempo es `avanzar` de la compilación
-incremental (§10.5). De este apartado, del formato solo vale que `.ehundu/` es
-del motor (§1) y que `lote.json` es un nombre que el motor puede usar en él.
-
-El despliegue (`despliegue.md`) se reparte con un presupuesto de tiempo y eso
-sí se promete: ver la decisión 125.
+El despliegue (`despliegue.md`) también se reparte con un presupuesto de tiempo,
+y eso sí se promete (`despliegue.md`).
 
 ### 10.5 Compilación incremental entre procesos
 
@@ -1583,8 +1683,10 @@ consola no la necesita y no la ofrece.
   nada debe publicarse mientras `completo()` sea falso. Completo, `salida/` y
   los avisos son los de una compilación completa, también si se ha cortado y
   retomado tantas veces como se quiera.
-- **Una llamada a la vez.** Una llamada que llega mientras otra está avanzando
-  no espera ni estropea nada: devuelve el estado, con `ocupado()`.
+- **Una llamada a la vez.** Una llamada de `avanzar` que llega mientras otra
+  está avanzando no espera ni estropea nada: devuelve el estado, con
+  `ocupado()`. Una de `compilar` espera a que la otra acabe, hasta un minuto, y
+  entonces lanza un `ErrorDeProyecto` en vez de quedarse esperando.
 - **El primer arranque** (sin memoria) es una compilación completa: con
   `avanzar` se reparte en las llamadas que haga falta.
 
@@ -1616,10 +1718,11 @@ vez de tener que entender todos los 1.x (decisión 139).
    que una plantilla elija al azar con `random()` o saque de la fecha del
    momento (§7.3), y salvo qué páginas salen, que depende del momento en que se
    compila (`publicar` y `publicarEnSuFecha`, §4). Entre versiones del motor no
-   se promete el mismo HTML byte a byte: Twig 3, CommonMark 2 y dompdf 3, que
-   Composer deja actualizar dentro de su versión mayor, deciden partes del
-   resultado (el escapado, las listas, las tablas y las notas al pie, los bytes
-   de un PDF), y lo que cambie se anota en las notas de la versión.
+   se promete el mismo HTML byte a byte: Twig 3, CommonMark 2, Symfony YAML 8 y
+   dompdf 3, que Composer deja actualizar dentro de su versión mayor, deciden
+   partes del resultado (el escapado, las listas, las tablas y las notas al pie,
+   cómo se leen el front matter, las fechas y los números, los bytes de un PDF),
+   y lo que cambie se anota en las notas de la versión.
 4. El motor no ejecuta código propio del sitio (PHP que venga del proyecto), y
    no lo hará dentro de una versión mayor del formato (§2): es una promesa,
    como la de la regla 5.
@@ -1628,18 +1731,20 @@ vez de tener que entender todos los 1.x (decisión 139).
    nuevos no cambian lo que ya significaba un proyecto escrito. Quitar algo
    o cambiar su significado es una versión mayor. Lo que va a dejar de valer
    se avisa durante, al menos, una versión menor antes de quitarse. Tiene una
-   excepción, la de los nombres: un campo reservado nuevo (§4) o un nombre
-   nuevo que el motor escriba en `pagina` (§7.2) puede tapar un campo propio
-   que un sitio ya tuviera con ese nombre. Por eso se anuncia en una versión
-   menor, y el motor que lo añade avisa a los sitios que ya lo usan como
-   propio.
+   excepción, la de los nombres: un campo reservado nuevo (§4), una clave nueva
+   de `sitio.yml` (§2), un nombre nuevo que el motor escriba en `pagina` (§7.2) o
+   una variable nueva de un atajo (§8.1) puede tapar un campo, una clave o un
+   atributo propios que un sitio ya tuviera con ese nombre. Por eso se anuncia en
+   una versión menor, y el motor que lo añade avisa a los sitios que ya lo usan
+   como propio.
 6. La biblioteca PHP y la orden de consola prometen lo que dice
    [`biblioteca.md`](biblioteca.md), con la misma regla: lo que no está allí
    puede cambiar en cualquier versión.
 7. Los nombres siguen una regla, y los nuevos la cumplen. Los campos, las claves
    de `sitio.yml` y las variables que ve una plantilla se escriben en español,
    en una palabra o en camelCase, sin guiones (`porPagina`, `imagenAlt`,
-   `publicarEnSuFecha`). Las funciones y los filtros de Twig siguen la
+   `publicarEnSuFecha`); los atributos de HTML conservan el suyo (`sizes`,
+   `srcset`, `alt`, `href`, `rel`). Las funciones y los filtros de Twig siguen la
    convención de Twig: una palabra o con guion bajo (`css_fichero`, como
    `number_format` o `json_encode`). Los nombres que ya hay no se renombran (regla
    5), pero pueden recibir un alias. Las palabras que se repiten con otro
@@ -1652,7 +1757,10 @@ vez de tener que entender todos los 1.x (decisión 139).
 
 Catálogo de componentes con parámetros y consultas, tokens de estilo por sitio,
 generación de imágenes en varios tamaños, procesadores sobre el HTML ya
-generado, pasos posteriores al build y búsqueda. El PDF de una página (§10.3) no
+generado, pasos posteriores al build y búsqueda. El motor retoca el HTML ya
+maquetado en dos casos, y solo en esos: la etiqueta `generator` (§2, decisión
+127) y las direcciones completas de las entradas del feed (§10.2). El PDF de una
+página (§10.3) no
 es un procesador sobre el HTML ya generado: es una salida más de la página,
 con su propia plantilla, que no toca el HTML de nadie. Los `id` de los
 encabezados (§8) tampoco lo son: se escriben al convertir el Markdown, y el
@@ -1667,8 +1775,8 @@ queda cerrado (decisión 132).
 Ninguna de estas cosas debería obligar a cambiar lo de arriba cuando llegue.
 Si al añadirlas hay que romper el contrato, el contrato estaba mal.
 
-Por eso queda reservado ya el campo `componentes`, que será el del catálogo:
-un sitio no debe usarlo como campo propio, y si lo hace el motor lo avisa
+Por eso queda reservado ya el campo `componentes`, que sería el del catálogo si
+llega: un sitio no debe usarlo como campo propio, y si lo hace el motor lo avisa
 (decisión 138).
 
 ---
@@ -1697,7 +1805,9 @@ fichero, en el mismo árbol que las demás, y el idioma va en el nombre:
         un-articulo.md         solo en castellano
 
 Un sitio en un solo idioma no escribe nada de esto y no cambia en nada, salvo
-que el punto en el nombre de un fichero está reservado siempre (§15.2).
+que el punto en el nombre de un fichero está reservado siempre (§15.2): un
+`servicios.yml` junto a `servicios.md` ya no se copia a `salida/` (§15.7), sea
+cual sea el número de idiomas.
 
 ### 15.1 Idiomas en `sitio.yml`
 
@@ -1748,8 +1858,11 @@ sitios, también en los de un solo idioma: un punto que no es el de un código d
 dos o tres letras minúsculas (`guia.v2.md`, `2024.10.01-titulo.md`,
 `guia.antigua.es.md`) detiene el build con un error que nombra el fichero,
 porque saltárselo haría que el despliegue borrara la página del sitio publicado
-(decisión 135). Los ficheros que se copian tal cual (`jquery.min.js`) llevan
-los puntos que quieran.
+(decisión 135). Un nombre con la extensión de un fichero que se quiere generar
+(`robots.txt.twig`, `sitemap.xml.twig`, `llms.txt.md`) también lo detiene, y el
+error dice cómo hacerlo: una página `robots.twig` con `url: /robots.txt`
+(decisión 143). Los ficheros que se copian tal cual (`jquery.min.js`) llevan los
+puntos que quieran.
 
 El idioma sale del nombre del fichero, no del front matter. `idioma` es un
 campo reservado: si se escribe en una página, en un `_datos.yml` o en los
@@ -1774,7 +1887,7 @@ Si su `url` ya empieza por él (`url: /eu/instalazioak/`), se avisa: saldría
 
 Si la raíz de un idioma (`/eu/`) no es la URL de ninguna página, se avisa: el
 selector de idioma llevaría a una dirección que no existe (§15.8). Solo en los
-sitios que declaran `idiomas`.
+sitios que declaran `idiomas`, aunque sea con uno solo: con `idioma` no se avisa.
 
 ### 15.4 Traducción parcial
 
@@ -1792,11 +1905,10 @@ Reglas que se derivan de eso:
   contenido duplicado y un `hreflang` que miente.
 - **`hreflang` solo entre las traducciones que existen**, y cada página se
   apunta también a sí misma (§15.8).
-- **El selector de idioma de la plantilla recomendada nunca enlaza a una URL
-  que no existe.** El motor no escribe selectores: es una propiedad de esa
-  plantilla (§15.8). Si la página actual no está traducida, lleva a la portada de
-  ese idioma, y la plantilla puede distinguir los dos casos para avisar al
-  visitante.
+- **El selector de idioma, como se escribe en §15.8, nunca enlaza a una URL que
+  no existe.** El motor no escribe selectores: es una propiedad de la plantilla.
+  Si la página actual no está traducida, lleva a la portada de ese idioma, y la
+  plantilla puede distinguir los dos casos para avisar al visitante.
 
 ### 15.5 Colecciones
 
@@ -1881,8 +1993,8 @@ Todas las páginas, también las que dan `coleccion()`, llevan:
 `url`, la raíz de ese idioma: `/` para el predeterminado y `/eu/` para los
 demás. En un sitio de un solo idioma tiene una sola entrada.
 
-Con eso, la plantilla escribe los `hreflang` y el selector de idioma; el motor
-no toca el HTML:
+Con eso, la plantilla escribe los `hreflang` y el selector de idioma; el motor no
+los escribe:
 
     {% for codigo, traduccion in pagina.traducciones %}
       <link rel="alternate" hreflang="{{ codigo }}" href="{{ sitio.url }}{{ traduccion.url }}">
@@ -1935,36 +2047,7 @@ del motor.
 
 ### 15.11 Por qué un fichero por idioma
 
-Había tres formas de hacerlo. En las tres, el idioma por defecto va sin
-prefijo en la URL, los demás con prefijo, y cada página emite sus `hreflang`
-apuntando a sus traducciones.
-
-**A. Carpeta por idioma** (`contenido/es/contacto.md`,
-`contenido/eu/kontaktua.md`). Cada idioma es un árbol completo e
-independiente. No exige nada nuevo al motor, porque la cascada ya funciona por
-carpeta, y una página que solo existe en un idioma no es un caso especial. Pero
-nada relaciona una página con su traducción, hay que declararlo a mano con un
-campo; un editor muestra dos árboles separados y es fácil publicar en uno y
-olvidar el otro; y lo que no se traduce (imágenes, enlaces, teléfonos) se
-duplica y acaba desincronizándose.
-
-**B. Fichero por idioma, mismo árbol** (`contenido/contacto.md`,
-`contenido/contacto.eu.md`). La relación entre traducciones es la propia
-convención, sin declarar nada. Cada página y sus traducciones viven juntas, así
-que un editor puede mostrarlas como pestañas de idioma sobre la misma página y
-es imposible no ver que falta una; los slugs por idioma se resuelven con el
-campo `url` de cada fichero. El motor tiene que entender el idioma en el nombre
-del fichero, que es código nuevo aunque poco, y el árbol se ve más cargado; lo
-no traducible se saca a los campos comunes de la página (§15.7).
-
-**C. Un fichero con campos por idioma** (`titulo: { es: Contacto, eu:
-Kontaktua }`). Cero duplicación de lo no traducible, y un editor con pestañas
-sale casi gratis. Pero un cuerpo largo en Markdown dentro de un YAML es
-inmanejable, y los cambios son ilegibles al compararlos. Sirve para páginas
-hechas de campos, no para artículos.
-
-Se eligió B: es la que mejor encaja con un editor, que es donde el multiidioma
-se rompe en la práctica.
+La razón de elegir un fichero por idioma, y las otras dos formas que se descartaron, están en la decisión 4.
 
 ---
 
@@ -1984,6 +2067,38 @@ si hace falta, la anterior lleva una nota entre paréntesis.
 4. **Cerrada.** Multiidioma por fichero de idioma (§15). No entró en la
    primera versión, pero el contrato reservó lo necesario; entra en la 0.3
    (decisiones 72 a 81).
+
+   Por qué un fichero por idioma. Había tres formas de hacerlo. En las tres, el idioma por defecto va sin
+   prefijo en la URL, los demás con prefijo, y cada página emite sus `hreflang`
+   apuntando a sus traducciones.
+
+   **A. Carpeta por idioma** (`contenido/es/contacto.md`,
+   `contenido/eu/kontaktua.md`). Cada idioma es un árbol completo e
+   independiente. No exige nada nuevo al motor, porque la cascada ya funciona por
+   carpeta, y una página que solo existe en un idioma no es un caso especial. Pero
+   nada relaciona una página con su traducción, hay que declararlo a mano con un
+   campo; un editor muestra dos árboles separados y es fácil publicar en uno y
+   olvidar el otro; y lo que no se traduce (imágenes, enlaces, teléfonos) se
+   duplica y acaba desincronizándose.
+
+   **B. Fichero por idioma, mismo árbol** (`contenido/contacto.md`,
+   `contenido/contacto.eu.md`). La relación entre traducciones es la propia
+   convención, sin declarar nada. Cada página y sus traducciones viven juntas, así
+   que un editor puede mostrarlas como pestañas de idioma sobre la misma página y
+   es imposible no ver que falta una; los slugs por idioma se resuelven con el
+   campo `url` de cada fichero. El motor tiene que entender el idioma en el nombre
+   del fichero, que es código nuevo aunque poco, y el árbol se ve más cargado; lo
+   no traducible se saca a los campos comunes de la página (§15.7).
+
+   **C. Un fichero con campos por idioma** (`titulo: { es: Contacto, eu:
+   Kontaktua }`). Cero duplicación de lo no traducible, y un editor con pestañas
+   sale casi gratis. Pero un cuerpo largo en Markdown dentro de un YAML es
+   inmanejable, y los cambios son ilegibles al compararlos. Sirve para páginas
+   hechas de campos, no para artículos.
+
+   Se eligió B: es la que mejor encaja con un editor, que es donde el multiidioma
+   se rompe en la práctica.
+
 5. **Cerrada.** `sitio.yml` es obligatorio, con `nombre` y `url` (§2).
 6. **Cerrada.** En la cascada, `etiquetas` se suman; el resto se sustituye
    (§3).
@@ -2714,7 +2829,7 @@ si hace falta, la anterior lleva una nota entre paréntesis.
     dominio, que hasta ahora decidía la biblioteca de Markdown: una dirección con
     dominio, o que empieza por `//`, que no es el del sitio, y sale sin dirección
     si su esquema es inseguro (§8); las reglas exactas de los atajos (nombres de
-    atributo, comillas sin escape, las 24 etiquetas que cuentan como bloque, que
+    atributo, comillas sin escape, las 30 etiquetas que cuentan como bloque, que
     gana la variable del motor sobre el atributo del mismo nombre, que el pie del
     atajo es texto y el de la figura Markdown, y que lo que escriben las
     plantillas de Ehundu va en castellano: `Vídeo`, `1,2 MB`, `sí`/`no`; §8.1,
@@ -2864,3 +2979,97 @@ si hace falta, la anterior lleva una nota entre paréntesis.
     necesario para un índice. Se descartaron conservar `cantidad` como alias y
     renombrar también `total` (`totalPaginas`, `totalEntradas`), que rompe el uso
     más común para ganar poco. Ningún sitio de prueba cambia.
+143. **Cerrada.** Un nombre con la extensión de un fichero que se quiere generar
+    (`robots.txt.twig`, `sitemap.xml.twig`, `llms.txt.md`, `tabla.csv.yml`)
+    detiene el build, y el error dice cómo hacerlo: una página `robots.twig` con
+    `url: /robots.txt` (§4, §15.2). Salió de la relectura final del contrato:
+    el punto del nombre está reservado para el idioma, y tres letras minúsculas
+    tienen forma de código, así que `robots.txt.twig` se saltaba con un aviso y un
+    código de salida 0; el siguiente despliegue borraba el `robots.txt` publicado,
+    que es justo lo que la decisión 135 evita con `guia.v2.md`. La 135 lo dejó
+    como el caso que se parecía y no resolvió. Es un patrón corriente al migrar
+    desde Eleventy, donde el fichero se llama `robots.txt.njk`. La regla es una
+    lista corta y cerrada de extensiones (`txt`, `xml`, `json`, `css`, `js`,
+    `html`, `htm`, `svg`, `csv`, `yml`, `yaml`, `md`, `php`, `ico`, `pdf`), que no
+    pueden ser un idioma: añadir una a la lista después sería hacer error lo que
+    hoy es un aviso, así que se escribe completa. Un código de idioma que el sitio
+    no declara (`contacto.fr.md`) sigue siendo un aviso, porque puede ser una
+    traducción preparada. Se descartó dejarlo como estaba y documentar la salida,
+    que mantiene el riesgo de borrar lo publicado sin que nadie lo vea. Ninguno de
+    los sitios de prueba tenía un nombre así.
+144. **Cerrada.** Un día sin hora y sin comillas es ese día en la zona del sitio en
+    cualquier campo, no solo en `fecha` y `publicar` (§4). YAML lee `2025-03-19`
+    como su medianoche en UTC; el contrato decía que todas las fechas se escriben
+    en la zona del sitio, pero solo `fecha` y `publicar` se movían. Con una zona al
+    oeste de UTC, `|fecha` de un campo propio, de `datos/` o de `sitio.yml` escribía
+    el día anterior (`America/Mexico_City`: el 18 de marzo para el 19). Ahora esos
+    días son medianoche en la zona del sitio, a cualquier profundidad de listas y
+    mapas. Una fecha con hora (`2025-03-19 10:30:00`) se deja como la lee YAML, un
+    instante: la decisión 129 es de `fecha` y `publicar`, y partir en dos lo que
+    hace un campo propio con una hora no es necesario hoy. Una fecha llega a la
+    plantilla como una fecha, no como un texto, y se escribe con `fecha` o `date`;
+    `{{ pagina.fecha }}` sin filtro detiene el build. Se descartó dejar las fechas
+    de los campos propios como instantes UTC y escribirlo en el contrato, que
+    obligaba a cada plantilla a corregir la zona. Ninguno de los sitios de prueba
+    cambia: están en `Europe/Madrid` o sin zona, y no usan fechas propias al oeste
+    de UTC.
+145. **Cerrada.** Tres reglas que el contrato no decía. (a) Lo único de `@ehundu/`
+    que una plantilla puede incluir son las plantillas de los atajos que trae el
+    motor, y no se prometen: un sitio no debe incluirlas, y pueden cambiar o
+    quitarse en cualquier versión; el contrato decía que Twig no lee fuera de
+    `plantillas/` y `parciales/`, y sí lee el espacio `@ehundu`. Se descartó
+    bloquearlo, porque el motor dibuja sus atajos con esas mismas plantillas y el
+    cargador no sabe quién las pide. (b) Un campo en blanco (`plantilla:`) cuenta
+    como un valor y sustituye al heredado de un `_datos.yml`, salvo en `etiquetas`,
+    `css` y `js`, que se suman: es lo que hacía el motor y cambiarlo era
+    reinterpretar proyectos escritos. (c) La excepción de la regla 5 de §12 (los
+    nombres) cubre también una clave nueva de `sitio.yml` y una variable nueva de un
+    atajo, que pueden tapar una clave o un atributo propios; y §2 lista las claves
+    que el motor lee de `sitio.yml`, para que se sepa cuáles son suyas.
+146. **Cerrada.** Cuatro ajustes de la biblioteca y del despliegue que salieron de
+    leer `biblioteca.md` contra el código. (a) `Desplegador::desplegar` con
+    `$todo` ignora `$segundos`: repartido, cada llamada volvía a subir el primer
+    fichero y no terminaba nunca; la documentación ya decía que con `$todo` no se
+    reparte, pero el código lo repartía. (b) `Version::ACTUAL` se promete: hasta
+    ahora la versión solo se leía con `ehundu --version`, y un editor que quiera
+    ponerla en un informe de error no tenía cómo. (c) `Lote::progreso()` de un lote
+    `ocupado()` vale 0, y no 1: una barra de progreso lo enseñaba al 100 % sin haber
+    hecho nada. (d) La carpeta de destino de `carpeta` se crea al subir el primer
+    fichero, no al abrirla, para que `--simular` no deje nada; el
+    sitemap y el feed de cada idioma (`eu/feed.xml`) se suben los últimos, como los
+    de la raíz; y un volcado de `Configuracion` tampoco enseña dónde está la clave
+    privada. `biblioteca.md` gana lo que se promete y no estaba: las firmas de
+    `Destino`, `ErrorDeProyecto`, `trazar`, `anotar` y `quitar`, y la semántica de
+    `Proyecto` y `Pagina::$campos`.
+147. **Cerrada.** Tres avisos nuevos, que no cambian lo que se compila. Un atajo
+    registrado cuyos atributos no se pueden leer (`[imagen fichero=a.png]` sin
+    comillas) se deja como texto, como antes, y ahora se avisa: sin el aviso se
+    quedaba en la página y nadie lo notaba. Un `feed.coleccion` que ninguna página
+    usa (publicada o no) avisa, porque seguramente está mal escrito, y el feed sale
+    vacío; una colección cuyas páginas son todas borradores no avisa, porque no es
+    una errata. Una página con la extensión en mayúsculas o `.markdown` (`LEEME.MD`,
+    `post.markdown`) avisa de que no se compila y se copia tal cual. Y los atajos
+    `imagen`, `video` y `archivo` ya no leen un `fichero` de fuera de `publico/`:
+    avisan y no insertan nada, como `svg()` y `dimensiones()`, que ya lo hacían.
+148. **Cerrada.** La relectura final del contrato antes de la 1.0 corrige el texto
+    de unos noventa sitios sin cambiar lo que hace el motor, y unas pocas cosas del
+    código para que cumpla lo que el contrato ya decía. Tres lectores
+    independientes comprobaron unas 250 afirmaciones contra el código, y unas 200 eran
+    ciertas. Lo que queda escrito: los ficheros de texto son UTF-8 (BOM fuera,
+    `\r\n` a `\n`) y uno que no lo es detiene el build; un `[nombre]` registrado es
+    siempre una llamada; un atajo envuelve si la página tiene algún `[/nombre]`, y
+    dos del mismo nombre no se anidan; `pagina.ruta` de una página generada es
+    `etiqueta.md#cultura-pop`; `donde` compara como números si los dos valores lo
+    parecen; las colecciones se nombran exactas; el empate de fecha se resuelve por
+    la ruta del fichero byte a byte; `&` da `-y-`; el orden del sitemap y del feed;
+    el algoritmo del `id` de un encabezado; qué cuenta como vacío en `requerido`;
+    los tipos de campo del esquema; que `carpeta` sin `/*` son solo las páginas
+    directas; las cuatro claves del menú (`grupo`, `rotulo`, `entrada`, `excluir`)
+    pasan de la orientación para el editor al formato, con sus errores. El
+    código se arregla donde el contrato mandaba: `slugify` vale en el patrón de
+    `agrupar` y de `paginar`; `paginar` avisa de una `url` sin barra final aunque
+    todo quepa en un trozo; `svg()` quita la declaración XML y el DOCTYPE aunque un
+    comentario los separe; el dominio de un enlace no distingue mayúsculas; una
+    `url` de solo espacios es una en blanco. La justificación de «un fichero por
+    idioma» pasa a la decisión 4, porque era historia dentro de la parte
+    normativa. No cambia ninguno de los veintitrés sitios de prueba.

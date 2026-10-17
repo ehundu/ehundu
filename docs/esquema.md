@@ -27,7 +27,9 @@ Dos reglas valen para todo el esquema:
   sigue creciendo: tipos de campo y claves nuevos (decisión 139). Un editor que
   encuentre una clave o un tipo de campo que no conoce no toca ese campo: lo deja
   como está y lo dice. No necesita entender todos los 1.x para editar lo que sí
-  entiende.
+  entiende. Vale también para una clave desconocida en un tipo, en un fichero de
+  datos o en la raíz del esquema: se conserva al guardar, y qué hace el editor con
+  el tipo o el fichero que la lleva es suyo, aunque lo razonable es no tocarlo.
 - **Un error del esquema** es un esquema que no cumple lo que dice este
   documento: una clave con un valor que no vale, una clave en un campo de un tipo
   que no la admite, un `alt` que no nombra un campo del mismo nivel. Lo detecta el
@@ -48,11 +50,27 @@ nombres). Una clave nueva evitará darles un sentido más:
 | `fichero`  | en los atajos (§8)                      | un fichero de `publico/` |
 | `grupo`    | tipo de campo                           | un conjunto de campos con nombre |
 | `grupo`    | clave de un tipo o de unos datos        | la sección del menú lateral |
-| `grupo`    | en `agrupar` (§6.3)                     | el valor por el que se agrupan las páginas |
+| `grupo`    | variable `pagina.grupo` (§6.3)          | el valor por el que se agrupan las páginas |
 | `excluir`  | en un tipo                              | páginas que el editor no enseña |
 | `excluir`  | en `agrupar` (§6.3)                     | valores que no generan página |
 | `orden`    | campo reservado (§4) y tipo `numero`    | un número para ordenar a mano |
 | `orden`    | filtro (§6.2) y `paginar.orden` (§6.4)  | un criterio de orden, en texto |
+| `alt`      | en un campo `imagen` (§11.6)            | el nombre de otro campo, el que lleva la descripción de la imagen |
+| `alt`      | en el atajo `imagen` (§8.2)             | el texto alternativo de la imagen |
+| `ancho`    | en un campo `imagen` (§11.6)            | el ancho máximo de lo que se sube |
+| `ancho`    | en `dimensiones()` y `variantes()` (§7.3) | el ancho real de una imagen |
+| `clave`    | en `recuerda` (§11.4)                   | el campo que identifica un elemento de la lista |
+| `clave`    | en el atajo `dato` (§8.2) y en `despliegue` (§2) | la ruta de un dato (`cliente.nombre`) / la contraseña, en `.secretos.yml` |
+| `titulo`   | en un tipo, un campo o unos datos       | el rótulo que enseña el editor |
+| `titulo`   | campo reservado (§4)                    | el título de la página |
+| `tipo`     | en un campo (§11) y en `cuerpo`         | el tipo del campo |
+| `tipo`     | en `archivo` (§8.2) y en `variantes()` (§7.3) | la extensión del fichero / el tipo MIME de un formato |
+| `url`      | `sitio.yml` (§2), front matter (§5), `pagina.url` (§7.2) y `paginar.url` (§6.4) | el dominio / el patrón de la página / su dirección ya resuelta / el patrón de las demás páginas de la serie |
+| `ruta`     | en `despliegue` (§2) y `pagina.ruta` (§7.2) | la carpeta de destino / el fichero de la página |
+| `huella`   | en `despliegue` (§2) y en `version()` (§7.3) | la huella de la clave del servidor / el resumen del contenido de un fichero |
+| `enlace`   | en el atajo `imagen` (§8.2) y en `encabezados` (§2) | la dirección a la que lleva la imagen / el símbolo del enlace permanente |
+| `etiqueta` | en `encabezados` (§2) y `etiquetas` (§4) | el `aria-label` del enlace / las colecciones de una página |
+| `formato`  | en `sitio.yml` (§2) y en `imagenes.formatos` | la versión del formato / los formatos de imagen |
 
 ## 11. `esquema.json`
 
@@ -119,7 +137,11 @@ carpeta, y no la carpeta misma: con `contenido/libros/*`, las páginas de
 `contenido/libros/novela/` y de `contenido/libros/ensayo/` son libros, y
 `contenido/libros.md` o lo que haya en una subcarpeta más honda no lo son. Así
 un tipo se puede repartir en categorías, cada una con su `_datos.yml` (§3), sin
-declarar sus campos una vez por categoría.
+declarar sus campos una vez por categoría. Una ruta sin `/*` son las páginas
+`.md` que están directamente en esa carpeta, y no las de sus subcarpetas. Una
+ruta empieza por `contenido`, no lleva `.`, `..` ni tramos vacíos ni barras
+invertidas, y el único `*` que admite es el de `/*` al final; si no, es un error
+del esquema.
 
 > *Orientación para el editor.* Cuando un tipo tiene más de una carpeta, el editor agrupa sus páginas por
 > carpeta y pregunta en cuál crear una nueva. Cada carpeta se rotula con el
@@ -137,29 +159,53 @@ el vocabulario de los patrones de URL (§5.1): `{{ campo }}` y
 un fichero con ese nombre, se le añade `-2`, `-3`, y así hasta que no choque;
 si el patrón no da un nombre (un campo vacío, un `slug` vacío), el editor no
 crea la página y lo dice. El nombre se fija al crear la página y no cambia
-después, aunque cambien los campos de los que salió: de él sale la URL (§5), y
-renombrarlo rompería la dirección publicada. Una traducción toma el nombre de
+después, aunque cambien los campos de los que salió: de él sale la URL cuando se
+deriva de la ruta (§5), y renombrarlo rompería la dirección publicada. Una traducción toma el nombre de
 la página que traduce, con el código de su idioma (§15.2).
 
-`cuerpo` vale `markdown` o `ninguno`. Sin cuerpo, la página es pura ficha de
-campos, que es el caso de las páginas de aterrizaje. Un cuerpo en Markdown se
-puede escribir también con la forma de un campo, para darle su rótulo y su
-ayuda: `{ "tipo": "markdown", "titulo": "Reseña" }`. `"markdown"` a secas es
-la forma corta, y el editor le pone un rótulo genérico.
+`cuerpo` vale `markdown` o `ninguno`, y si falta es `markdown`. Sin cuerpo, la
+página es pura ficha de campos, que es el caso de las páginas de aterrizaje. Un
+cuerpo en Markdown se puede escribir también con la forma de un campo, para
+darle su rótulo y su ayuda: `{ "tipo": "markdown", "titulo": "Reseña",
+"ayuda": "…" }`, y en ella `tipo` es siempre `markdown`. `"markdown"` a secas es
+la forma corta, y el editor le pone un rótulo genérico («Texto»). Cualquier otro
+valor es un error del esquema.
 
 **Campos.** `nombre` es la clave del front matter, la que lee el motor;
 `titulo` es el rótulo que enseña el editor («Autor o autora»), y sin él se
 enseña el nombre. `ayuda` es una explicación corta junto al campo, si hace
-falta. `requerido` dice que el campo no puede quedar vacío.
+falta. `requerido` dice que el campo no puede quedar vacío: que no se guarda sin
+una respuesta. Vacío es un texto o una dirección en blanco, un número o una fecha
+sin escribir, una imagen sin elegir, una lista de textos sin líneas, una
+`seleccion` sin elegir y una `seleccion-multiple` sin marcar nada ni «Ninguno»
+(§11.3). Un `booleano` nunca está vacío, y `fechas` no admite `requerido`
+(§11.7).
+
+Un campo no puede llamarse como un nombre que el motor escribe en `pagina`
+(§7.2: `contenido`, `ruta`, `markdown`, `encabezados`, `traducciones`, `idioma`,
+`grupo`, `paginas`, `paginacion`), ni usar un alias inglés (`title`) en lugar del
+nombre español; y un campo reservado (§4) tiene el tipo que le toca: `fecha` y
+`publicar` son `fecha`; `orden`, `numero`; `listada`, `borrador`, `pdf` y
+`publicarEnSuFecha`, `booleano`; los demás de §4 que son texto, `texto` o
+`parrafo`, y las listas (`etiquetas`, `css`, `js`), `lista-texto`. Lo que no
+cumple esto es un error del esquema.
 
 `rol` vale `cliente` (por defecto), para quien es titular del sitio y edita su
-contenido, o `agencia`, para quien lo desarrolla. Los campos de agencia solo
-aparecen en el modo avanzado.
+contenido, o `agencia`, para quien lo desarrolla. *Orientación para el editor:* el primero
+enseña los campos de agencia solo en un modo avanzado.
 
 Tipos de campo de hoy: `texto`, `parrafo`, `markdown`, `numero`, `fecha`,
 `fechas`, `booleano`, `imagen`, `enlace`, `lista-texto`, `seleccion`,
 `seleccion-multiple`, `lista` y `grupo`.
 
+- `texto` es un texto de una línea, y `parrafo`, uno de varias, con sus saltos de
+  línea.
+- `numero` es un número, entero o decimal (el editor admite la coma o el punto),
+  que se guarda como número de YAML.
+- `fecha` es un día, `AAAA-MM-DD`, que se guarda como fecha de YAML sin
+  comillas; la hora no cuenta (§4).
+- `booleano` es `true` o `false` de YAML; los `sí` y `no` son de los campos
+  reservados (§4).
 - `fechas` es un conjunto de días que el editor enseña como un calendario de
   meses, como los días en que un local está ocupado o los de cierre de un
   negocio (§11.7).
@@ -167,7 +213,8 @@ Tipos de campo de hoy: `texto`, `parrafo`, `markdown`, `numero`, `fecha`,
   de un producto o la provincia de una tienda (§11.3).
 - `enlace` es una dirección: completa, con `http://` o `https://`, o una ruta
   del propio sitio que empieza por `/`. El editor la comprueba, y puede
-  completar el `https://` que falte.
+  completar el `https://` que falte. Otras formas (`mailto:`, `tel:`, un
+  `#ancla`) no valen por ahora; admitirlas más adelante es crecer.
 - `markdown` es un texto con Markdown (§7.3). Como cuerpo de la página no
   cambia (§8); como campo, la plantilla lo pinta con el filtro `markdown`, de
   línea o de bloque según lo que el campo contenga, y sin él sale como texto.
@@ -181,8 +228,8 @@ Tipos de campo de hoy: `texto`, `parrafo`, `markdown`, `numero`, `fecha`,
   `lista` es una lista de grupos, que se pueden añadir, quitar y ordenar. Los
   dos declaran lo que llevan en su propio `campos`, con la misma forma que los
   del tipo. Dentro de un `grupo` solo caben campos simples, que son todos
-  menos `lista` y `grupo`. Dentro de una `lista` caben campos simples y otra
-  `lista` de campos simples, y nada más hondo (§11.1).
+  menos `lista`, `grupo` y `fechas` (§11.7). Dentro de una `lista` caben campos
+  simples y otra `lista` de campos simples, y nada más hondo (§11.1).
 
 Con el esquema de arriba, las presentaciones de un libro son:
 
@@ -201,14 +248,15 @@ usan `orden('orden, titulo')` y las colecciones.
 > mano, que en un sitio en varios idiomas es el `.yml` común de la página
 > (§15.7). Los números van de 10 en 10, para que al mover una página basten un
 > número entre el de sus vecinas y un solo fichero cambiado; las páginas sin
-> `orden` van al final, como en las colecciones (§6.1). Un tipo que se ordena
+> `orden` van al final, como en las colecciones (§6.2). Un tipo que se ordena
 > por fecha, como un blog, no declara `orden` y no se arrastra.
 
 **Página fija.** Un tipo con `"unico": true` es una página que se edita y no
 se multiplica, como el menú del día de un restaurante: mientras su carpeta
 tenga una, el editor no ofrece añadir otra ni quitar la que hay. Un tipo así
-puede no declarar `titulo`: el editor no lo enseña y el que llevan los ficheros
-de la página se conserva tal cual.
+puede no declarar el campo `titulo`: el editor no lo enseña y el que llevan los
+ficheros de la página se conserva tal cual. Es una página sola: si su carpeta
+tiene más (las de `excluir` no cuentan), no se sabe cuál es.
 
 **Borradores.** Un tipo con `"borradores": true` deja que el editor pase sus
 páginas a borrador y las vuelva a publicar: escribe o quita el campo reservado
@@ -226,7 +274,8 @@ cada fichero de la página, en todos los idiomas a la vez (§15), con una fecha
 de hoy en adelante. Una página con `publicar` en el futuro no genera fichero ni
 sale en las colecciones, el sitemap ni el feed hasta que llega ese día (§4, §5,
 §6, §10). Si los ficheros de una página tienen fechas distintas, el editor
-enseña la más próxima y no toca ninguna hasta que se cambie. `borrador` manda
+enseña la más próxima y no toca ninguna hasta que se cambie (orientación para
+el editor). `borrador` manda
 sobre `publicar`: una página que lleva las dos es un borrador. Con `unico` no se
 ofrece, porque una página fija no tiene que desaparecer hasta una fecha. Un
 tipo sin `programar` no ofrece nada de esto. El sitio es estático: la página
@@ -236,33 +285,39 @@ programada. `programar` no depende de `publicarEnSuFecha` (§4), que es cosa de
 quien desarrolla el sitio: el editor ni lo escribe ni lo lee, y un `publicar`
 que escriba sigue mandando sobre él.
 
-> *Orientación para el editor.* **El menú lateral.** El editor agrupa lo que se edita en secciones. Cada tipo
-> lleva la suya, con el plural del tipo por nombre, y los ficheros de datos
-> (§11.5) van en «Ajustes». Cuatro claves, todas opcionales, lo cambian:
->
-> - `"grupo": "Menús"`, en un tipo o en un fichero de datos, dice en qué
->   sección va. Los que llevan el mismo `grupo` comparten sección, y en ella
->   salen primero las carpetas de los tipos y después los ficheros de datos: así
->   un tipo de menús y otro de servicios van juntos, aunque cada uno tenga su
->   formulario, y un aviso puede ir en una sección «Avisos» con otros.
-> - `"rotulo": "Contenidos"`, en un tipo con una sola carpeta (sin `/*`), es
->   cómo se llama esa carpeta en el menú lateral, en lugar del título de la
->   página que la rotula (arriba, §11). Sirve, por ejemplo, para la carpeta
->   `contenido`, cuyo `index.md` es la portada y no un título de sección.
-> - `"entrada": "Páginas"`, en un tipo con `unico`, es cómo se llama en el menú
->   lateral la entrada que comparten los tipos fijos de una misma sección que
->   llevan esa misma `entrada`: una sola, con un listado que reúne las páginas de
->   todos, en el orden de los tipos del esquema, y cuyo número es el de todas
->   ellas. Cada fila se llama como su tipo (`titulo`: «Portada», «Contacto») y
->   abre su propio formulario, y el editor no ofrece añadir ni ordenar desde ese
->   listado, porque son páginas fijas. Sirve para un sitio de aterrizaje en el
->   que cada página tiene sus campos, y por eso es un tipo, pero que no puede
->   llevar una entrada del menú por cada una. Sin `unico`, o junto a `rotulo`
->   (que ya da nombre a la carpeta), es un error del esquema.
-> - `"excluir": ["404", "aviso-legal"]`, en un tipo, son páginas de sus
->   carpetas que el editor no enseña, no cuenta ni abre, aunque estén en ellas:
->   su nombre, sin carpeta, idioma ni extensión. Sirve para las páginas que solo
->   toca quien desarrolla el sitio.
+**Cuatro claves de un tipo.** Todas son opcionales, y las lee el editor, no el
+motor. Un valor que no cumple lo que sigue es un error del esquema:
+
+- `"grupo": "Menús"`, en un tipo o en un fichero de datos, es un texto no vacío
+  y dice en qué sección del menú lateral va. Los que llevan el mismo `grupo`
+  comparten sección.
+- `"rotulo": "Contenidos"`, en un tipo con una sola carpeta (sin `/*`), es un
+  texto no vacío y dice cómo se llama esa carpeta en el menú lateral, en lugar
+  del título de la página que la rotula (arriba, §11). Sirve, por ejemplo, para
+  la carpeta `contenido`, cuyo `index.md` es la portada y no un título de
+  sección. Con más de una carpeta, o con una acabada en `/*`, es un error.
+- `"entrada": "Páginas"`, en un tipo con `unico`, es un texto no vacío y dice
+  cómo se llama en el menú lateral la entrada que comparten los tipos fijos de
+  una misma sección que llevan esa misma `entrada`: una sola, con un listado que
+  reúne las páginas de todos. Sirve para un sitio de aterrizaje en el que cada
+  página tiene sus campos, y por eso es un tipo, pero que no puede llevar una
+  entrada del menú por cada una. Sin `unico`, o junto a `rotulo` (que ya da
+  nombre a la carpeta), es un error.
+- `"excluir": ["404", "aviso-legal"]`, en un tipo, es una lista de páginas de
+  sus carpetas que el editor no enseña, no cuenta ni abre, aunque estén en
+  ellas: cada una por su nombre, sin carpeta, idioma ni extensión. Sirve para las
+  páginas que solo toca quien desarrolla el sitio.
+
+> *Orientación para el editor.* **El menú lateral.** El editor agrupa lo que se
+> edita en secciones. Cada tipo lleva la suya, con el plural del tipo por nombre,
+> y los ficheros de datos (§11.5) van en «Ajustes». En la sección de un `grupo`
+> salen primero las carpetas de los tipos y después los ficheros de datos: así un
+> tipo de menús y otro de servicios van juntos, aunque cada uno tenga su
+> formulario, y un aviso puede ir en una sección «Avisos» con otros. Las páginas
+> de una `entrada` se enseñan en el orden de los tipos del esquema, cada fila se
+> llama como su tipo (`titulo`: «Portada», «Contacto») y abre su propio
+> formulario, y el editor no ofrece añadir ni ordenar desde ese listado, porque
+> son páginas fijas.
 
 ### 11.1 Una lista dentro de una lista
 
@@ -326,7 +381,8 @@ Un grupo sin `titulo` es un grupo sin título, y el editor no obliga a ponerlo.
 ### 11.2 Campos traducibles
 
 `traducible: true` en un campo `texto` o `parrafo`, también dentro de una
-`lista`, dice que su valor cambia según el idioma. El valor es un mapa con el
+`lista`, dice que su valor cambia según el idioma; en cualquier otro tipo de
+campo es un error del esquema. El valor es un mapa con el
 código de cada idioma del sitio (§15.1): `nombre: { es: Flan, eu: Flana }`. Un
 idioma sin escribir falta del mapa, y uno vacío cuenta como si faltara; el
 editor no escribe los vacíos. Con `requerido`, hace falta el texto en al menos
@@ -353,8 +409,9 @@ de la página (§15.7), así que el texto de todos los idiomas queda junto y dos
 traducciones no pueden contradecirse en lo que no cambia, como los alérgenos de
 un plato. El editor lee cada campo donde esté, con la precedencia del motor, y
 lo escribe donde ya estaba; los campos que aún no existen los pone en el `.yml`
-común. Al crear una página, pregunta en qué idiomas y crea un fichero por cada
-uno, con su `titulo` y su `url`, más el `.yml` común. En un sitio de un solo
+común. Al crear una página, el primer editor pregunta en qué idiomas y crea un fichero
+por cada uno, con su `titulo` y su `url`, más el `.yml` común (orientación para
+el editor). En un sitio de un solo
 idioma todo va en el front matter, como siempre.
 
 Los campos reservados de texto (`titulo`, `subtitulo`, `descripcion`,

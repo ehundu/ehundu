@@ -39,7 +39,8 @@ final readonly class EnlacesExternos
     }
 
     /**
-     * Los dominios que no son externos: el del sitio, con y sin `www.`.
+     * Los dominios que no son externos: el del sitio, con y sin `www.` y sin distinguir mayúsculas (los nombres de
+     * dominio no las distinguen), como una expresión regular, que es lo que entiende CommonMark.
      *
      * @return list<string>
      */
@@ -47,7 +48,7 @@ final readonly class EnlacesExternos
     {
         $dominio = (string) preg_replace('/^www\./i', '', (string) parse_url($urlDelSitio, PHP_URL_HOST));
 
-        return [$dominio, "www.{$dominio}"];
+        return ['/^(?:www\.)?' . preg_quote($dominio, '/') . '$/i'];
     }
 
     /**
@@ -58,7 +59,17 @@ final readonly class EnlacesExternos
     {
         $dominio = parse_url($direccion, PHP_URL_HOST);
 
-        return is_string($dominio) && !in_array($dominio, self::dominiosPropios($urlDelSitio), true);
+        if (!is_string($dominio)) {
+            return false;
+        }
+
+        foreach (self::dominiosPropios($urlDelSitio) as $propio) {
+            if (preg_match($propio, $dominio) === 1) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

@@ -221,6 +221,77 @@ final class ColeccionPrueba extends TestCase
     /**
      * @param array<array-key, mixed> $campos
      */
+    /**
+     * Ordenar guarda la clave de texto de cada valor mientras dura la llamada, en vez de calcularla en cada
+     * comparación (a 640 páginas son 12.000 claves para 640 valores): tiene que dar exactamente el mismo orden que
+     * comparar los pares con `Coleccion::comparar`, con textos con tildes, ñ, «¿» y mayúsculas, números, texto que
+     * parece número, fechas, listas, valores que faltan y empates.
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function criterios(): iterable
+    {
+        foreach (['titulo', 'titulo desc', 'orden', 'orden desc', 'fecha desc', 'fecha asc', 'etiquetas', 'ruta', 'url', 'descripcion', 'titulo asc, orden desc', 'orden, titulo desc', 'activa, titulo'] as $criterio) {
+            yield $criterio => [$criterio];
+        }
+    }
+
+    #[Test]
+    #[\PHPUnit\Framework\Attributes\DataProvider('criterios')]
+    public function ordenaIgualQueCompararCadaParDeValores(string $criterio): void
+    {
+        $titulos = ['Ñandú', 'nube', 'Zorro', '¿Cómo llegar?', 'Árbol', 'arbol', 'ÁRBOL', 'Éxito', 'exito', 'Uno', '10', '9', '2 gatos', 'Nina', 'niño', 'Niño', 'ñu', 'Ñu', 'zeta', '¡Hola!', 'Cañón', 'Canon', 'canción', ''];
+        $ordenes = [3, 1.5, '2', 10, '10', null, true, false, 'dos', 7, 7.0, '7'];
+        $paginas = [];
+
+        foreach ($titulos as $i => $titulo) {
+            foreach ([0, 1] as $copia) {
+                $campos = ['titulo' => $titulo];
+
+                if ($i % 5 !== 4) {
+                    $campos['orden'] = $ordenes[($i + $copia) % count($ordenes)];
+                }
+
+                if ($i % 3 !== 0) {
+                    $campos['fecha'] = $this->fecha('2025-0' . (1 + ($i + $copia) % 9) . '-1' . ($i % 10));
+                }
+
+                if ($i % 4 !== 3) {
+                    $campos['etiquetas'] = $copia === 0 ? ['blog', 'ñoño'] : ['Blog'];
+                }
+
+                if ($i % 6 === 1) {
+                    $campos['descripcion'] = $titulo . ' descrita';
+                }
+
+                $campos['activa'] = $i % 2 === 0;
+                $paginas[] = $this->pagina("p{$i}-{$copia}", $campos);
+            }
+        }
+
+        $claves = [];
+
+        foreach (explode(',', $criterio) as $parte) {
+            $palabras = preg_split('/\s+/', trim($parte));
+            $claves[] = [$palabras[0], ($palabras[1] ?? 'asc') === 'desc'];
+        }
+
+        $esperado = $paginas;
+        usort($esperado, function (Pagina $a, Pagina $b) use ($claves): int {
+            foreach ($claves as [$campo, $descendente]) {
+                $resultado = Coleccion::comparar($a->valor($campo), $b->valor($campo), $descendente);
+
+                if ($resultado !== 0) {
+                    return $resultado;
+                }
+            }
+
+            return 0;
+        });
+
+        self::assertSame($this->rutas($esperado), $this->rutas(Coleccion::orden($paginas, $criterio)));
+    }
+
     private function pagina(string $ruta, array $campos = []): Pagina
     {
         return new Pagina($ruta, 'md', $campos, "/{$ruta}/", '', 1);

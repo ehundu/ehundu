@@ -30,9 +30,32 @@ final class Coleccion
     {
         $claves = self::claves($criterio);
 
-        usort($paginas, function (Pagina $a, Pagina $b) use ($claves): int {
+        // Cada valor y, si se compara como texto, su clave de texto, se calculan una vez por página y campo y no en
+        // cada comparación: ordenar 640 páginas son unas 6.000 comparaciones, y la clave (minúsculas, tildes, «ñ»)
+        // es lo más caro de ellas. Lo que se compara y cómo es lo mismo que en `comparar()`.
+        /** @var array<int, array<string, mixed>> $valores */
+        $valores = [];
+        /** @var array<int, array<string, string>> $textos */
+        $textos = [];
+
+        usort($paginas, function (Pagina $a, Pagina $b) use ($claves, &$valores, &$textos): int {
+            $ia = spl_object_id($a);
+            $ib = spl_object_id($b);
+
             foreach ($claves as [$campo, $descendente]) {
-                $resultado = self::comparar($a->valor($campo), $b->valor($campo), $descendente);
+                $va = array_key_exists($campo, $valores[$ia] ?? []) ? $valores[$ia][$campo] : ($valores[$ia][$campo] = $a->valor($campo));
+                $vb = array_key_exists($campo, $valores[$ib] ?? []) ? $valores[$ib][$campo] : ($valores[$ib][$campo] = $b->valor($campo));
+
+                if ($va === null || $vb === null) {
+                    $resultado = ($va === null) <=> ($vb === null);
+                } else {
+                    $resultado = self::compararComoTipo($va, $vb)
+                        ?? strcmp($textos[$ia][$campo] ??= self::claveDeTexto($va), $textos[$ib][$campo] ??= self::claveDeTexto($vb)) <=> 0;
+
+                    if ($descendente) {
+                        $resultado = -$resultado;
+                    }
+                }
 
                 if ($resultado !== 0) {
                     return $resultado;
@@ -170,6 +193,15 @@ final class Coleccion
 
     private static function compararValores(mixed $a, mixed $b): int
     {
+        return self::compararComoTipo($a, $b) ?? strcmp(self::claveDeTexto($a), self::claveDeTexto($b)) <=> 0;
+    }
+
+    /**
+     * La comparación de dos valores del mismo tipo (números, fechas o booleanos), o null si no lo son y hay que
+     * compararlos como texto.
+     */
+    private static function compararComoTipo(mixed $a, mixed $b): ?int
+    {
         if ((is_int($a) || is_float($a)) && (is_int($b) || is_float($b))) {
             return $a <=> $b;
         }
@@ -182,7 +214,7 @@ final class Coleccion
             return $a <=> $b;
         }
 
-        return strcmp(self::claveDeTexto($a), self::claveDeTexto($b)) <=> 0;
+        return null;
     }
 
     /**

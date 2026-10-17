@@ -1556,8 +1556,8 @@ Tipos de campo en la v1: `texto`, `parrafo`, `markdown`, `numero`, `fecha`,
 - `fechas` es un conjunto de días que el editor enseña como un calendario de
   meses, como los días en que un local está ocupado o los de cierre de un
   negocio (§11.7).
-- `seleccion` es una sola elección entre unas opciones fijas, como el tipo de
-  lente de un producto o la provincia de un distribuidor (§11.3).
+- `seleccion` es una sola elección entre unas opciones fijas, como la talla
+  de un producto o la provincia de una tienda (§11.3).
 - `enlace` es una dirección: completa, con `http://` o `https://`, o una ruta
   del propio sitio que empieza por `/`. El editor la comprueba, y puede
   completar el `https://` que falte.
@@ -1755,7 +1755,7 @@ de cada idioma.
 ### 11.3 Selección y selección múltiple
 
 `seleccion` es un campo cuyo valor es una sola elección entre unas opciones
-fijas: el tipo de lente de un producto, la provincia de un distribuidor. Lleva
+fijas: la talla de un producto, la provincia de una tienda. Lleva
 sus `opciones` de las mismas dos formas y con el mismo contenido que las de
 `seleccion-multiple` (abajo), y lo que se guarda es el `id` de la elegida, tal
 como está en la opción (`provincia: Bizkaia`, o un número si el `id` lo es). Es
@@ -2340,7 +2340,7 @@ un sitio de la v1 no debe usarlo como campo propio.
     encabezados.
 115. **Cerrada.** Los tipos fijos (`unico`) de una misma sección del menú
     lateral pueden compartir una entrada con la clave `entrada` (§11). Salió de
-    un sitio de aterrizaje con diez páginas distintas, cada una con sus campos
+    un sitio con muchas páginas distintas, cada una con sus campos
     y por tanto cada una su tipo: el menú tenía una entrada por página y el
     cliente, que solo quiere ver «Páginas», «Servicios» y «Diario», lo
     encontraba largo. Se descartaron dos salidas: un solo tipo con todos los
@@ -2370,10 +2370,10 @@ un sitio de la v1 no debe usarlo como campo propio.
 117. **Cerrada.** Nuevo tipo de campo `seleccion`, una sola elección entre unas
     `opciones` (un fichero de `datos/` o la lista del esquema, como en
     `seleccion-multiple`) que guarda el `id` de la elegida (§11, §11.3). Salió de
-    un sitio con una lista de distribuidores agrupada por comunidad, a partir de
-    la provincia que escribe quien edita, y con unos filtros que comparan el texto
-    exacto del tipo de lente: con un texto libre, «Bizcaia» o «polarizada» sacan
-    la página del grupo o del filtro sin que nadie lo vea. Se descartaron
+    un sitio con una lista agrupada a partir de un campo que escribe quien edita,
+    y con unos filtros que comparan un texto exacto: con un texto libre, una
+    errata o una mayúscula de más sacan la página del grupo o del filtro sin que
+    nadie lo vea. Se descartaron
     `seleccion-multiple` con una sola casilla (el valor sería una lista, y la
     plantilla tendría que sacar el primero), un texto libre con la ayuda de qué
     valores valen (la errata se publica) y una comprobación en el motor (el
@@ -2384,7 +2384,7 @@ un sitio de la v1 no debe usarlo como campo propio.
 118. **Cerrada.** Nuevo tipo de campo `fechas`, un conjunto de días que el editor
     enseña como un calendario de meses y que se guarda como una lista YAML de
     fechas, ordenada, sin repetidos y una por línea (§11, §11.7). Salió de un
-    sitio de alquiler de un local cuyo titular solo cambia qué días está
+    sitio con un calendario de ocupación cuyo titular solo cambia qué días está
     ocupado, dos o tres veces al mes: con una `lista` de grupos con un campo
     `fecha` serían unas ciento cincuenta filas al año, cada una con su «Añadir»
     y su «Quitar», y con una `lista-texto` quien edita escribiría las fechas a
@@ -2402,7 +2402,7 @@ un sitio de la v1 no debe usarlo como campo propio.
     `publicarAlGuardar` (§11.5): al guardarlo, el editor publica el sitio en el
     acto. Salió del mismo sitio que la 118. Separar guardar de publicar es lo
     normal en un editor, para que nada salga sin que alguien lo decida, pero con
-    los días ocupados de un local es una trampa: el titular marca el día, no
+    los días ocupados de un calendario es una trampa: el titular marca el día, no
     pulsa «Publicar» y la web sigue enseñando libre un día ya cobrado. La clave
     se pone en el fichero que no puede esperar y no en todo el sitio, porque un
     aviso de cierre pide lo mismo y una ficha a medias, no. Publica el sitio tal
@@ -2415,11 +2415,11 @@ un sitio de la v1 no debe usarlo como campo propio.
 120. **Cerrada.** El motor lee las variantes de ancho de una imagen, con la sección
     `imagenes` de `sitio.yml` (§2), la función `variantes()` (§7.3) y el
     `srcset` del atajo `imagen` y de las figuras del Markdown (§8.2). No genera
-    ninguna: la generación sigue fuera del build (§9, §13). Salió de que tres
-    sitios, cada uno por su lado, preparaban sus fotos en WebP a 480, 960 y
-    1600 px con un programa propio y las leían con una plantilla de
+    ninguna: la generación sigue fuera del build (§9, §13). Salió de que varios
+    sitios, cada uno por su lado, preparaban sus fotos en WebP en varios anchos
+    con un programa propio y las leían con una plantilla de
     `<img srcset>` copiada de uno a otro, con los anchos escritos a mano, y de
-    que un cuarto sirve otros cuatro anchos en AVIF: las convenciones empezaban
+    que otro sirve otros anchos en AVIF: las convenciones empezaban
     a divergir antes de congelar el formato. Se descartaron: generar las
     variantes al compilar, porque un proyecto en zip dejaría de dar el mismo
     HTML en cualquier máquina (§12, regla 3: sin la extensión GD no habría
@@ -2484,18 +2484,18 @@ un sitio de la v1 no debe usarlo como campo propio.
     formato (este documento), la orden de consola y una lista corta de la
     biblioteca PHP, documentada en [`biblioteca.md`](biblioteca.md); el resto
     queda `@internal` y puede cambiar en cualquier versión (§12, reglas 5 y 6).
-    La lista sale de lo que usa el panel, que es el primer programa que
-    incrusta el motor: compilar (`Compilador`, `CompiladorEnProceso`,
+    La lista sale de lo que usa el primer programa que incrusta el motor, un
+    editor web: compilar (`Compilador`, `CompiladorEnProceso`,
     `Informe`), leer un proyecto (`Proyecto`, `Lector`, `Lectura`, `Sitio`,
     `Pagina`, `Formato`), los avisos y los errores (`Aviso`, `Avisos`,
     `ErrorDeProyecto`), `Slug` y el despliegue. Se descartaron cubrir todo lo
     que no es `@internal`, unas treinta clases con todos sus métodos, porque
     cualquier refactor interno sería un cambio mayor; y no prometer nada de la
-    biblioteca, porque el panel quedaría fijado a una versión menor del motor y
-    habría que revisarlo en cada una. De cada clase se promete lo que el
+    biblioteca, porque quien la incrusta quedaría fijado a una versión menor del
+    motor y habría que revisarlo en cada una. De cada clase se promete lo que el
     documento nombra y no lo demás aunque PHP lo permita (`Sitio` es público,
     pero no `Sitio::$encabezados`). `FrontMatter` y `Yaml` siguen internos: el
-    panel solo los cita en comentarios. La regla de retirada: lo que va a dejar
+    editor web solo los cita en comentarios. La regla de retirada: lo que va a dejar
     de valer avisa durante, al menos, una versión menor antes de quitarse.
 124. **Cerrada.** La compilación por lotes (§10.4) entra en la 1.0. Estaba
     aplazada desde la decisión 51 y la web de Ehundu la prometía para la 1.0:
@@ -2509,7 +2509,7 @@ un sitio de la v1 no debe usarlo como campo propio.
     `CompiladorEnProceso` no cambian, y añadir un parámetro o un resultado a
     `Compilador::compilar` habría roto a quien la implemente. El estado lo
     guarda el motor en `.ehundu/lote.json`, no quien llama: así funciona igual
-    desde el panel, un cron o un programa de otra persona, sin que cada uno
+    desde un editor web, un cron o un programa de otra persona, sin que cada uno
     invente dónde guardarlo. Cuesta la regla de que el motor solo escribe en
     `salida/`, que pasa a ser «y en `.ehundu/`», y se evita que ensucie un
     repositorio con una carpeta que escribe él mismo con su propio
@@ -2531,7 +2531,7 @@ un sitio de la v1 no debe usarlo como campo propio.
     sitio con muchos ficheros.
 126. **Cerrada.** La compilación incremental sale del proceso: `.ehundu/memoria.bin`
     guarda lo que ya recuerda, y `CompiladorIncrementalEnProceso` lo usa (§10.5).
-    La decisión 124 la había dejado fuera, y salió de usar los lotes en un panel web con el sitio más grande de los de
+    La decisión 124 la había dejado fuera, y salió de usar los lotes en un editor web con el sitio más grande de los de
     prueba (1.200 páginas): guardar un cambio de una página costaba una
     compilación entera, de 35 a 45 s, porque los lotes no recuerdan nada, y
     la incremental, que dentro de un proceso rehace esa página en 0,7 s, no se
@@ -2551,7 +2551,7 @@ un sitio de la v1 no debe usarlo como campo propio.
     compilación tras cada cambio de versión del motor sea completa. Se
     descartó guardar solo lo que usó cada página y volver a leer el HTML de
     `salida/` (ahorra la mitad, pero depende de que nadie toque `salida/` y
-    complica el motor), y dejar el trabajo al panel con una compilación
+    complica el motor), y dejar el trabajo al editor con una compilación
     posterior a la respuesta, que esconde la espera pero no la quita y deja
     la copia ocupada.
 127. **Cerrada.** El motor marca las páginas con `<meta name="generator" content="Ehundu">`,
@@ -2559,7 +2559,7 @@ un sitio de la v1 no debe usarlo como campo propio.
     sitios hechos con Ehundu se reconozcan, como los de otros generadores. Se
     decidió que el contenido sea solo `Ehundu`, sin la versión: con ella, cada
     actualización cambiaría el HTML de todas las páginas de todos los sitios y
-    obligaría a volver a subirlas, y en el panel todo aparecería como cambios sin
+    obligaría a volver a subirlas, y en un editor todo aparecería como cambios sin
     publicar sin que nadie hubiera tocado nada; además, daría a quien mira el
     código de una web la versión exacta del motor. Y que la añada el motor, antes
     de `</head>`, en vez de una función que cada plantilla tenga que escribir,

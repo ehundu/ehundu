@@ -358,7 +358,7 @@ final class LectorPrueba extends TestCase
     public function leeLosDatosDeCadaIdiomaAparte(): void
     {
         $this->crearSitioEnDosIdiomas();
-        $this->crearFichero('datos/cliente.yml', "nombre: Ercilla\ntelefono: '944000000'\nhorario: De lunes a viernes\n");
+        $this->crearFichero('datos/cliente.yml', "nombre: Casa Ejemplo\ntelefono: '944000000'\nhorario: De lunes a viernes\n");
         $this->crearFichero('datos/cliente.eu.yml', "horario: Astelehenetik ostiralera\n");
         $this->crearFichero('datos/menus.yml', "principal:\n  - Inicio\n  - Blog\npie: [Aviso legal]\n");
         $this->crearFichero('datos/menus.eu.yml', "principal:\n  - Hasiera\n");
@@ -371,7 +371,7 @@ final class LectorPrueba extends TestCase
         self::assertSame(['cliente', 'lista', 'menus'], array_keys($lectura->datos));
         self::assertSame($lectura->datos, $lectura->datosDe('es'));
         self::assertSame([
-            'cliente' => ['nombre' => 'Ercilla', 'telefono' => '944000000', 'horario' => 'Astelehenetik ostiralera'],
+            'cliente' => ['nombre' => 'Casa Ejemplo', 'telefono' => '944000000', 'horario' => 'Astelehenetik ostiralera'],
             'lista' => ['bat'],
             'menus' => ['principal' => ['Hasiera'], 'pie' => ['Aviso legal']],
             'textos' => ['saltar' => 'Joan edukira'],

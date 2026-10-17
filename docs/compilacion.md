@@ -131,7 +131,7 @@ proceso. La previsualización no guarda nada en disco: al arrancar, hace una
 compilación completa. Quien incruste el motor sí puede guardarlo:
 `CompiladorIncrementalEnProceso` ([`biblioteca.md`](biblioteca.md), formato §10.5)
 lo escribe en `.ehundu/memoria.bin` después de cada compilación y la siguiente,
-aunque sea de otro proceso, lo aprovecha. En Bilbonauta, el sitio más grande de
+aunque sea de otro proceso, lo aprovecha. En el sitio más grande de
 los de prueba (1.204 páginas), cambiar el cuerpo de una página rehace una y
 tarda unos 3 s en total (leer el proyecto, cargar la memoria, comparar `salida/`
 y guardarla), frente a los 35–45 s de una compilación completa.

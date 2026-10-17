@@ -30,8 +30,8 @@ nombres y el efecto, no el texto que escriben en la terminal.
 ## La biblioteca
 
 Todas viven en el espacio de nombres `Ehundu\` (el de `Despliegue`, en
-`Ehundu\Despliegue\`). El panel de idegest es el primer programa que las
-incrusta, y de él sale esta lista.
+`Ehundu\Despliegue\`). La lista sale de lo que usa el primer programa que las
+incrusta, un editor web.
 
 ### Compilar
 
@@ -138,7 +138,7 @@ memoria para ella (unos 350 MB en ese sitio).
 
 `Desplegador` hace lo que `ehundu desplegar` ([`despliegue.md`](despliegue.md));
 las demás clases son las piezas con las que se compone, para un programa que
-quiera llevar el despliegue a su manera, como hace el panel.
+quiera llevar el despliegue a su manera, como hace un editor web que las usa.
 
 - **`Despliegue\Desplegador`**: `__construct(Compilador $compilador = ..., ?\Closure $abrir = null)`,
   `desplegar(Proyecto, bool $simular, bool $todo, array $secretos, ..., ?float $segundos, ?Informe $compilado)`,

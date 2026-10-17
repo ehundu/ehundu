@@ -87,12 +87,13 @@ documentación son inventados.
    vocabulario cerrado, se resuelven sobre el HTML ya convertido y no admiten
    expresiones ni lógica. Ver §8.1 del formato.
 5. **Las imágenes no se procesan en el build.** Se copian tal cual desde
-   `publico/`. Nada de GD ni Imagick en la v1.
+   `publico/`. Nada de GD ni Imagick, por ahora.
 6. **Sin pipeline de assets.** El CSS y el JS llegan escritos; el motor solo
    los copia, los incrusta o los reúne en un fichero con la huella de su
    contenido cuando una página lo declara. No los transforma.
-7. **Nada de código propio por sitio en la v1.** El motor no carga ni ejecuta
-   PHP que venga del proyecto que compila.
+7. **Nada de código propio por sitio.** El motor no carga ni ejecuta PHP que
+   venga del proyecto que compila, y no lo hará dentro de una versión mayor del
+   formato (formato §12, regla 4).
 8. **La orden de consola es una envoltura fina** sobre una API de biblioteca.
    Un programa que incruste el motor llamará a esa misma API desde un proceso
    web, así que el motor no puede depender de nada propio de la consola.
@@ -108,11 +109,13 @@ documentación son inventados.
     valor que no vale en un campo reservado avisa; no rompe el build salvo
     que sea imprescindible (§4 del formato).
 
-## Fuera de la v1
+## Fuera de alcance (todavía)
 
 No implementes nada de esto aunque parezca fácil: catálogo de componentes con
 parámetros, tokens de estilo, generación de imágenes, paginación,
 procesadores sobre el HTML generado, pasos posteriores al build, búsqueda.
+No está descartado para siempre (formato §13): es lo que no se hace sin que
+se decida antes.
 El PDF de una página (§10.3 del formato) no es un procesador: es una salida
 más de la página, con su propia plantilla.
 
@@ -123,7 +126,7 @@ El despliegue (carpeta, FTP, SFTP, S3) está en el motor: ver
 `docs/despliegue.md`. Nada de APIs propias de un proveedor ni de pasos
 después de desplegar.
 
-## Orden de trabajo de la v1
+## Orden de trabajo de las primeras versiones
 
 1. Esqueleto: `composer.json`, autoload, PHPUnit y la orden `ehundu` con
    `compilar` como único comando.

@@ -39,6 +39,37 @@ final readonly class EnlacesExternos
     }
 
     /**
+     * Los dominios que no son externos: el del sitio, con y sin `www.`.
+     *
+     * @return list<string>
+     */
+    public static function dominiosPropios(string $urlDelSitio): array
+    {
+        $dominio = (string) preg_replace('/^www\./i', '', (string) parse_url($urlDelSitio, PHP_URL_HOST));
+
+        return [$dominio, "www.{$dominio}"];
+    }
+
+    /**
+     * Si una dirección lleva a otro dominio, como lo decide CommonMark para los enlaces del Markdown:
+     * tiene dominio y no es uno de los propios. Una ruta del sitio o un `mailto:` no son externos.
+     */
+    public static function esExterno(string $direccion, string $urlDelSitio): bool
+    {
+        $dominio = parse_url($direccion, PHP_URL_HOST);
+
+        return is_string($dominio) && !in_array($dominio, self::dominiosPropios($urlDelSitio), true);
+    }
+
+    /**
+     * El `rel` de un enlace externo: `noopener` siempre y `noreferrer` si el sitio lo pide.
+     */
+    public function rel(): string
+    {
+        return $this->noreferrer ? 'noopener noreferrer' : 'noopener';
+    }
+
+    /**
      * Lee la sección tal como sale del YAML. Lo que no vale se avisa, con la
      * línea de `enlacesExternos`, y se ignora: nunca detiene la compilación.
      *

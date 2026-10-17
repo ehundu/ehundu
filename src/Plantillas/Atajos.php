@@ -6,6 +6,7 @@ namespace Ehundu\Plantillas;
 
 use Ehundu\Avisos;
 use Ehundu\Dimensiones;
+use Ehundu\EnlacesExternos;
 use Ehundu\Lectura;
 use Ehundu\Proyecto;
 use Ehundu\Variantes;
@@ -22,7 +23,8 @@ use Twig\Markup;
  * Cada atajo es una plantilla de Twig que recibe sus atributos como
  * variables, `contenido` si envuelve algo, y `sitio`, `datos` y `pagina`.
  * Los de Ehundu preparan antes algunas variables: `imagen` recibe `src`,
- * `alt`, `pie`, `enlace`, `ancho` y `alto`, y si el sitio declara `imagenes`
+ * `alt`, `pie`, `enlace`, `externo` (si el enlace lleva a otro dominio), `rel` (el de ese enlace, si es externo),
+ * `ancho` y `alto`, y si el sitio declara `imagenes`
  * (formato §2) y la imagen tiene variantes, `srcset`, `sizes` y `fuentes`; `video`, `insercion` o `src` y `proporcion`; `archivo`,
  * `href`, `texto`, `tipo` y `peso`; `dato`, `valor`.
  *
@@ -102,6 +104,14 @@ final class Atajos
 
         if ($variables === null) {
             return '';
+        }
+
+        // Una imagen enlazada a otro dominio, como una figura del Markdown o `[imagen enlace="…"]`, se abre en otra
+        // pestaña como cualquier enlace del Markdown (formato §8): la plantilla recibe `externo` y su `rel`.
+        if ($nombre === 'imagen') {
+            $enlace = $variables['enlace'] ?? null;
+            $externo = is_string($enlace) && EnlacesExternos::esExterno($enlace, $this->lectura->sitio->url);
+            $variables = [...$variables, 'externo' => $externo, ...($externo ? ['rel' => $this->lectura->sitio->enlacesExternos->rel()] : [])];
         }
 
         $plantilla = $this->twig->getLoader()->exists(self::CARPETA . "/{$nombre}.twig")

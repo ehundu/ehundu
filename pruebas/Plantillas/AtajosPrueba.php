@@ -207,6 +207,102 @@ final class AtajosPrueba extends TestCase
         );
     }
 
+    /**
+     * Una imagen enlazada a otro dominio se abre en otra pestaña como cualquier enlace del Markdown (formato §8,
+     * decisión 131): la figura del Markdown y el atajo `imagen` reciben `externo` y `rel` en su plantilla.
+     *
+     * @return iterable<string, array{string, string}> el Markdown y la dirección que enlaza
+     */
+    public static function imagenesEnlazadasFuera(): iterable
+    {
+        yield 'figura a otro dominio' => ['[![Foto](/img/a.jpg)](https://otro.com/x)', 'https://otro.com/x'];
+        yield 'figura a un subdominio del propio' => ['[![Foto](/img/a.jpg)](https://blog.ejemplo.com/x)', 'https://blog.ejemplo.com/x'];
+        yield 'figura a una dirección sin protocolo' => ['[![Foto](/img/a.jpg)](//otro.com/x)', '//otro.com/x'];
+        yield 'figura a otro protocolo' => ['[![Foto](/img/a.jpg)](ftp://otro.com/x)', 'ftp://otro.com/x'];
+        yield 'atajo con enlace' => ['[imagen fichero="img/a.jpg" alt="Foto" enlace="https://otro.com/x"]', 'https://otro.com/x'];
+    }
+
+    #[Test]
+    #[\PHPUnit\Framework\Attributes\DataProvider('imagenesEnlazadasFuera')]
+    public function unaImagenEnlazadaAOtroDominioLlevaTargetYRel(string $markdown, string $enlace): void
+    {
+        $this->crearFichero('publico/img/a.jpg', 'jpg');
+
+        self::assertStringContainsString(
+            "<a href=\"{$enlace}\" target=\"_blank\" rel=\"noopener\"><img",
+            $this->cuerpo($markdown),
+        );
+    }
+
+    #[Test]
+    #[\PHPUnit\Framework\Attributes\DataProvider('imagenesEnlazadasDentro')]
+    public function unaImagenEnlazadaAlPropioSitioOSinEnlaceQuedaComoSiempre(string $markdown, string $esperado): void
+    {
+        $this->crearFichero('publico/img/a.jpg', 'jpg');
+
+        self::assertStringContainsString($esperado, $this->cuerpo($markdown));
+        self::assertStringNotContainsString('target=', $this->cuerpo($markdown));
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function imagenesEnlazadasDentro(): iterable
+    {
+        yield 'una ruta del sitio' => ['[![Foto](/img/a.jpg)](/contacto/)', '<a href="/contacto/"><img'];
+        yield 'el dominio del sitio' => ['[![Foto](/img/a.jpg)](https://www.ejemplo.com/contacto/)', '<a href="https://www.ejemplo.com/contacto/"><img'];
+        yield 'el dominio del sitio sin www' => ['[![Foto](/img/a.jpg)](https://ejemplo.com/contacto/)', '<a href="https://ejemplo.com/contacto/"><img'];
+        yield 'un correo' => ['[![Foto](/img/a.jpg)](mailto:hola@ejemplo.com)', '<a href="mailto:hola@ejemplo.com"><img'];
+        yield 'un ancla' => ['[![Foto](/img/a.jpg)](#abajo)', '<a href="#abajo"><img'];
+        yield 'sin enlace' => ['![Foto](/img/a.jpg)', '<figure><img src="/img/a.jpg"'];
+        yield 'atajo sin enlace' => ['[imagen fichero="img/a.jpg" alt="Foto"]', '<figure><img src="/img/a.jpg"'];
+        yield 'atajo con una ruta' => ['[imagen fichero="img/a.jpg" alt="Foto" enlace="/contacto/"]', '<a href="/contacto/"><img'];
+    }
+
+    #[Test]
+    public function conNoreferrerEnElSitioLaImagenEnlazadaLoLleva(): void
+    {
+        $this->crearFichero('sitio.yml', "nombre: Librería La Esquina\nurl: https://www.ejemplo.com\nenlacesExternos:\n  noreferrer: sí\n");
+        $this->crearFichero('publico/img/a.jpg', 'jpg');
+
+        self::assertStringContainsString(
+            '<a href="https://otro.com/x" target="_blank" rel="noopener noreferrer"><img',
+            $this->cuerpo('[![Foto](/img/a.jpg)](https://otro.com/x)'),
+        );
+    }
+
+    #[Test]
+    public function laImagenEnlazadaFueraNoLlevaElAvisoDeLosEnlacesExternos(): void
+    {
+        $this->crearFichero('sitio.yml', "nombre: Librería La Esquina\nurl: https://www.ejemplo.com\nenlacesExternos:\n  aviso: (abre en ventana nueva)\n");
+        $this->crearFichero('publico/img/a.jpg', 'jpg');
+
+        $html = $this->cuerpo('[![Foto](/img/a.jpg)](https://otro.com/x)');
+
+        self::assertStringContainsString('target="_blank"', $html);
+        self::assertStringNotContainsString('ventana nueva', $html, 'Un enlace que solo envuelve una imagen no lleva el aviso (formato §2)');
+    }
+
+    #[Test]
+    public function laPlantillaDelSitioRecibeExternoYRelYUnaQueNoLasUsaQuedaComoEstaba(): void
+    {
+        $this->crearFichero('publico/img/a.jpg', 'jpg');
+        $this->crearFichero(
+            'parciales/atajos/imagen.twig',
+            '<figure data-externo="{{ externo ? "si" : "no" }}" data-rel="{{ rel ?? "-" }}"><a href="{{ enlace }}"><img src="{{ src }}" alt="{{ alt }}"></a></figure>' . "\n",
+        );
+
+        self::assertSame(
+            "<figure data-externo=\"si\" data-rel=\"noopener\"><a href=\"https://otro.com/x\"><img src=\"/img/a.jpg\" alt=\"Foto\"></a></figure>\n",
+            $this->cuerpo('[![Foto](/img/a.jpg)](https://otro.com/x)'),
+            'Su plantilla decide qué hace con ellas: sin usarlas, la figura sale como la escribió el sitio',
+        );
+        self::assertSame(
+            "<figure data-externo=\"no\" data-rel=\"-\"><a href=\"/contacto/\"><img src=\"/img/a.jpg\" alt=\"Foto\"></a></figure>\n",
+            $this->cuerpo('[![Foto](/img/a.jpg)](/contacto/)'),
+        );
+    }
+
     private function cuerpo(string $markdown): string
     {
         $this->crearFichero('contenido/index.md', "---\ntitulo: Inicio\nplantilla: false\n---\n{$markdown}");

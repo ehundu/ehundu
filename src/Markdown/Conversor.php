@@ -66,8 +66,7 @@ final class Conversor
         private readonly EnlacesExternos $enlacesExternos = new EnlacesExternos(),
         private readonly Encabezados $encabezados = new Encabezados(),
     ) {
-        $dominio = (string) preg_replace('/^www\./i', '', (string) parse_url($urlDelSitio, PHP_URL_HOST));
-        $this->dominiosPropios = [$dominio, "www.{$dominio}"];
+        $this->dominiosPropios = EnlacesExternos::dominiosPropios($urlDelSitio);
     }
 
     /**

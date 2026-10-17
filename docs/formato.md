@@ -1,4 +1,4 @@
-# El formato de un proyecto, v1 (borrador)
+# El formato de un proyecto, versión 1 (borrador)
 
 Este documento es el contrato del formato de un proyecto de Ehundu: cómo se
 organiza, qué campos admite y qué significa cada cosa. Ehundu lo implementa,
@@ -236,7 +236,7 @@ HTML, y esta clave la quita:
   todas las páginas, como cualquier otro cambio de `sitio.yml`.
 
 La sección `despliegue` dice adónde publica `ehundu desplegar` (ver
-`despliegue.md`). Destinos admitidos en la v1: `carpeta`, `ftp`, `sftp` y
+`despliegue.md`). Destinos admitidos hoy: `carpeta`, `ftp`, `sftp` y
 `s3`. Sus campos:
 
 | Campo      | Destinos        | Significado                                                  |
@@ -1010,7 +1010,10 @@ Dos añadidos forman parte del contrato:
   `target="_blank"` y `rel="noopener"`. El dominio del sitio es el de `url`
   en `sitio.yml`, con y sin `www.`. El HTML escrito a mano y los enlaces de
   las plantillas no se tocan. La sección `enlacesExternos` de `sitio.yml`
-  (§2) añade `noreferrer` y un aviso para los lectores de pantalla.
+  (§2) añade `noreferrer` y un aviso para los lectores de pantalla. Una
+  imagen enlazada a otro dominio, sea una figura o el atajo `imagen` con
+  `enlace` (§8.2), lleva también `target` y `rel`, aunque no el aviso, que un
+  enlace que solo envuelve una imagen no tiene (decisión 131).
 
 Y un añadido opcional, que solo existe si el sitio lo pide con la sección
 `encabezados` de `sitio.yml` (§2):
@@ -1087,8 +1090,12 @@ nombre en `parciales/atajos/`, que recibe las mismas variables.
   `enlace` hace la imagen enlazada. La imagen lleva `width` y `height` cuando
   se pueden leer del fichero (§7.3, `dimensiones()`), para que el navegador
   le reserve el sitio antes de cargarla. La plantilla recibe `src`, `alt`,
-  `pie` (ya en HTML), `enlace`, `ancho` y `alto` (`null` si no se pueden
-  leer). Se avisa si falta `alt` o si el fichero no existe; sin `fichero` no
+  `pie` (ya en HTML), `enlace`, `externo` (si el `enlace` lleva a otro
+  dominio, como los enlaces del Markdown de §8; sin `enlace`, falso), `rel`
+  (el de ese enlace, `noopener` y, si el sitio lo pide, `noreferrer`; solo
+  si `externo`), `ancho` y `alto` (`null` si no se pueden leer). La plantilla
+  de Ehundu pone `target="_blank"` y `rel` en un enlace externo; la del sitio
+  que no use `externo` ni `rel` queda como la escribió. Se avisa si falta `alt` o si el fichero no existe; sin `fichero` no
   se inserta nada.
 
   Si el sitio declara `imagenes` (§2), el atajo busca las variantes de la
@@ -1139,7 +1146,7 @@ sea la última (`foto.php.jpg`: un servidor con `AddHandler` la ejecuta igual).
 El build se detiene con un error que nombra el fichero. Un sitio de Ehundu es
 estático y ese fichero no lo ha escrito el motor: lo normal es que sea un
 resto de otro gestor de contenidos, o algo que alguien dejó en una carpeta de
-imágenes, y publicarlo lo pondría a ejecutarse en el servidor. En la v1 no hay
+imágenes, y publicarlo lo pondría a ejecutarse en el servidor. Hoy no hay
 forma de permitirlo.
 
 Las imágenes no se procesan durante el build. Si hacen falta varios tamaños,
@@ -1532,7 +1539,7 @@ falta. `requerido` dice que el campo no puede quedar vacío.
 contenido, o `agencia`, para quien lo desarrolla. Los campos de agencia solo
 aparecen en el modo avanzado.
 
-Tipos de campo en la v1: `texto`, `parrafo`, `markdown`, `numero`, `fecha`,
+Tipos de campo de hoy: `texto`, `parrafo`, `markdown`, `numero`, `fecha`,
 `fechas`, `booleano`, `imagen`, `enlace`, `lista-texto`, `seleccion`,
 `seleccion-multiple`, `lista` y `grupo`.
 
@@ -1959,7 +1966,9 @@ cumple esto es un error del esquema. El motor no lee el esquema y no cambia: lo
 3. Un proyecto exportado en zip compila en cualquier máquina con PHP y da el
    mismo HTML, salvo lo que una plantilla elija al azar con `random()` o
    saque de la fecha del momento (§7.3).
-4. El motor no ejecuta código propio del sitio en la v1.
+4. El motor no ejecuta código propio del sitio (PHP que venga del proyecto), y
+   no lo hará dentro de una versión mayor del formato (§2): es una promesa,
+   como la de la regla 5.
 5. Dentro de una versión mayor del formato (§2), el contrato solo crece: un
    campo, una función, un filtro, un tipo de campo del esquema o una opción
    nuevos no cambian lo que ya significaba un proyecto escrito. Quitar algo
@@ -1971,7 +1980,7 @@ cumple esto es un error del esquema. El motor no lee el esquema y no cambia: lo
 
 ---
 
-## 13. Fuera de la v1
+## 13. Lo que Ehundu no hace (todavía)
 
 Catálogo de componentes con parámetros y consultas, tokens de estilo por sitio,
 generación de imágenes en varios tamaños, procesadores sobre el HTML ya
@@ -1986,15 +1995,23 @@ HTML ya convertido no se vuelve a recorrer. Y leer las variantes de ancho de
 una imagen que otra herramienta ya generó (`variantes()`, §7.3) no es generar
 imágenes: el motor no procesa ninguna, solo busca ficheros.
 
+Que estén aquí no las promete ni las descarta: dentro de una versión mayor
+pueden llegar si son aditivas (§12, regla 5), y solo lo que dice la regla 4
+queda cerrado (decisión 132).
+
 Ninguna de estas cosas debería obligar a cambiar lo de arriba cuando llegue.
 Si al añadirlas hay que romper el contrato, el contrato estaba mal.
 
 Por eso queda reservado ya el campo `componentes`, que será el del catálogo:
-un sitio de la v1 no debe usarlo como campo propio.
+un sitio no debe usarlo como campo propio.
 
 ---
 
 ## 14. Decisiones
+
+Las decisiones conservan las palabras con que se escribieron: «la v1» y «la v2»
+en las anteriores a la 132 quieren decir lo que Ehundu hacía o dejaba para más
+adelante entonces, no el formato 1 (decisión 132).
 
 1. **Cerrada.** Carpetas en español.
 2. **Cerrada.** Campos del front matter en español, con los nombres ingleses
@@ -2621,6 +2638,43 @@ un sitio de la v1 no debe usarlo como campo propio.
     hasta que se soporte, y que el build se detenga a quien tuviera hoy una ruta
     en la `url`. Pasar de error a soportado es crecer y no cierra ninguna
     puerta.
+131. **Cerrada.** Una imagen enlazada a otro dominio lleva `target="_blank"` y
+    `rel` como cualquier enlace escrito en Markdown (§8): la figura de una
+    imagen sola enlazada y el atajo `imagen` con `enlace`. Salían sin ellos,
+    contra lo que decía el contrato («un enlace escrito en Markdown a otro
+    dominio recibe `target` y `rel`»). La plantilla `imagen` recibe dos
+    variables nuevas, `externo` y `rel`, y la de Ehundu las usa; una plantilla
+    `imagen` del sitio que no las use queda como la escribió, porque lo que
+    escribe el sitio no se toca (§8). Es externo por la misma regla que los
+    enlaces del Markdown: tiene dominio y no es el del sitio, con y sin `www.`;
+    una ruta, un ancla o un `mailto:` no lo son. No lleva el aviso para lectores
+    de pantalla, como ya decía el §2: un enlace que solo envuelve una imagen no
+    tiene texto al que añadirlo. Ninguno de los sitios de prueba cambia: las tres
+    figuras enlazadas a otro dominio que tenían ya llevaban `target` y `rel`
+    escritos a mano. Se descartó dejar las figuras como estaban y corregir el
+    contrato, porque la regla de abrir en otra pestaña los enlaces a otros
+    dominios no se cumpliría en las figuras, y una clave nueva `figuras: sí` en
+    `enlacesExternos`, que sería una opción para algo que casi todos querrán.
+132. **Cerrada.** «La v1» deja de significar el alcance de las primeras
+    versiones: el formato es el formato 1 (`formato: 1`, §2), y lo que el
+    contrato admite hoy o no hace todavía se dice «hoy» o «todavía». Salió de
+    revisar lo que se iba a congelar: «la v1» se usaba para tres cosas (el
+    formato 1, el alcance de las primeras versiones y la propia 1.0), y leída
+    como el formato 1, el §13 prometía que en toda la 1.x no llegarían la
+    generación de imágenes, los componentes ni la búsqueda, lo que choca con la
+    regla 5, que deja crecer, y con lo que ya estaba planeado después de la 1.0.
+    Los destinos, los tipos de campo y el aviso de los ficheros PHP dicen «hoy»;
+    el §13 se llama «Lo que Ehundu no hace (todavía)» y dice que lo que lista
+    puede llegar dentro de una versión mayor si es aditivo; `componentes` sigue
+    reservado, sin decir «v2». La regla 4, que el motor no ejecuta código propio
+    del sitio, se queda como promesa explícita de la versión mayor: es lo que
+    permite alojar el motor en cualquier hosting compartido sin riesgo. Las
+    decisiones anteriores conservan sus palabras, con una nota al empezar este
+    apartado. Se descartó tomar «v1» al pie de la letra, que convertiría el §13
+    en la promesa de que eso solo llegará con un formato 2, coherente pero con
+    puertas cerradas que el plan quiere abrir, y partir el §13 en «para siempre»
+    y «por ahora», que obliga a decidir hoy qué es para siempre y casi nada lo
+    es salvo la regla 4.
 
 ---
 

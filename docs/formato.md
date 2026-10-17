@@ -40,9 +40,11 @@ Estado: borrador. Las decisiones cerradas están en §14.
 
 Reglas:
 
-- Todo lo que afecta al resultado vive dentro de esta carpeta. Sin excepciones.
+- Todo lo que afecta al resultado vive dentro de esta carpeta.
 - El motor solo lee de aquí y solo escribe en `salida/` y, en una compilación
-  por lotes (§10.4) o incremental entre procesos (§10.5), en `.ehundu/`.
+  por lotes (§10.4) o incremental entre procesos (§10.5), en `.ehundu/`. Fuera
+  del proyecto solo escribe la caché de tipografías de dompdf, si se piden PDF
+  (§10.3), en la carpeta temporal del sistema.
 - `.ehundu/` es del motor: lo crea él, lleva dentro su propio `.gitignore` para
   que no se versione, no se publica ni se lee como contenido, y no afecta al
   resultado. Se puede borrar cuando se quiera: lo único que se pierde es lo
@@ -151,7 +153,7 @@ a un apartado de una página y para construir un índice con ellos (§7.2, §8):
       clase: ancla
       etiqueta: Enlace a «{texto}»
 
-Sin ella, los encabezados salen como hasta ahora, sin `id`. Todos sus campos son
+Sin ella, los encabezados salen sin `id`. Todos sus campos son
 opcionales:
 
 - `niveles` es la lista de niveles de encabezado que reciben `id`, del 1 al 6.
@@ -183,7 +185,7 @@ el nombre `<tronco>-<ancho>.<formato>`, en `publico/`.
       formatos: [avif, webp]
       sizes: "(min-width: 60rem) 50rem, 100vw"
 
-Sin ella, las imágenes salen como hasta ahora, sin `srcset`. Con ella:
+Sin ella, las imágenes salen sin `srcset`. Con ella:
 
 - `anchos` es la lista de anchos, en píxeles, que tienen las imágenes del sitio.
   Es obligatoria: la sección sin ella se avisa y se ignora entera. Un valor que
@@ -335,7 +337,7 @@ Campos reservados:
 
 | Campo         | Tipo    | Significado                                              |
 |---------------|---------|----------------------------------------------------------|
-| `titulo`      | texto   | Título de la página. Obligatorio si genera HTML.          |
+| `titulo`      | texto   | Título de la página. Si genera HTML y falta, se avisa.    |
 | `subtitulo`   | texto   | Entradilla o descripción corta.                           |
 | `descripcion` | texto   | Descripción para buscadores (`meta description`).         |
 | `fecha`       | fecha   | Fecha de publicación (`AAAA-MM-DD`).                      |
@@ -936,7 +938,12 @@ Un nombre nuevo no se añade sin anunciarlo (§12, regla 5).
 
 Un campo que falta sale vacío, como en Nunjucks: `{% if pagina.imagen %}`
 funciona sin comprobar antes si existe. Twig escapa el HTML de todo lo que
-escribe, salvo `pagina.contenido` y lo que devuelve `svg()`.
+escribe, salvo lo que ya es HTML hecho por el motor: `pagina.contenido` (también
+el `articulo.contenido` de las páginas de una colección y el `contenido` y el
+`pie` que reciben los atajos, §8.1), lo que devuelven `svg()`, `css()`, `js()`,
+`css_fichero()` y `js_fichero()`, y el resultado del filtro `markdown` (§7.3).
+Cualquier otro texto, un campo del front matter por ejemplo, se escapa salvo
+que la plantilla pida lo contrario con `|raw`.
 
 ### 7.3 Funciones y filtros
 
@@ -1029,7 +1036,7 @@ del filtro `date` de Twig, que por sí solo usaría la de la máquina.
 
 Las plantillas pueden usar `random()` de Twig para elegir al azar, y la fecha
 del momento (`'now'|date('Y')`, para el año del pie). Son las dos únicas
-formas de que el mismo proyecto dé otro HTML (§12.3), y tienen un precio: con
+formas de que el mismo proyecto dé otro HTML (§12, regla 3), y tienen un precio: con
 `random()`, cada compilación completa elige de nuevo, así que esa página
 cambia y se vuelve a subir en cada despliegue. La previsualización, que
 compila de forma incremental, conserva lo elegido, o la fecha, mientras no
@@ -1308,11 +1315,14 @@ paquete reúne ficheros de carpetas distintas. En la plantilla de un PDF
 ## 10. Salida
 
 En `salida/` van las páginas, lo que se copia de `publico/` y de
-`contenido/`, el PDF de las páginas que lo piden (§10.3) y dos ficheros que
-genera el motor: `sitemap.xml` y, si el sitio lo pide, `feed.xml`. Nada más:
-los añadidos van como ficheros normales dentro de `contenido/` o de
-`publico/`. Una página con `url: /404.html` se escribe como `404.html`, igual
-que cualquier otra.
+`contenido/`, el PDF de las páginas que lo piden (§10.3) y los ficheros que
+genera el motor: `sitemap.xml`; `feed.xml`, si el sitio lo pide; y, si una
+página los declara y usa `css_fichero()` o `js_fichero()`, los paquetes
+`css/<huella>.css` y `js/<huella>.js` (§9.1). Nada más: los añadidos van como
+ficheros normales dentro de `contenido/` o de `publico/`. El manifiesto del
+despliegue (`.ehundu.json`) se escribe en el destino, no en `salida/`. Una
+página con `url: /404.html` se escribe como `404.html`, igual que cualquier
+otra.
 
 Si dos cosas van al mismo fichero de salida (dos páginas, una página y un
 fichero, un fichero de `publico/` y otro de `contenido/`), el build se detiene
@@ -1403,7 +1413,7 @@ décimas de segundo.
   transparencia, GD. Las tipografías son las tres básicas de un PDF,
   `sans-serif` (Helvetica), `serif` (Times) y `monospace` (Courier), que cubren
   el juego de caracteres de Windows-1252 (castellano, euskera, inglés y
-  alemán); las propias quedan para más adelante.
+  alemán); no se pueden usar otras.
 - **Reproducible.** El PDF lleva como fecha de creación y de modificación la
   `fecha` de la página, a medianoche en la zona horaria del sitio, o el 1 de
   enero de 1970 si no la tiene (como el feed vacío, §10.2); su título es el
@@ -2009,7 +2019,7 @@ con lo que añade y lo que quita cada uno.
 
 Un campo `fechas` no admite `requerido` (no marcar ningún día es una respuesta
 tan buena como marcar uno) ni `traducible` (los días son los mismos en todos
-los idiomas), y de momento solo vale como campo de primer nivel de un tipo o de
+los idiomas), y hoy solo vale como campo de primer nivel de un tipo o de
 un fichero de datos, no dentro de una `lista` ni de un `grupo`. Lo que no
 cumple esto es un error del esquema. El motor no lee el esquema y no cambia: lo
 único que ve es una lista de fechas.
@@ -2047,10 +2057,7 @@ cumple esto es un error del esquema. El motor no lee el esquema y no cambia: lo
 
 Catálogo de componentes con parámetros y consultas, tokens de estilo por sitio,
 generación de imágenes en varios tamaños, procesadores sobre el HTML ya
-generado, pasos posteriores al build y búsqueda. El multiidioma estuvo aquí
-hasta la 0.3 (§15), y la paginación de listados (`paginar`, §6.4), hasta la
-0.11. Una página por cada valor de un campo (`agrupar`, §6.3) no es
-paginación y no está aquí. El PDF de una página (§10.3) no
+generado, pasos posteriores al build y búsqueda. El PDF de una página (§10.3) no
 es un procesador sobre el HTML ya generado: es una salida más de la página,
 con su propia plantilla, que no toca el HTML de nadie. Los `id` de los
 encabezados (§8) tampoco lo son: se escriben al convertir el Markdown, y el
@@ -2074,7 +2081,10 @@ un sitio no debe usarlo como campo propio.
 
 Las decisiones conservan las palabras con que se escribieron: «la v1» y «la v2»
 en las anteriores a la 132 quieren decir lo que Ehundu hacía o dejaba para más
-adelante entonces, no el formato 1 (decisión 132).
+adelante entonces, no el formato 1 (decisión 132), y «hasta ahora» o «como
+hasta ahora» se refiere a la versión en que se tomó cada una. Cuando una
+decisión posterior cambia lo que dice una anterior, lo anota la posterior y,
+si hace falta, la anterior lleva una nota entre paréntesis.
 
 1. **Cerrada.** Carpetas en español.
 2. **Cerrada.** Campos del front matter en español, con los nombres ingleses
@@ -2167,9 +2177,11 @@ adelante entonces, no el formato 1 (decisión 132).
 49. **Cerrada.** Qué se rehace se decide con lo que usó cada página y cada
     cuerpo la vez anterior. Si cambian `sitio.yml` o `datos/`, o si la
     compilación anterior falló, se rehace todo (`compilacion.md`).
-50. **Cerrada.** Lo que se recuerda de una compilación a otra vive en memoria
-    y no se guarda en disco; son datos simples, que un programa que incruste
-    el motor podrá guardar donde le convenga (`compilacion.md`).
+50. **Cerrada; en parte la sustituye la 126.** Lo que se recuerda de una
+    compilación a otra vive en memoria y no se guarda en disco; son datos
+    simples, que un programa que incruste el motor podrá guardar donde le
+    convenga (`compilacion.md`). (Desde la 126, `CompiladorIncrementalEnProceso`
+    lo guarda en `.ehundu/memoria.bin`; la previsualización sigue sin hacerlo.)
 51. **Cerrada.** Compilar por lotes queda para más adelante; la compilación
     ya separa decidir qué se rehace de rehacerlo (`compilacion.md`). Entra en
     la 0.12 (decisiones 124 y 125).
@@ -2202,7 +2214,7 @@ adelante entonces, no el formato 1 (decisión 132).
     Markdown los ponen como `width` y `height` (§7.3, §8, §8.2).
 63. **Cerrada.** Las plantillas pueden usar `random()`; es, con la fecha del
     momento, la excepción a que el mismo proyecto dé el mismo HTML (§7.3,
-    §12.3).
+    §12, regla 3).
 64. **Cerrada.** Una página que genera HTML sin `titulo` avisa; un fragmento
     o un `robots.txt` no lo necesitan (§4).
 65. **Cerrada.** Las páginas cuyo nombre o carpeta empieza por `_` se
@@ -2212,6 +2224,7 @@ adelante entonces, no el formato 1 (decisión 132).
     cómo quitar la extensión. Valen también en `_datos.yml` (§4).
 67. **Cerrada.** `donde` compara los textos exactos (§6.2).
 68. **Cerrada.** `componentes` queda reservado para el catálogo de la v2 (§13).
+    (Hoy se dice «el catálogo de componentes», sin versión: decisión 132.)
 69. **Cerrada.** El Markdown sigue CommonMark también en los bloques de código
     sangrados, aunque Eleventy los desactive; al migrar se quita la sangría
     accidental (§8).
@@ -2327,7 +2340,8 @@ adelante entonces, no el formato 1 (decisión 132).
     etiqueta sin escribirla a mano, para vocabularios abiertos. Agrupa por
     `slug`, da `grupo` (la variante más usada) y `paginas`, no genera página
     para un grupo sin páginas publicadas y no es paginación, que sigue fuera de
-    la v1. Es declarativa: no ejecuta código del sitio (§6.3).
+    la v1. Es declarativa: no ejecuta código del sitio (§6.3). (La paginación
+    entró después, en la 0.11: decisión 121.)
 106. **Cerrada.** `publicarEnSuFecha: sí`, que se hereda por la cascada, hace
     que una página no se publique antes de su `fecha`, como si llevara
     `publicar` con ella. Por defecto una `fecha` futura sigue sin ocultar nada.
@@ -2457,7 +2471,7 @@ adelante entonces, no el formato 1 (decisión 132).
     una `lista` y que un local que se alquila por días no necesita, y una nota
     por día (de quién es la reserva), que llevaría datos de personas al
     repositorio del sitio. Sin `requerido`, porque una lista vacía es el estado
-    normal; sin `traducible`, y de momento solo en el primer nivel de un tipo o de
+    normal; sin `traducible`, y hoy solo en el primer nivel de un tipo o de
     un fichero de datos, porque un calendario dentro de la fila de una lista no
     lo pide ningún sitio; se abrirá cuando alguno lo pida. No cambia nada en el
     motor.
@@ -2595,6 +2609,7 @@ adelante entonces, no el formato 1 (decisión 132).
     sitio con muchos ficheros.
 126. **Cerrada.** La compilación incremental sale del proceso: `.ehundu/memoria.bin`
     guarda lo que ya recuerda, y `CompiladorIncrementalEnProceso` lo usa (§10.5).
+    Sustituye en parte a la decisión 50.
     La decisión 124 la había dejado fuera, y salió de usar los lotes en un editor web con el sitio más grande de los de
     prueba (1.200 páginas): guardar un cambio de una página costaba una
     compilación entera, de 35 a 45 s, porque los lotes no recuerdan nada, y

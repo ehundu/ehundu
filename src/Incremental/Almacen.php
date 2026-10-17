@@ -26,6 +26,12 @@ final class Almacen
     public const string CERROJO = Estado::CARPETA . '/memoria.lock';
     public const string CURSO = Estado::CARPETA . '/memoria-curso.json';
 
+    /** Lo máximo que una compilación espera al cerrojo de otra, en segundos (formato §10.5). */
+    public const float ESPERA_MAXIMA = 60.0;
+
+    /** Cada cuánto, en segundos, mira si el cerrojo se ha soltado. */
+    private const float SONDEO = 0.1;
+
     /** Cambia cuando cambia cómo se guarda la memoria */
     public const int VERSION = 1;
 
@@ -181,13 +187,19 @@ final class Almacen
     /**
      * Pide el cerrojo de este proyecto para una compilación incremental.
      *
-     * @param bool $esperar si espera a que lo suelte quien lo tenga; si no, devuelve null
+     * Esperar no es bloquearse en `flock`: una espera dentro del sistema no cuenta para
+     * `max_execution_time` en Linux, y si quien tiene el cerrojo se cuelga, quien espera ocuparía un
+     * trabajador hasta que alguien lo matara. Se sondea cada `SONDEO` segundos hasta `$espera`, y entonces
+     * falla con un error que se entiende.
+     *
+     * @param bool  $esperar si espera a que lo suelte quien lo tenga; si no, devuelve null
+     * @param float $espera  lo máximo que espera, en segundos, si `$esperar`
      *
      * @return resource|null el cerrojo, que se suelta con `soltar()`; null si otra llamada lo tiene y no se espera
      *
-     * @throws ErrorDeProyecto si no se puede crear
+     * @throws ErrorDeProyecto si no se puede crear, o si se espera y otra llamada no lo suelta a tiempo
      */
-    public static function bloquear(Proyecto $proyecto, bool $esperar = false)
+    public static function bloquear(Proyecto $proyecto, bool $esperar = false, float $espera = self::ESPERA_MAXIMA)
     {
         Estado::prepararCarpeta($proyecto);
         $cerrojo = @fopen($proyecto->ruta(self::CERROJO), 'c');
@@ -196,13 +208,33 @@ final class Almacen
             throw new ErrorDeProyecto('No se puede abrir el cerrojo de la compilación incremental', self::CERROJO);
         }
 
-        if (!flock($cerrojo, $esperar ? LOCK_EX : LOCK_EX | LOCK_NB)) {
-            fclose($cerrojo);
+        $inicio = hrtime(true);
 
-            return null;
+        while (!flock($cerrojo, LOCK_EX | LOCK_NB)) {
+            if (!$esperar) {
+                fclose($cerrojo);
+
+                return null;
+            }
+
+            if ((hrtime(true) - $inicio) / 1e9 >= $espera) {
+                fclose($cerrojo);
+
+                throw new ErrorDeProyecto(
+                    'Otra compilación de este proyecto lleva más de ' . self::segundos($espera) . ' s en marcha y no ha acabado; inténtalo de nuevo cuando termine',
+                    self::CERROJO,
+                );
+            }
+
+            usleep((int) (self::SONDEO * 1e6));
         }
 
         return $cerrojo;
+    }
+
+    private static function segundos(float $segundos): string
+    {
+        return rtrim(rtrim(number_format($segundos, 1, ',', ''), '0'), ',');
     }
 
     /**

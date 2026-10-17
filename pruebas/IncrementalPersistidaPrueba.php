@@ -322,6 +322,100 @@ final class IncrementalPersistidaPrueba extends TestCase
     }
 
     #[Test]
+    public function siQuienTieneElCerrojoNoLoSueltaLaEsperaTerminaConUnErrorQueSeEntiende(): void
+    {
+        $this->crearSitio();
+        $proyecto = Proyecto::abrir($this->carpetaTemporal());
+        $cerrojo = Almacen::bloquear($proyecto);
+        self::assertNotNull($cerrojo);
+        $inicio = hrtime(true);
+
+        try {
+            Almacen::bloquear($proyecto, esperar: true, espera: 0.3);
+            self::fail('Tenía que fallar: nadie suelta el cerrojo');
+        } catch (ErrorDeProyecto $error) {
+            self::assertSame(
+                'Otra compilación de este proyecto lleva más de 0,3 s en marcha y no ha acabado; inténtalo de nuevo cuando termine',
+                $error->descripcion,
+            );
+            self::assertSame(Almacen::CERROJO, $error->fichero);
+        } finally {
+            Almacen::soltar($cerrojo);
+        }
+
+        $esperado = (hrtime(true) - $inicio) / 1e9;
+        self::assertGreaterThanOrEqual(0.3, $esperado, 'Espera todo lo que se le ha dado');
+        self::assertLessThan(5.0, $esperado, 'Y no se queda esperando');
+        self::assertNotNull(Almacen::bloquear($proyecto), 'Fallar no deja el cerrojo cogido');
+    }
+
+    #[Test]
+    public function laEsperaDelCerrojoTerminaEnCuantoOtroProcesoLoSuelta(): void
+    {
+        $this->crearSitio();
+        $proyecto = Proyecto::abrir($this->carpetaTemporal());
+        Almacen::soltar(Almacen::bloquear($proyecto) ?? self::fail('Sin cerrojo'));
+        $otro = $this->otroProcesoConElCerrojo($proyecto, 0.6);
+        $inicio = hrtime(true);
+
+        try {
+            $cerrojo = Almacen::bloquear($proyecto, esperar: true, espera: 20.0);
+        } finally {
+            proc_close($otro);
+        }
+
+        $esperado = (hrtime(true) - $inicio) / 1e9;
+        self::assertNotNull($cerrojo);
+        Almacen::soltar($cerrojo);
+        self::assertGreaterThan(0.1, $esperado, 'Tenía que esperar a que el otro proceso lo soltara');
+        self::assertLessThan(10.0, $esperado, 'Y no esperar más de la cuenta');
+    }
+
+    #[Test]
+    public function compilarEsperaAQueOtroProcesoAcabeYEntoncesCompila(): void
+    {
+        $this->crearSitio();
+        $proyecto = Proyecto::abrir($this->carpetaTemporal());
+        Almacen::soltar(Almacen::bloquear($proyecto) ?? self::fail('Sin cerrojo'));
+        $otro = $this->otroProcesoConElCerrojo($proyecto, 0.6);
+
+        try {
+            $informe = $this->compilador()->compilar($proyecto);
+        } finally {
+            proc_close($otro);
+        }
+
+        self::assertGreaterThan(0, $informe->paginas);
+        self::assertFileExists($this->carpetaTemporal() . '/salida/index.html');
+    }
+
+    /**
+     * Un proceso de PHP que coge el cerrojo del proyecto y lo tiene `$segundos`; cuando esta función vuelve, ya lo tiene.
+     *
+     * @return resource
+     */
+    private function otroProcesoConElCerrojo(Proyecto $proyecto, float $segundos)
+    {
+        $guion = $this->carpetaTemporal() . '/otro-proceso.php';
+        file_put_contents($guion, <<<'PHP'
+            <?php
+            $cerrojo = fopen($argv[1], 'c');
+            flock($cerrojo, LOCK_EX);
+            fwrite(STDOUT, "listo\n");
+            fflush(STDOUT);
+            usleep((int) ((float) $argv[2] * 1e6));
+            flock($cerrojo, LOCK_UN);
+            PHP);
+
+        $proceso = proc_open([PHP_BINARY, $guion, $proyecto->ruta(Almacen::CERROJO), (string) $segundos], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $tuberias);
+        self::assertIsResource($proceso);
+        stream_set_timeout($tuberias[1], 20);
+        self::assertSame("listo\n", fgets($tuberias[1]), 'El otro proceso tenía que coger el cerrojo');
+
+        return $proceso;
+    }
+
+    #[Test]
     public function lasClasesDeLaMemoriaEstanTodasEnLaListaQueSePermiteAlCargarla(): void
     {
         $this->crearSitio();

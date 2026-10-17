@@ -84,7 +84,8 @@ proceso, y el resultado es siempre el de una compilación completa.
 - **`CompiladorIncrementalEnProceso`** implementa `Compilador`.
   `__construct(?\DateTimeImmutable $ahora = null)` fija el momento con el que se
   decide qué está publicado. `compilar(Proyecto): Informe` compila de una vez
-  (si otra llamada está compilando el proyecto, espera a que termine);
+  (si otra llamada está compilando el proyecto, espera a que termine, como mucho
+  un minuto; pasado ese tiempo lanza `ErrorDeProyecto`, y lo mismo hace `olvidar`);
   `$informe->rehechas` dice cuántas páginas se han rehecho. Sin una memoria que
   valga (la primera vez, tras cambiar de versión del motor, o si se borra
   `.ehundu/`) hace una compilación completa. Lanza `ErrorDeProyecto` si el

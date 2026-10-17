@@ -29,9 +29,10 @@ final class CompiladorIncrementalEnProceso implements Compilador
     }
 
     /**
-     * Compila de una vez. Si otra llamada está compilando este proyecto, espera a que termine.
+     * Compila de una vez. Si otra llamada está compilando este proyecto, espera a que termine, hasta un
+     * minuto (`Almacen::ESPERA_MAXIMA`): pasado ese tiempo falla en vez de quedarse esperando.
      *
-     * @throws ErrorDeProyecto si el proyecto no se puede compilar
+     * @throws ErrorDeProyecto si el proyecto no se puede compilar, o si otra llamada no acaba a tiempo
      */
     public function compilar(Proyecto $proyecto): Informe
     {

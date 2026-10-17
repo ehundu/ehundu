@@ -83,7 +83,7 @@ final class Desplegador
         $configuracion = Configuracion::leer($proyecto, $secretos, $avisos);
         $compilacion = $compilado ?? $this->compilador->compilar($proyecto);
         $alCompilar !== null && $alCompilar($compilacion);
-        $ficheros = self::ficheros($proyecto);
+        $ficheros = PlanDeDespliegue::ficheros($proyecto);
         $url = (new Lector())->leerSitio($proyecto)->url;
         $destino = $this->abrir($configuracion, $proyecto, $avisos);
 
@@ -214,29 +214,6 @@ final class Desplegador
         return true;
     }
 
-    /**
-     * Los ficheros de `salida/`, con su MD5 y su tamaño.
-     *
-     * @return array<string, array{md5: string, tamano: int}>
-     */
-    private static function ficheros(Proyecto $proyecto): array
-    {
-        $ficheros = [];
-
-        foreach ($proyecto->ficherosDe(Proyecto::SALIDA) as $ruta) {
-            if ($ruta === Manifiesto::FICHERO) {
-                throw new ErrorDeProyecto(
-                    'El sitio tiene un fichero ' . Manifiesto::FICHERO . ' en la raíz; ese nombre lo usa Ehundu para saber qué ha subido. Cámbiale el nombre',
-                );
-            }
-
-            $completa = $proyecto->ruta(Proyecto::SALIDA, $ruta);
-            $ficheros[$ruta] = ['md5' => (string) md5_file($completa), 'tamano' => (int) filesize($completa)];
-        }
-
-        return $ficheros;
-    }
-
     private static function manifiesto(Destino $destino, bool $todo, Avisos $avisos): ?Manifiesto
     {
         $json = $destino->leer(Manifiesto::FICHERO);
@@ -293,11 +270,6 @@ final class Desplegador
             return ($this->abrir)($configuracion, $proyecto);
         }
 
-        return match ($configuracion->destino) {
-            'carpeta' => new Carpeta($configuracion->ruta, $proyecto),
-            'ftp' => new Ftp($configuracion, $avisos),
-            'sftp' => new Sftp($configuracion, $proyecto),
-            's3' => new S3($configuracion),
-        };
+        return $configuracion->abrir($proyecto, $avisos);
     }
 }

@@ -14,16 +14,21 @@ final readonly class Informe
      * @param list<Aviso> $avisos
      * @param float       $segundos duración de la compilación
      * @param int         $ficheros ficheros copiados tal cual desde `publico/` y `contenido/`
-     * @param int|null    $rehechas de las páginas, las que se han construido de nuevo; null si todas
+     * @param int|null    $rehechas de las páginas, las que se han construido de nuevo; si no se dice, todas
+     *                              (una compilación completa): `$rehechas` vale siempre un número
      */
     public function __construct(
         public int $paginas,
         public array $avisos,
         public float $segundos,
         public int $ficheros = 0,
-        public ?int $rehechas = null,
+        ?int $rehechas = null,
     ) {
+        $this->rehechas = $rehechas ?? $paginas;
     }
+
+    /** De las páginas, las que se han construido de nuevo: todas en una compilación completa. */
+    public int $rehechas;
 
     /**
      * «Compilado: 57 páginas y 154 ficheros en 0,80 s, 2 avisos.» Si solo
@@ -33,7 +38,7 @@ final readonly class Informe
     {
         $paginas = $this->paginas === 1 ? '1 página' : "{$this->paginas} páginas";
 
-        if ($this->rehechas !== null && $this->rehechas < $this->paginas) {
+        if ($this->rehechas < $this->paginas) {
             $paginas .= $this->rehechas === 1 ? ' (1 rehecha)' : " ({$this->rehechas} rehechas)";
         }
 

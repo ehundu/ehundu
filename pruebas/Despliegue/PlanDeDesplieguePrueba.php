@@ -6,11 +6,45 @@ namespace Ehundu\Pruebas\Despliegue;
 
 use Ehundu\Despliegue\Manifiesto;
 use Ehundu\Despliegue\PlanDeDespliegue;
+use Ehundu\ErrorDeProyecto;
+use Ehundu\Proyecto;
+use Ehundu\Pruebas\Apoyo\CarpetaTemporal;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 final class PlanDeDesplieguePrueba extends TestCase
 {
+    use CarpetaTemporal;
+
+    #[Test]
+    public function deSalidaTrazaConLosFicherosDeSalidaSinQueQuienLlamaCalculeLosMd5(): void
+    {
+        $this->crearFichero('salida/index.html', 'hola');
+        $this->crearFichero('salida/css/a.css', 'a{}');
+        $this->crearFichero('salida/.htaccess', 'Options -Indexes');
+        $anterior = new Manifiesto(['index.html' => self::fichero('hola'), 'viejo.html' => self::fichero('x')]);
+
+        $plan = PlanDeDespliegue::deSalida(Proyecto::abrir($this->carpetaTemporal()), $anterior, url: 'https://ejemplo.com');
+
+        self::assertSame(['.htaccess', 'css/a.css'], array_column($plan->subidas, 'ruta'));
+        self::assertSame(['viejo.html'], $plan->borrados);
+        self::assertSame(1, $plan->sinCambios);
+        self::assertSame('https://ejemplo.com', $plan->url);
+        self::assertSame(['md5' => md5('a{}'), 'tamano' => 3], PlanDeDespliegue::ficheros(Proyecto::abrir($this->carpetaTemporal()))['css/a.css']);
+    }
+
+    #[Test]
+    public function unFicheroDeSalidaConElNombreDelManifiestoNoSeAdmite(): void
+    {
+        $this->crearFichero('salida/index.html', 'hola');
+        $this->crearFichero('salida/.ehundu.json', '{}');
+
+        $this->expectException(ErrorDeProyecto::class);
+        $this->expectExceptionMessage('El sitio tiene un fichero .ehundu.json en la raíz');
+
+        PlanDeDespliegue::deSalida(Proyecto::abrir($this->carpetaTemporal()));
+    }
+
     #[Test]
     public function subeLoNuevoYLoCambiadoYBorraLoQueSobra(): void
     {

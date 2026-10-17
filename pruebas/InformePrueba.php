@@ -19,6 +19,15 @@ final class InformePrueba extends TestCase
     }
 
     #[Test]
+    public function lasPaginasRehechasSonTodasSiNoSeDiceOtraCosa(): void
+    {
+        self::assertSame(57, (new Informe(57, [], 0.8))->rehechas, 'Una compilación completa rehace todas');
+        self::assertSame(0, (new Informe(0, [], 0.8))->rehechas);
+        self::assertSame(3, (new Informe(57, [], 0.8, rehechas: 3))->rehechas);
+        self::assertSame(0, (new Informe(57, [], 0.8, rehechas: 0))->rehechas, 'Cero es cero: no se confunde con que falte');
+    }
+
+    #[Test]
     public function diceCuantasPaginasSeHanRehechoSiNoHanSidoTodas(): void
     {
         self::assertSame('Compilado: 57 páginas (3 rehechas) y 154 ficheros en 0,04 s.', (new Informe(57, [], 0.04, 154, 3))->resumen());

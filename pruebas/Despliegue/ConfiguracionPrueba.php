@@ -199,6 +199,41 @@ final class ConfiguracionPrueba extends TestCase
         self::assertStringContainsString('(oculta)', $volcado);
     }
 
+    #[Test]
+    public function abreElDestinoQueDiceLaConfiguracion(): void
+    {
+        $proyecto = Proyecto::abrir($this->carpetaTemporal());
+
+        // Fuera del proyecto, que es donde tiene que estar una carpeta de despliegue; `Carpeta` la crea al abrirla
+        $fuera = str_replace('\\', '/', sys_get_temp_dir()) . '/ehundu-destino-' . bin2hex(random_bytes(4));
+        $this->sitio("  destino: carpeta\n  ruta: {$fuera}");
+
+        try {
+            $carpeta = $this->leer()->abrir($proyecto, new Avisos());
+            self::assertInstanceOf(\Ehundu\Despliegue\Carpeta::class, $carpeta);
+            $carpeta->cerrar();
+        } finally {
+            @rmdir($fuera);
+        }
+
+        $this->sitio("  destino: s3\n  servidor: s3.fr-par.scw.cloud\n  region: fr-par\n  cubo: mi-cubo\n  usuario: ABC");
+        $s3 = $this->leer(['clave' => 'secreta'])->abrir($proyecto, new Avisos());
+        self::assertInstanceOf(\Ehundu\Despliegue\S3::class, $s3);
+        $s3->cerrar();
+    }
+
+    #[Test]
+    public function abrirNoConectaConNingunDestino(): void
+    {
+        // Ni siquiera con uno al que no se puede llegar: conectar es cosa de leer, subir o borrar
+        $this->sitio("  destino: s3\n  servidor: no-existe.invalid\n  region: fr-par\n  cubo: mi-cubo\n  usuario: ABC");
+
+        $destino = $this->leer(['clave' => 'secreta'])->abrir(Proyecto::abrir($this->carpetaTemporal()), new Avisos());
+
+        self::assertInstanceOf(\Ehundu\Despliegue\Destino::class, $destino);
+        $destino->cerrar();
+    }
+
     private function sitio(string $despliegue): void
     {
         $this->crearFichero('sitio.yml', "nombre: Prueba\nurl: https://ejemplo.com\ndespliegue:\n{$despliegue}\n");

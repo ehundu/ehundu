@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Ehundu\Despliegue;
 
+use Ehundu\ErrorDeProyecto;
+use Ehundu\Proyecto;
+
 /**
  * Qué hay que hacer en un destino para que quede como `salida/`: qué subir y
  * qué borrar. Se decide antes de tocar nada, así que sirve también para
@@ -31,6 +34,47 @@ final readonly class PlanDeDespliegue
         public int $sinCambios,
         public ?string $url = null,
     ) {
+    }
+
+    /**
+     * Qué hay que hacer en un destino para que quede como la `salida/` de un proyecto ya compilado: lo que
+     * `trazar` decide con los ficheros de `salida/`, que aquí lee quien llama sin calcular los MD5.
+     *
+     * @param Manifiesto|null $anterior el del destino, si lo hay
+     * @param bool            $todo     si se sube todo aunque no haya cambiado
+     * @param string|null     $url      la del sitio que se despliega
+     *
+     * @throws ErrorDeProyecto si `salida/` tiene un fichero que se llama como el manifiesto
+     */
+    public static function deSalida(Proyecto $proyecto, ?Manifiesto $anterior = null, bool $todo = false, ?string $url = null): self
+    {
+        return self::trazar(self::ficheros($proyecto), $anterior, $todo, $url);
+    }
+
+    /**
+     * Los ficheros de `salida/`, con su MD5 y su tamaño, por ruta: lo que compara el despliegue con el manifiesto.
+     *
+     * @return array<string, array{md5: string, tamano: int}>
+     *
+     * @throws ErrorDeProyecto si `salida/` tiene un fichero que se llama como el manifiesto: ese nombre lo usa
+     *                         Ehundu para saber qué ha subido
+     */
+    public static function ficheros(Proyecto $proyecto): array
+    {
+        $ficheros = [];
+
+        foreach ($proyecto->ficherosDe(Proyecto::SALIDA) as $ruta) {
+            if ($ruta === Manifiesto::FICHERO) {
+                throw new ErrorDeProyecto(
+                    'El sitio tiene un fichero ' . Manifiesto::FICHERO . ' en la raíz; ese nombre lo usa Ehundu para saber qué ha subido. Cámbiale el nombre',
+                );
+            }
+
+            $completa = $proyecto->ruta(Proyecto::SALIDA, $ruta);
+            $ficheros[$ruta] = ['md5' => (string) md5_file($completa), 'tamano' => (int) filesize($completa)];
+        }
+
+        return $ficheros;
     }
 
     /**

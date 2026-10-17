@@ -37,7 +37,10 @@ incrusta, un editor web.
 
 ### Compilar
 
-- **`Compilador`** (interfaz). `compilar(Proyecto $proyecto): Informe`.
+- **`Compilador`** (interfaz). `compilar(Proyecto $proyecto): Informe`. Otros
+  programas pueden implementarla (el `Desplegador` acepta cualquier `Compilador`),
+  y por eso no crece dentro de una versión mayor: lo que falte vendría como una
+  interfaz aparte. Lo mismo vale para `Despliegue\Destino`.
 - **`CompiladorEnProceso`** implementa `Compilador`: compila el proyecto
   entero y lo escribe en `salida/`, sin depender de la consola, para
   llamarlo desde un proceso web. `__construct(?\DateTimeImmutable $ahora = null)`
@@ -46,6 +49,10 @@ incrusta, un editor web.
   si falla la lectura.
 - **`Informe`** es lo que devuelve: `$paginas`, `$ficheros`, `$segundos`,
   `$avisos` (una lista de `Aviso`), `$rehechas` y `resumen()`, una frase.
+  `$rehechas` es siempre un número: las páginas que se han construido de nuevo,
+  que en una compilación completa son todas (`$paginas`). Un programa puede
+  construir uno: `Informe(paginas:, avisos:, segundos:, ficheros: 0, rehechas: null)`,
+  y `rehechas` sin decir vale `paginas`.
 
 `CompiladorPorLotes` y `CompiladorPorLotesEnProceso`, la compilación por lotes de
 la 0.12 ([`formato.md`](formato.md), §10.4), **no se prometen**: son `@internal`
@@ -82,11 +89,19 @@ proceso, y el resultado es siempre el de una compilación completa.
 - **`Lote`**, lo que devuelve `avanzar`: `$hechas`, `$total`, `completo()`,
   `progreso()` (de 0 a 1), `informe()` (un `Informe`, cuando está completo) y
   `ocupado()` (si otra llamada estaba avanzando y esta no ha hecho nada).
+  `$hechas` y `$total` cuentan páginas en `avanzar`; para saber cómo va una
+  compilación, lo que se promete es `progreso()` y `completo()`, y los números
+  sueltos son de quien devuelve el `Lote`.
 
 El presupuesto de `avanzar` (`$segundos`), igual en el `Desplegador`, se cuenta
 desde que empieza la llamada. Uno negativo o que no es un número (`NAN`) vale 0,
 que sigue haciendo una tarea, la mínima; y uno de más de un día, un día, de modo
-que `INF` o `PHP_INT_MAX` quieren decir «sin límite».
+que `INF` o `PHP_INT_MAX` quieren decir «sin límite». El presupuesto incluye la
+preparación de la llamada (cargar la memoria, leer el proyecto, decidir qué se
+rehace), y la llamada puede acabar después de él: guardar la memoria viene tras
+el último trabajo. Con un presupuesto menor que la preparación, cada llamada
+rehace una sola página y vuelve a guardar la memoria entera: acaba, pero cada vez
+más despacio. Un presupuesto útil es varias veces la preparación.
 
 La memoria pesa del orden de `salida/` más lo leído (97 MB en un sitio de 1.200
 páginas) y se carga en una fracción de segundo; el proceso que la usa necesita
@@ -100,7 +115,10 @@ memoria para ella (unos 350 MB en ese sitio).
   carpetas y ficheros del formato: `CONTENIDO`, `DATOS`, `PLANTILLAS`,
   `PARCIALES`, `PUBLICO`, `SALIDA` y `SITIO`.
 - **`Lector`**: `leer(Proyecto): Lectura`, el proyecto entero sin compilar, y
-  `leerSitio(Proyecto, ?Avisos = null): Sitio`, solo `sitio.yml`.
+  `leerSitio(Proyecto, ?Avisos = null): Sitio`, solo `sitio.yml`. `leer` da las
+  páginas tal como están escritas: las que usan `agrupar` o `paginar` salen sin
+  expandir, y una plantilla de grupos tiene `$url === false`, como un fragmento.
+  Sin `Avisos`, `leerSitio` pierde los avisos sin decirlo.
 - **`Lectura`**: `$sitio`, `$datos`, `$paginas` (una lista de `Pagina`,
   ordenadas por ruta), `$avisos` y `datosDe(string $idioma)`, los datos de
   una página de ese idioma.
@@ -126,17 +144,27 @@ memoria para ella (unos 350 MB en ese sitio).
   §2): un valor que no es un entero mayor que cero, o es mayor que `VERSION`,
   lanza `ErrorDeProyecto`. El motor la usa con `sitio.yml`; no lee el esquema
   (§11), pero un editor puede usarla con el suyo.
-- **`Slug`**: `Slug::de(string $texto)`, el filtro `slug` del formato (§5.2), y
-  `Slug::sinTildes(string $minusculas)`.
+- **`Slug`**: `Slug::de(string $texto)`, el filtro `slug` del formato (§5.2).
+  Los demás métodos de `Slug` no se prometen.
 
 ### Avisos y errores
 
 - **`Aviso`**: `$mensaje`, `$fichero`, `$linea` y `__toString()`, con la
-  ubicación delante.
+  ubicación delante. Un programa puede construir uno: `Aviso(mensaje:, fichero: null, linea: null)`.
 - **`Avisos`**: `registrar(string $mensaje, ?string $fichero = null, ?int $linea = null)`,
-  `escuchar(\Closure $oyente)` y `todos()`.
+  `escuchar(\Closure $oyente)` y `todos()`. `escuchar` sustituye al oyente
+  anterior: solo hay uno.
 - **`ErrorDeProyecto`**, una `\RuntimeException` con `$descripcion`, `$fichero`
   y `$linea`: lo que impide compilar, leer o desplegar un proyecto.
+
+Lo que lanza la biblioteca es `ErrorDeProyecto`, con tres excepciones que se
+prometen: `Configuracion::leer` lanza `\InvalidArgumentException` si en
+`$secretos` hay una clave que no es `clave`, `clavePrivada` ni `frase`;
+`Manifiesto::leer`, `\UnexpectedValueException` si el texto no es un manifiesto
+o una de sus rutas sale del sitio; y `Desplegador::ejecutar` vuelve a lanzar,
+después de guardar el manifiesto, lo que lance un `Destino` que no es de
+Ehundu. Cualquier otra excepción (un `\TypeError`, por ejemplo) es un fallo del
+motor y sale tal cual.
 
 ### Desplegar
 
@@ -144,7 +172,8 @@ memoria para ella (unos 350 MB en ese sitio).
 las demás clases son las piezas con las que se compone, para un programa que
 quiera llevar el despliegue a su manera, como hace un editor web que las usa.
 
-- **`Despliegue\Desplegador`**: `__construct(Compilador $compilador = ..., ?\Closure $abrir = null)`,
+- **`Despliegue\Desplegador`**: `__construct(Compilador $compilador = ..., ?\Closure $abrir = null)`
+  (`$abrir` es para las pruebas y no se promete),
   `desplegar(Proyecto $proyecto, bool $simular = false, bool $todo = false, array $secretos = [], ?\Closure $alAvanzar = null, ?\Closure $alCompilar = null, ?\Closure $alAvisar = null, ?float $segundos = null, ?Informe $compilado = null)`,
   que devuelve un `InformeDeDespliegue`, y `ejecutar(PlanDeDespliegue $plan, Proyecto $proyecto, Destino $destino, ?Manifiesto $anterior, ?\Closure $alAvanzar = null, ?float $segundos = null): bool`,
   que sube un plan ya trazado y dice si lo ha hecho entero. Los nombres de los
@@ -160,14 +189,23 @@ quiera llevar el despliegue a su manera, como hace un editor web que las usa.
 - **`Despliegue\Configuracion`**: `Configuracion::leer(Proyecto, array $secretos, Avisos)`,
   la sección `despliegue` de `sitio.yml` con sus secretos; sus propiedades
   (`$destino`, `$servidor`, `$puerto`, `$usuario`, `$ruta`, `$huella`,
-  `$cifrado`, `$region`, `$cubo`, `$clave`, `$clavePrivada` y `$frase`) y
-  `descripcion()`, sin secretos. Un `var_dump` no los enseña.
+  `$cifrado`, `$region`, `$cubo`, `$clave`, `$clavePrivada` y `$frase`),
+  `descripcion()`, sin secretos, y `abrir(Proyecto $proyecto, Avisos $avisos): Destino`,
+  que abre el destino que dice la configuración (`Carpeta` lo crea si falta).
+  Un `var_dump` no enseña los secretos.
 - **`Despliegue\Manifiesto`**: lo que Ehundu subió, que vive en el destino
   (`.ehundu.json`): `FICHERO`, `$url`, `leer(string $json)`, `ficheros()`,
-  `anotar(...)`, `quitar(...)` y `json()`.
+  `anotar(...)`, `quitar(...)` y `json()`. Un programa puede construir uno:
+  `Manifiesto(ficheros: [], url: null)`. Un Ehundu 1.x lee el manifiesto que dejó
+  cualquier versión anterior ([`formato.md`](formato.md), §10).
 - **`Despliegue\PlanDeDespliegue`**: qué subir y qué borrar:
   `PlanDeDespliegue::trazar(...)`, `$subidas`, `$borrados`, `$sinCambios`,
   `$url`, `bytes()`, `estaVacio()` y `carpetasQueSobran(array $quedan)`.
+  `PlanDeDespliegue::deSalida(Proyecto, ?Manifiesto $anterior = null, bool $todo = false, ?string $url = null)`
+  traza el plan de la `salida/` de un proyecto ya compilado, y
+  `PlanDeDespliegue::ficheros(Proyecto)` da los ficheros de `salida/` con su MD5
+  y su tamaño, que es lo que se compara con el manifiesto: quien llama no tiene
+  que calcularlos.
 - **`Despliegue\InformeDeDespliegue`**: `$compilacion` (un `Informe`),
   `$destino`, `$subidos`, `$bytes`, `$borrados`, `$sinCambios`, `$avisos`,
   `$segundos`, `$simulado`, `$completo` (falso si se ha parado porque se agotó el
@@ -176,5 +214,6 @@ quiera llevar el despliegue a su manera, como hace un editor web que las usa.
   `escribir`, `borrar`, `quitarCarpeta` y `cerrar`. Un programa puede
   implementarla para llevar el sitio a un destino que Ehundu no trae.
 - **`Despliegue\Carpeta`**, **`Despliegue\Ftp`**, **`Despliegue\Sftp`** y
-  **`Despliegue\S3`** implementan `Destino` y se construyen con una
-  `Configuracion` (`Carpeta` con la ruta y el `Proyecto`).
+  **`Despliegue\S3`** implementan `Destino`. Se abren con
+  `Configuracion::abrir`: sus constructores no se prometen, y los parámetros
+  que traen para las pruebas tampoco.

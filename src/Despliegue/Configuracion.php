@@ -139,6 +139,23 @@ final readonly class Configuracion
     }
 
     /**
+     * El destino que dice esta configuración, ya abierto para leer y subir ficheros: `Carpeta`, `Ftp`, `Sftp` o
+     * `S3`. Es la manera de abrirlo; los constructores de cada uno no se prometen.
+     *
+     * @param Avisos $avisos donde `Ftp` deja lo que quiera avisar mientras sube
+     */
+    public function abrir(Proyecto $proyecto, Avisos $avisos): Destino
+    {
+        return match ($this->destino) {
+            'carpeta' => new Carpeta($this->ruta, $proyecto),
+            'ftp' => new Ftp($this, $avisos),
+            'sftp' => new Sftp($this, $proyecto),
+            's3' => new S3($this),
+            default => throw new ErrorDeProyecto("Destino de despliegue desconocido: {$this->destino}", Proyecto::SITIO),
+        };
+    }
+
+    /**
      * Dónde se publica, para los mensajes; nunca lleva secretos.
      */
     public function descripcion(): string

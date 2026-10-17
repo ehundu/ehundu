@@ -100,6 +100,16 @@ final class Campos
                 continue;
             }
 
+            if ($nombre === 'componentes') {
+                // Reservado para el catálogo de componentes (formato §13, decisión 68): hoy pasa a la plantilla, pero un
+                // día lo usará el motor y entonces no será un campo propio
+                $avisos->registrar(
+                    '«componentes» está reservado para el catálogo de componentes (formato §13) y un día lo usará el motor; usa otro nombre para este campo',
+                    $fichero,
+                    $lineas[$escrito[$nombre]] ?? null,
+                );
+            }
+
             $linea = $lineas[$escrito[$nombre]] ?? null;
             $original = $linea === null ? '' : $textoDeLinea[$linea - $primeraLinea];
 

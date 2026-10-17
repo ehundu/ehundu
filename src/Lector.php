@@ -350,6 +350,9 @@ final class Lector
                         'Es una plantilla o unos datos de otro generador; no se copia a salida/',
                         Proyecto::CONTENIDO . "/{$ruta}",
                     );
+                } elseif (Ignorados::es($nombre)) {
+                    // Lo que deja el sistema (`Thumbs.db`, `desktop.ini`): ni se copia ni se avisa
+                    continue;
                 } elseif (!str_starts_with($nombre, '_')) {
                     FicherosPhp::comprobar(Proyecto::CONTENIDO . "/{$ruta}");
                     $ficheros[] = $ruta;

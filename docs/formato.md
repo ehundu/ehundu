@@ -1261,7 +1261,11 @@ sustituye el atajo con la suya (decisión 136).
 ## 9. Ficheros, CSS y JavaScript
 
 `publico/` se copia tal cual a la raíz de la salida, incluidos los ficheros
-que empiezan por punto, como un `.htaccess`. Sin pipeline: el CSS y el JS
+que empiezan por punto, como un `.htaccess`, salvo los que dejan el sistema o
+el control de versiones: `.DS_Store`, `.gitkeep`, `Thumbs.db`, `desktop.ini` y
+cualquier carpeta `.git`, que no se copian y no avisan (decisión 138). La lista
+es corta y cerrada. En `contenido/` pasa igual con `Thumbs.db` y `desktop.ini`;
+lo demás que empieza por punto ya se ignora (§4). Sin pipeline: el CSS y el JS
 llegan ya escritos y, si hace falta, minificados fuera del motor.
 
 **Lo que no se copia.** Ni de `publico/` ni de `contenido/` se copia un
@@ -1433,6 +1437,13 @@ enlaces y las imágenes que empiezan por `/` pasados a direcciones completas
 sitio vienen. Una página de la
 colección sin fecha no entra, y se avisa: Atom exige una fecha en cada
 entrada.
+
+Un lector de feeds identifica cada entrada por su `<id>`, que es la dirección
+completa de la entrada, y el del feed es la dirección de la raíz de su idioma;
+no cambian con el tiempo. El autor, `<author><name>`, es el `nombre` del sitio.
+El feed lleva además su propio `<link rel="self">` y el `xml:lang` de su
+idioma. No hay una clave para otro autor; añadirla más adelante es crecer
+(decisión 138).
 
 La fecha del feed es la de su entrada más reciente. Un feed sin entradas
 lleva siempre el 1 de enero de 1970, en la zona horaria del sitio: Atom exige
@@ -2141,7 +2152,8 @@ Ninguna de estas cosas debería obligar a cambiar lo de arriba cuando llegue.
 Si al añadirlas hay que romper el contrato, el contrato estaba mal.
 
 Por eso queda reservado ya el campo `componentes`, que será el del catálogo:
-un sitio no debe usarlo como campo propio.
+un sitio no debe usarlo como campo propio, y si lo hace el motor lo avisa
+(decisión 138).
 
 ---
 
@@ -2929,6 +2941,25 @@ si hace falta, la anterior lleva una nota entre paréntesis.
     contrato nombra, que deja sin decir justo lo que más puede cambiar. Cuesta
     que un `composer update` puede cambiar bytes de un sitio sin que Ehundu
     cambie; el aviso es la nota de la versión.
+138. **Cerrada.** Cuatro ajustes pequeños que, con el contrato congelado, ya no
+    se podrían hacer sin una versión mayor. `publico/` deja de copiar lo que
+    dejan el sistema y Git (`.DS_Store`, `.gitkeep`, `Thumbs.db`, `desktop.ini` y
+    cualquier `.git`), y `contenido/` `Thumbs.db` y `desktop.ini`: una lista corta
+    y cerrada, porque añadir una exclusión después haría desaparecer ficheros de
+    la salida; `.htaccess` y `.well-known/` se copian, y ningún sitio de prueba
+    tenía ninguno de esos ficheros (§9). El feed escribe como `<id>` de cada
+    entrada su dirección completa y como autor el `nombre` del sitio, y eso se
+    promete (§10.2), porque un lector de feeds identifica las entradas por
+    `<id>` y, si el criterio cambiara, cada una aparecería como nueva; no se
+    añade una clave de autoría, que sería crecer. Un código de idioma con región
+    (`pt-br`) ya era un error y se escribe que esa forma queda reservada, sin
+    implementarla (§15.1); y se escriben el formato de fecha por defecto de los
+    idiomas sin tabla y que solo cuatro letras se traducen (§15.9). Y
+    `componentes`, reservado desde la decisión 68, avisa si un sitio lo usa como
+    campo propio, aunque sigue llegando a la plantilla (§13). Se descartó
+    ignorar todo lo que empieza por punto salvo `.htaccess` y `.well-known/`, que
+    haría desaparecer ficheros que alguien puso a propósito, y dejar `publico/`
+    como estaba avisando de que se limpie.
 
 ---
 
@@ -2960,7 +2991,9 @@ El primero es el predeterminado: sus páginas van sin prefijo en la URL, y las
 de los demás, con el suyo (`/eu/`). `codigo` son dos o tres letras minúsculas,
 como en ISO 639 (`es`, `eu`, `en`), y es lo que va en el nombre de los
 ficheros, en el prefijo y en el `hreflang`. `nombre` es el nombre del idioma
-para el selector, escrito en ese idioma; si falta, se usa el código.
+para el selector, escrito en ese idioma; si falta, se usa el código. Un código
+con región (`pt-br`, `es-mx`) no se admite y detiene el build: esa forma queda
+reservada para más adelante (decisión 138).
 
 Si `idiomas` no es una lista, si está vacía, si una entrada no tiene un código
 válido o si un código se repite, el build se detiene: sin los idiomas no se
@@ -3162,7 +3195,10 @@ lo calcula el motor. Con las letras, el mes sale como se nombra suelto
 (`martxoa`); `fecha('F\\r\\e\\n j\\a')` da `martxoaren 18a`.
 
 Para un idioma que el motor no trae (`fr`), se avisa una vez, al leer
-`sitio.yml`, y las fechas salen con los nombres en inglés, que son los de PHP.
+`sitio.yml`, y las fechas salen con los nombres en inglés, que son los de PHP, y
+con el formato por defecto del inglés, `j F Y` (`18 March 2025`). Solo las
+letras `l`, `D`, `F` y `M` se escriben en el idioma de la página; las demás
+salen como en PHP (`S`, `a` y `A`, en inglés).
 
 ### 15.10 Sitemap y feed
 

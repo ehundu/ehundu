@@ -275,6 +275,10 @@ final class Constructor
         }
 
         foreach ($proyecto->ficherosDe(Proyecto::PUBLICO) as $fichero) {
+            if (Ignorados::es($fichero)) {
+                continue;
+            }
+
             $origen = Proyecto::PUBLICO . "/{$fichero}";
             FicherosPhp::comprobar($origen);
             $destinos->anotar($fichero, $origen);

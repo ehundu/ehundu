@@ -91,6 +91,26 @@ final class CamposPrueba extends TestCase
     }
 
     #[Test]
+    public function componentesEstaReservadoAvisaPeroSigueSiendoUnCampo(): void
+    {
+        $campos = $this->normalizar("titulo: Inicio\ncomponentes: [uno, dos]");
+
+        self::assertSame(['titulo' => 'Inicio', 'componentes' => ['uno', 'dos']], $campos);
+        self::assertSame(
+            ['contenido/a.md:3: «componentes» está reservado para el catálogo de componentes (formato §13) y un día lo usará el motor; usa otro nombre para este campo'],
+            $this->avisos(),
+        );
+    }
+
+    #[Test]
+    public function componentesEnBlancoNoAvisa(): void
+    {
+        $this->normalizar("titulo: Inicio\ncomponentes:");
+
+        self::assertSame([], $this->avisos());
+    }
+
+    #[Test]
     public function unCampoEnBlancoConUnNombreDelMotorNoAvisa(): void
     {
         // Como cualquier campo en blanco, pasa sin aviso y sin valor: el motor lo cubre igual

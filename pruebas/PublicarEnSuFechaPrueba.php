@@ -204,6 +204,42 @@ final class PublicarEnSuFechaPrueba extends TestCase
         self::assertContains('tema/novedades/index.html', array_keys($sinInterruptor->escritos));
     }
 
+    #[Test]
+    public function unaHoraEnLaFechaNoCuentaLaPaginaSaleDesdeLaMedianocheDeSuDia(): void
+    {
+        $this->crearSitio();
+        $this->crearFichero('contenido/blog/programada.md', "---\ntitulo: Programada\nfecha: 2026-10-20 09:00:00\n---\nA las nueve.\n");
+        $this->crearFichero('contenido/blog/con-publicar.md', "---\ntitulo: Con publicar\nfecha: 2026-09-01\npublicar: 2026-10-20 18:30\n---\nA las seis y media.\n");
+
+        $antes = $this->construir($this->madrid('2026-10-19 23:59:00'));
+        $despues = $this->construir($this->madrid('2026-10-20 00:01:00'));
+
+        self::assertNotContains('blog/programada/index.html', $this->paginasDelBlog($antes));
+        self::assertNotContains('blog/con-publicar/index.html', $this->paginasDelBlog($antes));
+        self::assertContains('blog/programada/index.html', $this->paginasDelBlog($despues), 'Sale a medianoche, no a las 09:00');
+        self::assertContains('blog/con-publicar/index.html', $this->paginasDelBlog($despues), 'Sale a medianoche, no a las 18:30');
+        self::assertSame(
+            [
+                'contenido/blog/con-publicar.md:4: «publicar» es un día, AAAA-MM-DD: la hora no cuenta y se toma solo el día',
+                'contenido/blog/programada.md:3: «fecha» es un día, AAAA-MM-DD: la hora no cuenta y se toma solo el día',
+            ],
+            $this->avisosDe($despues),
+        );
+    }
+
+    /**
+     * Los avisos de una fecha que lleva hora.
+     *
+     * @return list<string>
+     */
+    private function avisosDe(Construccion $construccion): array
+    {
+        $avisos = array_filter(array_map(strval(...), $construccion->avisos), fn (string $aviso) => str_contains($aviso, 'la hora no cuenta'));
+        sort($avisos);
+
+        return array_values($avisos);
+    }
+
     /**
      * Un blog que se escribe por adelantado: el interruptor está en la carpeta
      * y cada página tiene una fecha o un `publicar` distintos. El día de las

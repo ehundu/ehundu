@@ -109,13 +109,19 @@ final class Campos
                 continue;
             }
 
+            $conHora = false;
+
             try {
-                $normalizados[$nombre] = self::comprobar((string) $nombre, $valor, $original, $zona);
+                $normalizados[$nombre] = self::comprobar((string) $nombre, $valor, $original, $zona, $conHora);
             } catch (\UnexpectedValueException $problema) {
                 $avisos->registrar(str_replace('%s', "«{$escrito[$nombre]}»", $problema->getMessage()), $fichero, $linea);
                 unset($normalizados[$nombre]);
 
                 continue;
+            }
+
+            if ($conHora) {
+                $avisos->registrar("«{$escrito[$nombre]}» es un día, AAAA-MM-DD: la hora no cuenta y se toma solo el día", $fichero, $linea);
             }
 
             if ($nombre === 'etiquetas' && in_array(Colecciones::TODO, $normalizados['etiquetas'], true)) {
@@ -134,13 +140,15 @@ final class Campos
     /**
      * @param string $original la línea del YAML en la que está el campo, si se conoce
      *
+     * @param bool $conHora se pone a verdadero si es una fecha y lo escrito llevaba hora o zona
+     *
      * @throws \UnexpectedValueException con un mensaje en el que `%s` es el nombre del campo
      */
-    private static function comprobar(string $nombre, mixed $valor, string $original, \DateTimeZone $zona): mixed
+    private static function comprobar(string $nombre, mixed $valor, string $original, \DateTimeZone $zona, bool &$conHora): mixed
     {
         return match (true) {
             in_array($nombre, self::TEXTOS, true) => self::texto($valor),
-            in_array($nombre, self::FECHAS, true) => self::fecha($valor, $original, $zona),
+            in_array($nombre, self::FECHAS, true) => self::fecha($valor, $original, $zona, $conHora),
             in_array($nombre, self::SI_NO, true) => self::siNo($valor),
             $nombre === 'orden' => self::numero($valor),
             in_array($nombre, self::LISTAS, true) => self::listaDeTextos($valor),
@@ -271,10 +279,15 @@ final class Campos
     }
 
     /**
-     * Una fecha es ese día en la zona horaria del sitio. YAML lee las fechas
-     * sin zona como UTC; aquí se toma lo escrito y se sitúa en la del sitio.
+     * Una fecha es ese día en la zona horaria del sitio, desde su medianoche
+     * (formato §4, decisión 129). YAML lee las fechas sin zona como UTC; aquí se
+     * toma el día escrito y se sitúa en la del sitio. Si lo escrito lleva hora o
+     * zona, la hora no cuenta: se toma solo el día y `$conHora` lo dice, para que
+     * quien llama avise.
+     *
+     * @param bool $conHora se pone a verdadero si lo escrito llevaba una hora o una zona
      */
-    private static function fecha(mixed $valor, string $original, \DateTimeZone $zona): \DateTimeImmutable
+    private static function fecha(mixed $valor, string $original, \DateTimeZone $zona, bool &$conHora = false): \DateTimeImmutable
     {
         // YAML convierte sin avisar una fecha imposible en otra que sí existe
         // (el 31 de febrero en el 3 de marzo), así que se mira lo escrito.
@@ -284,17 +297,21 @@ final class Campos
         }
 
         if ($valor instanceof \DateTimeImmutable) {
-            return $valor->getTimezone()->getName() === 'UTC'
-                ? new \DateTimeImmutable($valor->format('Y-m-d H:i:s'), $zona)
-                : $valor;
+            // Un día sin zona lo lee YAML como su medianoche en UTC; con otra hora, o con zona, llevaba más que un día
+            $conHora = $valor->format('H:i:s') !== '00:00:00' || $valor->getTimezone()->getName() !== 'UTC';
+
+            return new \DateTimeImmutable($valor->format('Y-m-d') . ' 00:00:00', $zona);
         }
 
-        if (is_string($valor) && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $valor, $partes) === 1) {
+        // Un día, y detrás, si se quiere, una hora que YAML no ha leído como fecha (sin segundos: `09:00`) o va entre comillas
+        if (is_string($valor) && preg_match('/^(\d{4})-(\d{2})-(\d{2})((?:\s+|T)\d{1,2}:\d{2}(?::\d{2}(?:[.,]\d+)?)?\s*(?:Z|[+-]\d{1,2}(?::?\d{2})?)?)?$/', trim($valor), $partes) === 1) {
             if (!checkdate((int) $partes[2], (int) $partes[3], (int) $partes[1])) {
-                throw new \UnexpectedValueException("%s no es una fecha posible: {$valor}");
+                throw new \UnexpectedValueException("%s no es una fecha posible: {$partes[1]}-{$partes[2]}-{$partes[3]}");
             }
 
-            return new \DateTimeImmutable("{$valor} 00:00:00", $zona);
+            $conHora = ($partes[4] ?? '') !== '';
+
+            return new \DateTimeImmutable("{$partes[1]}-{$partes[2]}-{$partes[3]} 00:00:00", $zona);
         }
 
         throw new \UnexpectedValueException('%s tiene que ser una fecha AAAA-MM-DD');

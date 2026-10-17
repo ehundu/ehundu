@@ -60,6 +60,45 @@ final class LectorPrueba extends TestCase
         $this->leer();
     }
 
+    /**
+     * La `url` es la del dominio (formato §2, decisión 130): con ruta o con parámetros, el sitio quedaría a medias.
+     *
+     * @return iterable<string, array{string, string}> lo escrito y el dominio que dice el error
+     */
+    public static function urlsConRuta(): iterable
+    {
+        yield 'una subcarpeta con barra' => ['https://www.ejemplo.com/sub/', 'https://www.ejemplo.com'];
+        yield 'una subcarpeta sin barra' => ['https://www.ejemplo.com/sub', 'https://www.ejemplo.com'];
+        yield 'una ruta larga' => ['http://ejemplo.com/a/b/c.html', 'http://ejemplo.com'];
+        yield 'con parámetros' => ['https://www.ejemplo.com/?a=1', 'https://www.ejemplo.com'];
+        yield 'con parámetros y sin barra' => ['https://www.ejemplo.com?a=1', 'https://www.ejemplo.com'];
+        yield 'con ancla' => ['https://www.ejemplo.com/#inicio', 'https://www.ejemplo.com'];
+        yield 'con un puerto y una ruta' => ['http://localhost:8000/sub', 'http://localhost:8000'];
+        yield 'con dos barras al final' => ['https://www.ejemplo.com//', 'https://www.ejemplo.com'];
+    }
+
+    #[Test]
+    #[\PHPUnit\Framework\Attributes\DataProvider('urlsConRuta')]
+    public function fallaSiLaUrlLlevaRuta(string $url, string $dominio): void
+    {
+        $this->crearFichero('sitio.yml', "nombre: Librería La Esquina\nurl: {$url}\n");
+
+        $this->expectException(ErrorDeProyecto::class);
+        $this->expectExceptionMessage("sitio.yml:2: «url» es la dirección del dominio, sin ruta ni parámetros: {$dominio} (un sitio dentro de una subcarpeta no está soportado)");
+
+        $this->leer();
+    }
+
+    #[Test]
+    public function laUrlDeUnDominioSeAceptaConOSinLaBarraFinalYConPuerto(): void
+    {
+        foreach (['https://www.ejemplo.com', 'https://www.ejemplo.com/', 'http://localhost:8000', 'http://localhost:8000/', 'HTTPS://Ejemplo.COM'] as $url) {
+            $this->crearFichero('sitio.yml', "nombre: Librería La Esquina\nurl: {$url}\n");
+
+            self::assertSame(rtrim($url, '/'), $this->leer()->sitio->url, $url);
+        }
+    }
+
     #[Test]
     public function leeElSitioSinLaBarraFinalNiElDespliegue(): void
     {

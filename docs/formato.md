@@ -74,7 +74,11 @@ documentación en español y en inglés, pero el formato es en español.
       # la contraseña va en .secretos.yml, nunca aquí
 
 `sitio.yml` es obligatorio y tiene que llevar al menos `nombre` y `url`. `url`
-es la dirección absoluta del sitio, con `http://` o `https://`. Si falta el
+es la dirección del dominio del sitio, con `http://` o `https://` y sin ruta:
+`https://www.ejemplo.com`, con o sin la barra final. Un sitio dentro de una
+subcarpeta (`https://ejemplo.com/sub/`) no está soportado y es un error
+(decisión 130). Las plantillas ven `sitio.url` sin la barra final, así que una
+dirección completa se escribe `{{ sitio.url }}{{ pagina.url }}`. Si falta el
 fichero o alguno de esos dos campos, el build se detiene con un error: sin
 ellos no se pueden generar ni el sitemap ni el feed.
 
@@ -378,10 +382,12 @@ Detalles de los tipos:
   dos últimos, así que el motor traduce los otros tres.
 - **fecha** se escribe `AAAA-MM-DD`, con o sin comillas. Es ese día en la
   zona horaria del sitio (§2), desde su medianoche: `publicar: 2026-10-01`
-  publica a las 00:00 del 1 de octubre en esa zona. Una fecha sin comillas
-  que no existe (`2026-13-01`) se lee como el texto que es: en `fecha` y
-  `publicar` avisa, como cualquier fecha imposible, y en un campo que no es
-  reservado llega así a la plantilla, sin aviso (decisión 88).
+  publica a las 00:00 del 1 de octubre en esa zona. Es un día y nada más: si
+  se escribe también una hora (`2026-10-01 18:30:00`, `2026-10-01T18:30`) o una
+  zona, la hora no cuenta, se toma solo el día y se avisa (decisión 129). Una
+  fecha sin comillas que no existe (`2026-13-01`) se lee como el texto que es:
+  en `fecha` y `publicar` avisa, como cualquier fecha imposible, y en un campo
+  que no es reservado llega así a la plantilla, sin aviso (decisión 88).
 - **texto** admite un número, que se toma como texto (`titulo: 2024`).
 - **número** admite un número entre comillas (`orden: "2"`).
 - **`etiquetas`**, **`css`** y **`js`** admiten un texto suelto, que cuenta
@@ -2578,6 +2584,43 @@ un sitio de la v1 no debe usarlo como campo propio.
     incremental pueda guardar su memoria por partes. No cambia nada para quien los
     use hoy, solo que no se promete. La decisión 125 (el despliegue repartido en
     llamadas) no cambia.
+129. **Cerrada.** Una fecha (`fecha`, `publicar`) es un día y la hora no cuenta
+    (§4). Si se escribe con hora o con zona (`2026-10-01 18:30:00`,
+    `2026-10-01T18:30`, `2026-10-01T18:30:00+02:00`), se avisa y se toma solo el
+    día, desde su medianoche en la zona del sitio. Salió de revisar lo que se
+    iba a congelar: el motor ya aceptaba la hora sin que el contrato lo dijera
+    (la tenían en cuenta el orden de los listados y el feed, y `publicar` y
+    `publicarEnSuFecha` publicaban a esa hora, contra lo que decía el §4), pero
+    solo con segundos o en formato ISO: `09:00` lo leía YAML como texto, el motor
+    avisaba de que no era una fecha y publicaba la página en el acto.
+    Documentarla habría prometido la forma exacta que acepta la dependencia que
+    lee el YAML, y habría cambiado lo que tendría que ofrecer un editor. Y una
+    hora sirve de poco en un sitio estático, que solo saca la página cuando se
+    vuelve a compilar después de ese momento (§4, `publicarEnSuFecha`), es
+    decir, si hay una compilación a esa hora. Ningún sitio de prueba la usaba.
+    Se descartó documentarla y dejarla sin decir, que funciona por accidente y
+    podría cambiar con una actualización de esa dependencia sin que nadie lo
+    notara. Cuesta no poder publicar a una hora concreta ni ordenar por hora dos
+    entradas del mismo día, que quedan en el orden que tenían. Añadirla más
+    adelante es crecer: lo que hoy avisa pasaría a valer. Un día escrito con
+    hora cero y sin zona (`2026-10-01 00:00:00`) no se distingue de un día y no
+    avisa.
+130. **Cerrada.** La `url` de `sitio.yml` es la del dominio, sin ruta (§2):
+    `https://www.ejemplo.com`, con o sin la barra final; con una ruta o con
+    parámetros es un error, y `sitio.url`, en las plantillas, no acaba nunca en
+    `/`. Salió de lo mismo: el motor aceptaba `https://ejemplo.com/sub/` y
+    dejaba el sitio a medias, con el sitemap, el feed y lo que se escribe con
+    `{{ sitio.url }}` bajo `/sub/`, pero con `pagina.url`, los enlaces
+    internos, `css_fichero()`, `version()` y las imágenes colgando de la raíz.
+    Admitir la ruta de verdad pide prefijar todas las direcciones internas y
+    decidir qué vale `pagina.url`: si lleva el prefijo, las plantillas que
+    escriben `{{ sitio.url }}{{ pagina.url }}` lo repetirían, y si no, no
+    serviría de enlace. Es un cambio grande, que retrasaría la 1.0 y que ningún
+    sitio pedía. Documentar el soporte a medias habría sido prometer lo que no
+    funciona. Cuesta que un sitio en una subcarpeta no se pueda hacer con Ehundu
+    hasta que se soporte, y que el build se detenga a quien tuviera hoy una ruta
+    en la `url`. Pasar de error a soportado es crecer y no cierra ninguna
+    puerta.
 
 ---
 

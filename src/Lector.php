@@ -74,9 +74,19 @@ final class Lector
         if ($url === null) {
             throw new ErrorDeProyecto('Falta el campo «url»', $fichero);
         }
-        if (!is_string($url) || preg_match('#^https?://[^\s/?\#]+(/\S*)?$#i', $url) !== 1) {
+        if (!is_string($url) || preg_match('#^(https?://[^\s/?\#]+)(\S*)$#i', $url, $partes) !== 1) {
             throw new ErrorDeProyecto(
                 '«url» tiene que ser la dirección completa del sitio, con http:// o https://',
+                $fichero,
+                $lineas['url'] ?? null,
+            );
+        }
+
+        // Solo el dominio, con o sin la barra final (formato §2, decisión 130): una ruta dejaría el sitio a medias,
+        // con las direcciones absolutas bajo ella y las internas colgando de la raíz.
+        if ($partes[2] !== '' && $partes[2] !== '/') {
+            throw new ErrorDeProyecto(
+                "«url» es la dirección del dominio, sin ruta ni parámetros: {$partes[1]} (un sitio dentro de una subcarpeta no está soportado)",
                 $fichero,
                 $lineas['url'] ?? null,
             );

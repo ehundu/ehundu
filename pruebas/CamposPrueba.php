@@ -152,6 +152,62 @@ final class CamposPrueba extends TestCase
         }
     }
 
+    /**
+     * Una fecha es un día (formato §4, decisión 129): con hora o con zona, la hora no cuenta, se toma el día y se avisa.
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function fechasConHora(): iterable
+    {
+        yield 'con segundos' => ['fecha: 2026-10-01 18:30:00'];
+        yield 'con segundos y zona' => ['fecha: 2026-10-01T18:30:00+02:00'];
+        yield 'en UTC con Z' => ['fecha: 2026-10-01T18:30:00Z'];
+        yield 'a medianoche pero con zona' => ['fecha: 2026-10-01T00:00:00+02:00'];
+        yield 'sin segundos (YAML lo lee como texto)' => ['fecha: 2026-10-01 18:30'];
+        yield 'entre comillas' => ['fecha: "2026-10-01 18:30:00"'];
+        yield 'con T y sin segundos' => ['fecha: "2026-10-01T18:30"'];
+        yield 'publicar con segundos' => ['publicar: 2026-10-01 09:00:00'];
+        yield 'publicar sin segundos' => ['publicar: 2026-10-01 09:00'];
+        yield 'el alias date' => ['date: 2026-10-01 18:30:00'];
+    }
+
+    #[Test]
+    #[DataProvider('fechasConHora')]
+    public function unaFechaConHoraSeTomaSoloElDiaYSeAvisa(string $yaml): void
+    {
+        $zona = new \DateTimeZone('Europe/Madrid');
+        $campo = $this->nombreDelCampo($yaml);
+
+        $campos = Campos::normalizar(Yaml::leerCampos($yaml, 'contenido/a.md', 2), $yaml, 2, 'contenido/a.md', $this->avisos, $zona);
+
+        self::assertInstanceOf(\DateTimeImmutable::class, $campos[$campo], $yaml);
+        self::assertSame('2026-10-01 00:00:00 Europe/Madrid', $campos[$campo]->format('Y-m-d H:i:s e'), $yaml);
+        self::assertSame(
+            ["contenido/a.md:2: «{$this->escritoEn($yaml)}» es un día, AAAA-MM-DD: la hora no cuenta y se toma solo el día"],
+            $this->avisos(),
+            $yaml,
+        );
+    }
+
+    #[Test]
+    public function unDiaSinHoraNoAvisaDeNada(): void
+    {
+        foreach (['fecha: 2026-10-01', 'fecha: "2026-10-01"', 'publicar: 2026-10-01', 'fecha: 2026-10-01 00:00:00'] as $yaml) {
+            $campos = $this->normalizar($yaml);
+
+            self::assertSame('2026-10-01', $campos[$this->nombreDelCampo($yaml)]->format('Y-m-d'), $yaml);
+        }
+
+        self::assertSame([], $this->avisos());
+    }
+
+    #[Test]
+    public function unaHoraConUnDiaImposibleSigueSiendoUnaFechaImposible(): void
+    {
+        self::assertSame([], $this->normalizar('fecha: "2026-02-31 09:00"'));
+        self::assertSame(['contenido/a.md:2: «fecha» no es una fecha posible: 2026-02-31'], $this->avisos());
+    }
+
     #[Test]
     public function avisaDeUnaFechaQueYamlNoPuedeLeerConOSinComillas(): void
     {
@@ -283,6 +339,20 @@ final class CamposPrueba extends TestCase
     private function normalizar(string $yaml): array
     {
         return Campos::normalizar(Yaml::leerCampos($yaml, 'contenido/a.md', 2), $yaml, 2, 'contenido/a.md', $this->avisos);
+    }
+
+    /** El nombre que se le da al campo en el resultado: `date` es `fecha`. */
+    private function nombreDelCampo(string $yaml): string
+    {
+        $escrito = $this->escritoEn($yaml);
+
+        return Campos::ALIAS[$escrito] ?? $escrito;
+    }
+
+    /** El nombre del campo tal como está escrito en el YAML. */
+    private function escritoEn(string $yaml): string
+    {
+        return explode(':', $yaml, 2)[0];
     }
 
     /**

@@ -110,8 +110,11 @@ memoria para ella (unos 350 MB en ese sitio).
   (lo que comparte con sus traducciones), `valor(string $campo)`, `urlPdf()` y
   `estaPublicada(\DateTimeImmutable $ahora, bool $conBorradores = false)`.
 - **`Formato`**: `VERSION`, la versión del formato que entiende esta versión
-  de Ehundu, y `leer(...)`, que comprueba la que declara un proyecto o un
-  esquema ([`formato.md`](formato.md), §2).
+  de Ehundu, y `leer(mixed $valor, string $fichero, ?int $linea): int`, que
+  comprueba la que declara un proyecto o un esquema ([`formato.md`](formato.md),
+  §2): un valor que no es un entero mayor que cero, o es mayor que `VERSION`,
+  lanza `ErrorDeProyecto`. El motor la usa con `sitio.yml`; no lee el esquema
+  (§11), pero un editor puede usarla con el suyo.
 - **`Slug`**: `Slug::de(string $texto)`, el filtro `slug` del formato (§5.2), y
   `Slug::sinTildes(string $minusculas)`.
 

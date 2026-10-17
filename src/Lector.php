@@ -60,7 +60,7 @@ final class Lector
         $lineas = Yaml::lineasDeClaves($yaml);
 
         // Lo primero: de un formato que no se entiende, lo demás no se puede juzgar
-        $formato = Formato::leer($campos['formato'] ?? null, $fichero, $lineas['formato'] ?? null, $avisos);
+        $formato = Formato::leer($campos['formato'] ?? null, $fichero, $lineas['formato'] ?? null);
 
         $nombre = $campos['nombre'] ?? null;
         if ($nombre === null) {

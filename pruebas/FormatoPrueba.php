@@ -25,31 +25,31 @@ final class FormatoPrueba extends TestCase
     #[Test]
     public function sinLaClaveElFormatoEsElUnoYNoAvisa(): void
     {
-        $avisos = new Avisos();
-
-        self::assertSame(1, Formato::leer(null, 'sitio.yml', null, $avisos));
-        self::assertSame([], $avisos->todos());
+        self::assertSame(1, Formato::leer(null, 'sitio.yml', null));
     }
 
     #[Test]
     public function elFormatoQueEntiendeEsElUno(): void
     {
         self::assertSame(1, Formato::VERSION);
-        self::assertSame(1, Formato::leer(1, 'sitio.yml', 3, new Avisos()));
+        self::assertSame(1, Formato::leer(1, 'sitio.yml', 3));
     }
 
     #[Test]
-    public function unValorQueNoEsUnEnteroMayorQueCeroSeAvisaYSeTomaElUno(): void
+    public function unValorQueNoEsUnEnteroMayorQueCeroDetieneLaCompilacion(): void
     {
-        foreach ([0, -1, 1.0, 1.5, '1', 'uno', true, [1]] as $valor) {
-            $avisos = new Avisos();
-
-            self::assertSame(1, Formato::leer($valor, 'sitio.yml', 4, $avisos), var_export($valor, true));
-            self::assertSame(
-                ['sitio.yml:4: «formato» tiene que ser un número entero mayor que cero, la versión del formato (ahora, 1); se toma 1'],
-                array_map(strval(...), $avisos->todos()),
-                var_export($valor, true),
-            );
+        // Un «2» entre comillas, por ejemplo, de un proyecto del formato 2 escrito con descuido, no puede pasar por un 1
+        foreach ([0, -1, 1.0, 1.5, '1', '2', 'uno', true, [1]] as $valor) {
+            try {
+                Formato::leer($valor, 'sitio.yml', 4);
+                self::fail('Tenía que detenerse con ' . var_export($valor, true));
+            } catch (ErrorDeProyecto $error) {
+                self::assertSame(
+                    'sitio.yml:4: «formato» tiene que ser un número entero mayor que cero, la versión del formato (ahora, 1)',
+                    $error->getMessage(),
+                    var_export($valor, true),
+                );
+            }
         }
     }
 
@@ -57,7 +57,7 @@ final class FormatoPrueba extends TestCase
     public function unFormatoMayorQueElQueEntiendeDetieneLaCompilacionConUnErrorClaro(): void
     {
         try {
-            Formato::leer(2, 'sitio.yml', 5, new Avisos());
+            Formato::leer(2, 'sitio.yml', 5);
             self::fail('Se esperaba un ErrorDeProyecto');
         } catch (ErrorDeProyecto $error) {
             self::assertSame('Este proyecto es del formato 2 y esta versión de Ehundu entiende hasta el 1; actualiza Ehundu', $error->descripcion);

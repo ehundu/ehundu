@@ -134,7 +134,9 @@ lo escribe en `.ehundu/memoria.bin` después de cada compilación y la siguiente
 aunque sea de otro proceso, lo aprovecha. En el sitio más grande de
 los de prueba (1.204 páginas), cambiar el cuerpo de una página rehace una y
 tarda unos 3 s en total (leer el proyecto, cargar la memoria, comparar `salida/`
-y guardarla), frente a los 35–45 s de una compilación completa.
+y guardarla), frente a los 35–45 s de una compilación completa. La memoria pesa
+del orden de `salida/` más lo leído (97 MB en ese sitio) y se carga en unos
+0,06 s. Son medidas de un sitio y de una máquina, no una promesa del formato.
 
 **Cuándo no vale lo guardado.** Si el fichero falta, está cortado o dañado, lo
 escribió otra versión de la memoria o del motor (se compara una huella del

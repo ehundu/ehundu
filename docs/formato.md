@@ -89,15 +89,33 @@ un número entero, `1`. No hay versión menor, porque dentro de una versión
 mayor el formato solo crece (§12): un proyecto del formato 1 compila igual con
 cualquier Ehundu que entienda el 1. Si falta, es `1`, y sin avisar, así que los
 proyectos escritos antes de que existiera la clave no cambian. Un valor que no
-es un entero mayor que cero se avisa y se toma como `1`. Si es mayor que la
+es un entero mayor que cero (`"2"` entre comillas, `0`) detiene el build con un
+error: tomarlo por `1` podría hacer pasar por bueno un proyecto de otro
+formato. Si es mayor que la
 versión que entiende esta versión de Ehundu, el build se detiene con un error
 que lo dice (`ehundu compilar`, `servir` y `desplegar`): compilar a ciegas un
 formato distinto daría un sitio mal hecho sin que nadie lo notara. Es lo
 primero que se comprueba, antes que `nombre` y `url`.
 
+`nombre` es un texto: `nombre: 2024`, sin comillas, es un número y detiene el
+build (en el front matter, en cambio, un número se admite como texto, §4).
+
 `zonaHoraria` es la zona en la que se leen y se escriben todas las fechas del
 sitio, con su nombre estándar (`Europe/Madrid`, `America/Mexico_City`). Si
 falta, es UTC. Una zona que no existe detiene el build.
+
+**Qué detiene el build en `sitio.yml` y qué solo se avisa.** Detienen el build
+`nombre`, `url`, `zonaHoraria`, `idiomas` y `formato` mal escritos: un valor que
+se tomara por otro cambiaría, sin que nadie lo note, qué se lee o qué sale en
+todo el sitio. Con `idioma`, `generador`, `feed`, `enlacesExternos`,
+`encabezados` e `imagenes`, que solo ajustan un añadido, se avisa y se usa su
+valor por defecto, o se ignora la sección.
+
+**Una sección vacía.** Una sección sin valor (`encabezados:`) es lo mismo que no
+ponerla. Un mapa vacío (`encabezados: {}`) la pone con todo por defecto: en
+`encabezados` activa los `id` del nivel 2 al 6, y en `enlacesExternos` no cambia
+nada; en `imagenes` y en `feed`, que necesitan `anchos` o `coleccion`, se avisa
+y se ignora.
 
 `idioma` es el código del idioma del sitio: dos o tres letras minúsculas, como
 `es`, `eu` o `en`. Lo usan `fecha()` (§7.3) y el feed, y las plantillas lo ven
@@ -287,6 +305,11 @@ Si un `.yml` y un `.json` dan el mismo nombre, gana el `.yml` y se avisa. Las
 subcarpetas de `datos/` y los ficheros con otra extensión no se leen; también
 se avisa. Lo que empieza por punto (`.gitkeep`) se ignora sin aviso.
 
+Las plantillas lo leen como `datos.nombre`. Un nombre con guiones
+(`mi-menu.yml`) se escribe `datos['mi-menu']` en Twig, así que para usarlo
+cómodamente conviene un nombre de una palabra, con letras, números y guiones
+bajos.
+
 En un sitio en varios idiomas, un fichero puede llevar el código de un idioma
 antes de la extensión (`menus.eu.yml`): en las páginas de ese idioma se mezcla
 con el común (§15.6).
@@ -381,8 +404,11 @@ páginas.
 
 Detalles de los tipos:
 
-- **sí/no** admite `sí`, `si`, `no`, `true` y `false`. YAML solo reconoce los
-  dos últimos, así que el motor traduce los otros tres.
+- **sí/no** admite `sí`, `si`, `no`, `true` y `false`, sin distinguir
+  mayúsculas ni espacios de más (`Sí`, `NO`). YAML solo reconoce los dos
+  últimos, así que el motor traduce los otros tres; y `true` y `false` solo
+  valen sin comillas, como los lee YAML: `"true"` entre comillas es un texto y
+  se avisa.
 - **fecha** se escribe `AAAA-MM-DD`, con o sin comillas. Es ese día en la
   zona horaria del sitio (§2), desde su medianoche: `publicar: 2026-10-01`
   publica a las 00:00 del 1 de octubre en esa zona. Es un día y nada más: si
@@ -614,10 +640,13 @@ un proyecto tiene que dar el mismo resultado en cualquiera.
   `orden('orden, titulo')`. Sin criterio es `orden('fecha desc')`. Las
   páginas a las que les falta el campo van al final en las dos direcciones.
   Los números se comparan como números, las fechas como fechas y los textos
-  sin distinguir mayúsculas ni tildes, con la `ñ` después de la `n`, como en
-  el diccionario, y sin contar los signos `¿` y `¡`: «¿Cómo llegar?» va entre
-  las «c», no antes de la «a». A igualdad, las páginas quedan en el orden que
-  tenían.
+  sin distinguir mayúsculas ni tildes (con la tabla del `slug`, §5.2), con la
+  `ñ` después de la `n` y sin contar los signos `¿` y `¡`: «¿Cómo llegar?» va
+  entre las «c», no antes de la «a». Es una comparación del valor de cada
+  carácter, no la de un diccionario entero: un número escrito en un texto se
+  compara como texto («Capítulo 10» va antes que «Capítulo 2») y las letras de
+  otros alfabetos se ordenan por su código. A igualdad, las páginas quedan en
+  el orden que tenían.
 - `limite(n)` deja las `n` primeras.
 - `invertir` da la vuelta a la lista.
 - `sin(pagina)` quita una página, normalmente la actual.
@@ -700,14 +729,19 @@ Reglas:
   `ideas`), la de menor código de carácter, para que el nombre no dependa del
   orden en que llegan las páginas. `excluir` también compara por `slug`.
   Un valor cuyo `slug` sale vacío se ignora y se avisa.
-- **La URL.** Tiene que usar `{{ grupo|slug }}` (§5.1). Sin `url`, o con una
-  que no lo use, todas las páginas irían al mismo fichero: se avisa y no se
-  genera ninguna. El resto del §5 vale: el prefijo de idioma (§15.3) y el
+- **La URL.** Tiene que usar `{{ grupo }}`, casi siempre como `{{ grupo|slug }}`
+  (§5.1), que es lo que da un tramo de URL válido: sin el filtro, el valor se
+  escribe tal cual. Sin `url`, o con una que no lo use, todas las páginas irían
+  al mismo fichero: se avisa y no se genera ninguna. El resto del §5 vale: el prefijo de idioma (§15.3) y el
   error si dos páginas van al mismo fichero.
 - **El título.** Si la página que define el grupo no tiene `titulo`, el de
   cada página generada es su `grupo`, y no avisa. Cualquier otro campo se pasa
   como está: lo que hay que componer con el grupo (`Etiqueta: …`) se escribe
   en la plantilla con `pagina.grupo`.
+- **Sitemap y `todo`.** Las páginas generadas salen en el sitemap y en `todo`,
+  y en las colecciones que declaren sus `etiquetas`. Si la que las define lleva
+  `listada: no`, lo heredan como cualquier otro campo (§3) y no salen en
+  ninguno de los dos.
 - **El orden.** Las páginas generadas no tienen `fecha` salvo que la herede la
   que las define; en una colección van, como cualquier página sin fecha, al
   final, y entre ellas por `slug` de su grupo. Con `etiquetas: [temas]`, el
@@ -715,9 +749,9 @@ Reglas:
   `tema.paginas|length`, sin repetir en un fichero de datos lo que ya dicen
   las páginas.
 - **Idiomas.** Cada idioma tiene su propia página con `agrupar` (`etiqueta.md`,
-  `etiqueta.eu.md`) y agrupa las páginas de ese idioma. Una página generada no
-  tiene traducciones (§15.8): los grupos de un idioma no se corresponden con
-  los de otro.
+  `etiqueta.eu.md`) y agrupa las páginas de ese idioma. En una página
+  generada, `pagina.traducciones` solo trae ella misma (§15.8): los grupos de
+  un idioma no se corresponden con los de otro.
 - **Los avisos y los errores.** Un `agrupar` al que le falta `coleccion` o
   `campo` avisa, con su línea, y no genera nada. Una clave que no admite se
   avisa y se ignora. Si ni siquiera es un mapa (`agrupar: sí`), se avisa, se
@@ -809,8 +843,9 @@ cree nada, y una que se quita la cierra.
   colección, tampoco en `todo`, ni en el sitemap, como las de `listada: no`
   (§4): se llega a ellas por los enlaces de la paginación.
 - **Idiomas.** Cada idioma tiene su propia página con `paginar`
-  (`blog.md`, `blog.eu.md`) y parte las páginas de ese idioma. Una página
-  generada no tiene traducciones (§15.8).
+  (`blog.md`, `blog.eu.md`) y parte las páginas de ese idioma. En una página
+  generada, `pagina.traducciones` solo trae ella misma; la primera, que es la
+  que define la página, tiene las suyas (§15.8).
 - **Con `agrupar`.** Una página no puede llevar las dos claves: se avisa y
   `paginar` se ignora. Partir cada grupo en páginas queda reservado, sin
   definir. `paginar` no se hereda: en un `_datos.yml` se avisa y se ignora,
@@ -1073,8 +1108,12 @@ Dos añadidos forman parte del contrato:
   propia plantilla `imagen`.
 - **Enlaces externos.** Un enlace escrito en Markdown a otro dominio recibe
   `target="_blank"` y `rel="noopener"`. El dominio del sitio es el de `url`
-  en `sitio.yml`, con y sin `www.`. El HTML escrito a mano y los enlaces de
-  las plantillas no se tocan. La sección `enlacesExternos` de `sitio.yml`
+  en `sitio.yml`, con y sin `www.`: un enlace es a otro dominio si su dirección
+  empieza por `http://`, `https://` u otro esquema con dominio, o por `//`, y
+  ese dominio no es el del sitio (un subdominio como `blog.ejemplo.com` sí es
+  otro). Una ruta, un ancla, un `mailto:` o un `tel:` no lo son, y un enlace con
+  un esquema inseguro (`javascript:`) sale sin dirección. El HTML escrito a mano
+  y los enlaces de las plantillas no se tocan. La sección `enlacesExternos` de `sitio.yml`
   (§2) añade `noreferrer` y un aviso para los lectores de pantalla. Una
   imagen enlazada a otro dominio, sea una figura o el atajo `imagen` con
   `enlace` (§8.2), lleva también `target` y `rel`, aunque no el aviso, que un
@@ -1118,10 +1157,20 @@ Reglas:
   simples: `nombre="valor"` o `nombre='valor'`. No hay expresiones, ni
   variables, ni condicionales, ni acceso a colecciones: eso es lógica y la
   lógica vive en las plantillas.
+- El nombre de un atajo empieza por una letra minúscula y lleva minúsculas,
+  números y guiones; el de un atributo empieza por una letra y lleva letras y
+  números, sin guiones ni guiones bajos (`pie`, `siFalta`). El valor termina en
+  la misma comilla con que empieza y no admite escape: uno que lleve comillas
+  dobles y simples a la vez no se puede escribir.
 - Un atajo simple puede ir en medio del texto. Si va solo en su párrafo y lo
   que produce es un bloque (una figura, un `div`, un vídeo…), sustituye al
   párrafo entero, porque un bloque no cabe dentro de un `<p>`. Si produce
-  texto, como `dato`, se queda dentro del párrafo.
+  texto, como `dato`, se queda dentro del párrafo. Es un bloque lo que empieza
+  por una de estas etiquetas: `address`, `article`, `aside`, `audio`,
+  `blockquote`, `details`, `div`, `dl`, `fieldset`, `figure`, `footer`, `form`,
+  `h1` a `h6`, `header`, `hr`, `iframe`, `nav`, `ol`, `p`, `picture`, `pre`,
+  `section`, `table`, `ul` y `video`. Con cualquier otra (`main`, `dialog`…) el
+  atajo se queda dentro del `<p>`.
 - Un atajo que envuelve contenido lleva la apertura y el cierre cada uno en
   su línea. Lo que hay entre ellos es Markdown y llega convertido a HTML. Si
   falta el cierre, se avisa y el atajo se cierra al final del texto.
@@ -1142,7 +1191,9 @@ recibe:
 - `sitio`, `datos` y `pagina`, igual que cualquier plantilla (§7.2).
 
 Por eso `sitio`, `datos`, `pagina` y `contenido` no se pueden usar como
-nombres de atributo: se avisa y se ignoran.
+nombres de atributo: se avisa y se ignoran. Y un atributo con el nombre de una
+variable que el motor calcula para ese atajo (§8.2: `src`, `alt`, `ancho`,
+`href`, `peso`, `valor`…) no llega a la plantilla: gana la del motor.
 
 ### 8.2 Atajos incluidos en el motor
 
@@ -1151,8 +1202,9 @@ nombre en `parciales/atajos/`, que recibe las mismas variables.
 
 - **`imagen`**: `[imagen fichero="img/escaparate.jpg" alt="…" pie="…"]`, con
   `fichero` dentro de `publico/`. Da `<figure>` con la imagen y, si hay pie,
-  `<figcaption>`. Sin `pie`, el pie es el `alt`; con `pie=""`, no hay pie.
-  `enlace` hace la imagen enlazada. La imagen lleva `width` y `height` cuando
+  `<figcaption>`. Sin `pie`, el pie es el `alt`; con `pie=""`, no hay pie. El
+  `pie` del atajo es texto, que se escapa; el de una figura del Markdown (§8) se
+  convierte como Markdown. `enlace` hace la imagen enlazada. La imagen lleva `width` y `height` cuando
   se pueden leer del fichero (§7.3, `dimensiones()`), para que el navegador
   le reserve el sitio antes de cargarla. La plantilla recibe `src`, `alt`,
   `pie` (ya en HTML), `enlace`, `externo` (si el `enlace` lleva a otro
@@ -1195,6 +1247,12 @@ nombre en `parciales/atajos/`, que recibe las mismas variables.
   razón social o la dirección del titular. Con `siFalta="…"` se escribe ese
   texto si el dato no existe o está vacío; sin él, se avisa y no se escribe
   nada. La plantilla recibe `valor`.
+
+Lo que escriben las plantillas de Ehundu va en castellano: el título `Vídeo`
+de `video`, el peso de `archivo` con coma decimal (`1,2 MB`), y `sí` o `no` en
+`dato` si el valor es un booleano. `peso` llega a la plantilla ya como texto, así
+que una plantilla propia no puede darle otro formato; un sitio en otro idioma
+sustituye el atajo con la suya (decisión 136).
 
 ---
 
@@ -1320,9 +1378,12 @@ genera el motor: `sitemap.xml`; `feed.xml`, si el sitio lo pide; y, si una
 página los declara y usa `css_fichero()` o `js_fichero()`, los paquetes
 `css/<huella>.css` y `js/<huella>.js` (§9.1). Nada más: los añadidos van como
 ficheros normales dentro de `contenido/` o de `publico/`. El manifiesto del
-despliegue (`.ehundu.json`) se escribe en el destino, no en `salida/`. Una
-página con `url: /404.html` se escribe como `404.html`, igual que cualquier
-otra.
+despliegue (`.ehundu.json`) se escribe en el destino, no en `salida/`: lleva su
+propia versión (`"ehundu": 1`), y un Ehundu 1.x lee el que dejó cualquier
+versión anterior, también el de un despliegue de la 0.x. Lo que hay en
+`.ehundu/` (`lote.json`, `memoria.bin`) no se promete: es del motor y se puede
+tirar (§1). Una página con `url: /404.html` se escribe como `404.html`, igual
+que cualquier otra.
 
 Si dos cosas van al mismo fichero de salida (dos páginas, una página y un
 fichero, un fichero de `publico/` y otro de `contenido/`), el build se detiene
@@ -1473,9 +1534,8 @@ consola no la necesita y no la ofrece.
 - **Qué se guarda.** Lo que la incremental ya recuerda, tal cual: lo leído del
   proyecto, las huellas de `plantillas/`, `parciales/` y `publico/`, y de cada
   página su HTML (y su PDF), lo que usó y los cuerpos convertidos. Pesa del
-  orden de `salida/` más lo leído (97 MB en el sitio más grande de los de
-  prueba, con 1.200 páginas) y se carga en una fracción de segundo. No lleva
-  nada que no esté en el proyecto.
+  orden de `salida/` más lo leído y se carga en una fracción de segundo (las
+  medidas, en `compilacion.md`). No lleva nada que no esté en el proyecto.
 - **Cuándo no vale.** Si falta, está dañada o a medio escribir, es de otra
   versión de la memoria o del motor, o es de otro proyecto (otra ruta), se
   ignora y se hace una compilación completa. Nunca es un error. Cambiar de
@@ -2813,6 +2873,35 @@ si hace falta, la anterior lleva una nota entre paréntesis.
     documentado pero con el mismo riesgo de borrar una página sin querer. Ningún
     sitio de prueba tiene un punto que no sea el de un idioma, así que no cambia
     ninguno.
+136. **Cerrada.** Lo que el motor hacía y solo estaba en el código queda
+    escrito en el contrato, sin cambiar lo que hace, porque con la 1.0 pasa a
+    ser promesa. Salió de revisar el contrato contra el código: en una página
+    generada, `traducciones` solo trae la propia (§6.3, §6.4, §15.8) y el
+    selector de idioma que nunca enlaza a una URL que no existe es de la
+    plantilla recomendada, no del motor; las páginas de `agrupar` salen en el
+    sitemap y en `todo` y heredan `listada: no` (§6.3); qué es un enlace a otro
+    dominio, que hasta ahora decidía la biblioteca de Markdown: una dirección con
+    dominio, o que empieza por `//`, que no es el del sitio, y sale sin dirección
+    si su esquema es inseguro (§8); las reglas exactas de los atajos (nombres de
+    atributo, comillas sin escape, las 24 etiquetas que cuentan como bloque, que
+    gana la variable del motor sobre el atributo del mismo nombre, que el pie del
+    atajo es texto y el de la figura Markdown, y que lo que escriben las
+    plantillas de Ehundu va en castellano: `Vídeo`, `1,2 MB`, `sí`/`no`; §8.1,
+    §8.2); el orden de los textos, que compara el valor de cada carácter y no es
+    el de un diccionario entero (§6.2); que `{{ grupo }}` y `{{ grupo|slug }}`
+    valen en el patrón de `agrupar`; que `sí/no` no distingue mayúsculas y
+    `"true"` entre comillas no vale (§4); cómo se leen los nombres de los
+    ficheros de `datos/` en Twig (§3); qué es una sección vacía de `sitio.yml` y
+    qué errores detienen el build y cuáles se avisan (§2). Y lo que no es
+    contrato sale de él: las medidas de rendimiento van a `compilacion.md`, y
+    `lote.json` y `memoria.bin` no se prometen, mientras que el manifiesto del
+    despliegue sí se lee en cualquier 1.x (§10). Se descartó cambiar el
+    comportamiento antes de escribirlo, que ninguna de estas rarezas merece, y
+    dejarlas sin decir, que es dejar que dos implementaciones las resuelvan
+    distinto. Con una excepción, que sí cambia lo que hace: un `formato` que no
+    es un entero mayor que cero (`"2"` entre comillas, `0`) detiene el build en
+    vez de avisarse y tomarse por 1, porque la decisión 122 existe para no leer a
+    ciegas un proyecto de otro formato; ningún sitio de prueba lo escribía así.
 
 ---
 
@@ -2923,9 +3012,11 @@ Reglas que se derivan de eso:
   contenido duplicado y un `hreflang` que miente.
 - **`hreflang` solo entre las traducciones que existen**, y cada página se
   apunta también a sí misma (§15.8).
-- **El selector de idioma nunca enlaza a una URL que no existe.** Si la página
-  actual no está traducida, lleva a la portada de ese idioma, y la plantilla
-  puede distinguir los dos casos para avisar al visitante (§15.8).
+- **El selector de idioma de la plantilla recomendada nunca enlaza a una URL
+  que no existe.** El motor no escribe selectores: es una propiedad de esa
+  plantilla (§15.8). Si la página actual no está traducida, lleva a la portada de
+  ese idioma, y la plantilla puede distinguir los dos casos para avisar al
+  visitante.
 
 ### 15.5 Colecciones
 
@@ -3002,7 +3093,9 @@ Todas las páginas, también las que dan `coleccion()`, llevan:
 - `pagina.traducciones`, sus versiones publicadas, ella incluida, por código y
   en el orden de `idiomas`: `pagina.traducciones.eu.url`. Cada una tiene la
   misma forma que cualquier otra página. Un borrador o una traducción con
-  `publicar` en el futuro no están.
+  `publicar` en el futuro no están. Una página generada por `agrupar` o por
+  `paginar`, salvo la primera de esta, solo tiene como traducción a sí misma
+  (§6.3, §6.4).
 
 `sitio.idiomas` es la lista de `idiomas`, cada uno con `codigo`, `nombre` y
 `url`, la raíz de ese idioma: `/` para el predeterminado y `/eu/` para los

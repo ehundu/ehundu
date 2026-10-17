@@ -21,23 +21,27 @@ final class Formato
 
     /**
      * La versión que declara un proyecto, tal como sale del YAML o del JSON.
-     * Un valor que no es un entero mayor que cero se avisa y se toma como 1.
+     * Un valor que no es un entero mayor que cero (un `"2"` entre comillas, un
+     * `0`) detiene la compilación, como uno mayor que el que se entiende: tomarlo
+     * por 1 podría hacer pasar por bueno un proyecto de otro formato (decisión 136).
      *
-     * @param string   $fichero ruta relativa a la raíz del proyecto, para los avisos
+     * @param string   $fichero ruta relativa a la raíz del proyecto, para los errores
      * @param int|null $linea   la de `formato` en ese fichero
      *
-     * @throws ErrorDeProyecto si es mayor que la que entiende esta versión de Ehundu
+     * @throws ErrorDeProyecto si no es un entero mayor que cero, o es mayor que la que entiende esta versión de Ehundu
      */
-    public static function leer(mixed $valor, string $fichero, ?int $linea, Avisos $avisos): int
+    public static function leer(mixed $valor, string $fichero, ?int $linea): int
     {
         if ($valor === null) {
             return 1;
         }
 
         if (!is_int($valor) || $valor < 1) {
-            $avisos->registrar('«formato» tiene que ser un número entero mayor que cero, la versión del formato (ahora, ' . self::VERSION . '); se toma 1', $fichero, $linea);
-
-            return 1;
+            throw new ErrorDeProyecto(
+                '«formato» tiene que ser un número entero mayor que cero, la versión del formato (ahora, ' . self::VERSION . ')',
+                $fichero,
+                $linea,
+            );
         }
 
         if ($valor > self::VERSION) {

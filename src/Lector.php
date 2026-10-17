@@ -261,7 +261,7 @@ final class Lector
                 continue;
             }
 
-            $nombreEIdioma = self::nombreEIdioma(pathinfo($entrada, PATHINFO_FILENAME), $idiomas);
+            $nombreEIdioma = self::nombreEIdioma(pathinfo($entrada, PATHINFO_FILENAME), $idiomas, $fichero);
 
             if (is_string($nombreEIdioma)) {
                 $avisos->registrar("{$nombreEIdioma}; este fichero no se lee", $fichero);
@@ -334,7 +334,7 @@ final class Lector
                 if (is_dir($proyecto->ruta(Proyecto::CONTENIDO, $ruta))) {
                     $pendientes[] = $ruta;
                 } elseif (in_array(pathinfo($nombre, PATHINFO_EXTENSION), self::FORMATOS, true)) {
-                    $nombreEIdioma = self::nombreEIdioma(pathinfo($nombre, PATHINFO_FILENAME), $idiomas);
+                    $nombreEIdioma = self::nombreEIdioma(pathinfo($nombre, PATHINFO_FILENAME), $idiomas, Proyecto::CONTENIDO . "/{$ruta}");
 
                     if (is_string($nombreEIdioma)) {
                         $avisos->registrar("{$nombreEIdioma}; este fichero no se compila", Proyecto::CONTENIDO . "/{$ruta}");
@@ -354,11 +354,10 @@ final class Lector
                     FicherosPhp::comprobar(Proyecto::CONTENIDO . "/{$ruta}");
                     $ficheros[] = $ruta;
                 } elseif (str_starts_with($nombre, '_datos.') && $nombre !== Cascada::FICHERO && str_ends_with($nombre, '.yml')) {
-                    $nombreEIdioma = self::nombreEIdioma(substr($nombre, 0, -4), $idiomas);
+                    $nombreEIdioma = self::nombreEIdioma(substr($nombre, 0, -4), $idiomas, Proyecto::CONTENIDO . "/{$ruta}");
 
-                    if (is_string($nombreEIdioma) || $nombreEIdioma[0] !== '_datos') {
-                        $motivo = is_string($nombreEIdioma) ? $nombreEIdioma : 'El punto en el nombre está reservado para el idioma (formato §15.2)';
-                        $avisos->registrar("{$motivo}; este fichero no se lee", Proyecto::CONTENIDO . "/{$ruta}");
+                    if (is_string($nombreEIdioma)) {
+                        $avisos->registrar("{$nombreEIdioma}; este fichero no se lee", Proyecto::CONTENIDO . "/{$ruta}");
                     }
                 }
             }
@@ -470,14 +469,20 @@ final class Lector
 
     /**
      * El nombre de un fichero sin el código de idioma, y el idioma, o null si
-     * no lleva código (formato §15.2). Si el punto del nombre no es el de un
-     * idioma del sitio, el motivo por el que el fichero no se lee.
+     * no lleva código (formato §15.2). Si lo que hay tras el punto tiene forma
+     * de código pero no es el de un idioma del sitio, el motivo por el que el
+     * fichero no se lee: puede ser una traducción preparada de antemano.
      *
-     * @param string $nombre el nombre sin la extensión: 'contacto.eu'
+     * @param string $nombre  el nombre sin la extensión: 'contacto.eu'
+     * @param string $fichero su ruta desde la raíz del proyecto, para el error
      *
      * @return array{0: string, 1: string|null}|string
+     *
+     * @throws ErrorDeProyecto si el punto no es el de un código de idioma (`guia.v2`, `2024.10.01-titulo`,
+     *                         `guia.antigua.es`): saltarse el fichero con un aviso haría que el despliegue borrara
+     *                         la página del sitio publicado, como con un front matter roto (decisión 135)
      */
-    private static function nombreEIdioma(string $nombre, Idiomas $idiomas): array|string
+    private static function nombreEIdioma(string $nombre, Idiomas $idiomas, string $fichero): array|string
     {
         $punto = strrpos($nombre, '.');
 
@@ -489,7 +494,10 @@ final class Lector
         $codigo = substr($nombre, $punto + 1);
 
         if (str_contains($base, '.') || !Idiomas::esCodigo($codigo)) {
-            return 'El punto en el nombre está reservado para el idioma (formato §15.2)';
+            throw new ErrorDeProyecto(
+                'El punto en el nombre está reservado para el idioma (formato §15.2) y aquí no lleva el código de uno: cambia los puntos del nombre por guiones',
+                $fichero,
+            );
         }
 
         if (!$idiomas->declara($codigo)) {

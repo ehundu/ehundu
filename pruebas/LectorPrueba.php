@@ -337,16 +337,68 @@ final class LectorPrueba extends TestCase
     {
         $this->crearSitioEnDosIdiomas();
         $this->crearFichero('contenido/_datos.fr.yml', 'plantilla: page');
-        $this->crearFichero('contenido/blog/_datos.v2.yml', 'plantilla: otra');
-        $this->crearFichero('contenido/blog/_datos.antiguo.eu.yml', 'plantilla: otra');
         $this->crearFichero('contenido/blog/_datos.eu.yml', 'plantilla: orria');
         $this->crearFichero('contenido/blog/_notas.es.txt', 'no es de datos');
 
         self::assertSame([
             'contenido/_datos.fr.yml: El punto en el nombre está reservado para el idioma, y «fr» no es un idioma del sitio (formato §15.2); este fichero no se lee',
-            'contenido/blog/_datos.antiguo.eu.yml: El punto en el nombre está reservado para el idioma (formato §15.2); este fichero no se lee',
-            'contenido/blog/_datos.v2.yml: El punto en el nombre está reservado para el idioma (formato §15.2); este fichero no se lee',
         ], $this->avisos($this->leer()));
+    }
+
+    /**
+     * Un punto en el nombre que no es el de un código de idioma detiene el build (formato §15.2, decisión 135):
+     * saltarse el fichero con un aviso haría que el despliegue borrara la página del sitio publicado.
+     *
+     * @return iterable<string, array{string, bool}> el fichero y si el sitio tiene dos idiomas
+     */
+    public static function ficherosConUnPuntoQueNoEsDeIdioma(): iterable
+    {
+        foreach ([false, true] as $conIdiomas) {
+            $sitio = $conIdiomas ? ' en un sitio en dos idiomas' : ' en un sitio de un idioma';
+
+            yield "una página con una versión{$sitio}" => ['contenido/guia.v2.md', $conIdiomas];
+            yield "una entrada con la fecha con puntos{$sitio}" => ['contenido/blog/2024.10.01-titulo.md', $conIdiomas];
+            yield "una plantilla{$sitio}" => ['contenido/guia.v2.twig', $conIdiomas];
+            yield "un punto de más antes del idioma{$sitio}" => ['contenido/guia.antigua.es.md', $conIdiomas];
+            yield "dos códigos de idioma{$sitio}" => ['contenido/contacto.eu.es.md', $conIdiomas];
+            yield "un código en mayúsculas{$sitio}" => ['contenido/guia.ES.md', $conIdiomas];
+            yield "unos datos de carpeta{$sitio}" => ['contenido/blog/_datos.v2.yml', $conIdiomas];
+            yield "unos datos de carpeta con un punto de más{$sitio}" => ['contenido/blog/_datos.antiguo.eu.yml', $conIdiomas];
+            yield "unos datos del sitio{$sitio}" => ['datos/menus.v2.yml', $conIdiomas];
+            yield "unos datos en JSON{$sitio}" => ['datos/v1.2.json', $conIdiomas];
+        }
+    }
+
+    #[Test]
+    #[\PHPUnit\Framework\Attributes\DataProvider('ficherosConUnPuntoQueNoEsDeIdioma')]
+    public function unPuntoQueNoEsDeIdiomaDetieneElBuild(string $fichero, bool $conIdiomas): void
+    {
+        $conIdiomas ? $this->crearSitioEnDosIdiomas() : $this->crearSitioMinimo();
+        $this->crearFichero($fichero, str_ends_with($fichero, '.json') ? '{}' : (str_contains($fichero, 'datos') ? 'a: 1' : 'Texto'));
+
+        $this->expectException(ErrorDeProyecto::class);
+        $this->expectExceptionMessage("{$fichero}: El punto en el nombre está reservado para el idioma (formato §15.2) y aquí no lleva el código de uno: cambia los puntos del nombre por guiones");
+
+        $this->leer();
+    }
+
+    #[Test]
+    public function unCodigoConFormaDeIdiomaPeroSinDeclararSigueSiendoUnAvisoYNoUnError(): void
+    {
+        // Puede ser una traducción preparada de antemano: el sitio todavía no declara ese idioma
+        $this->crearSitioEnDosIdiomas();
+        $this->crearFichero('contenido/contacto.fr.md', 'Contact');
+        $this->crearFichero('contenido/sitemap.xml.twig', '<urlset/>');
+        $this->crearFichero('datos/menus.fr.yml', 'a: 1');
+
+        $lectura = $this->leer();
+
+        self::assertSame([], $lectura->paginas);
+        self::assertSame([
+            'datos/menus.fr.yml: El punto en el nombre está reservado para el idioma, y «fr» no es un idioma del sitio (formato §15.2); este fichero no se lee',
+            'contenido/contacto.fr.md: El punto en el nombre está reservado para el idioma, y «fr» no es un idioma del sitio (formato §15.2); este fichero no se compila',
+            'contenido/sitemap.xml.twig: El punto en el nombre está reservado para el idioma, y «xml» no es un idioma del sitio (formato §15.2); este fichero no se compila',
+        ], $this->avisos($lectura));
     }
 
     #[Test]
@@ -471,7 +523,6 @@ final class LectorPrueba extends TestCase
         $this->crearSitioMinimo();
         $this->crearFichero('datos/images.js', 'export default [];');
         $this->crearFichero('datos/menus.eu.yml', 'a: 1');
-        $this->crearFichero('datos/menus.v2.yml', 'a: 1');
         $this->crearFichero('datos/menus/principal.yml', 'a: 1');
         $this->crearFichero('datos/.gitkeep', '');
 
@@ -483,7 +534,6 @@ final class LectorPrueba extends TestCase
             'datos/images.js: En datos/ solo se leen ficheros .yml y .json; este se ignora',
             'datos/menus: Las subcarpetas de datos/ no se leen',
             'datos/menus.eu.yml: El punto en el nombre está reservado para el idioma, y «eu» no es un idioma del sitio (formato §15.2); este fichero no se lee',
-            'datos/menus.v2.yml: El punto en el nombre está reservado para el idioma (formato §15.2); este fichero no se lee',
         ], $this->avisos($lectura));
     }
 
@@ -614,21 +664,17 @@ final class LectorPrueba extends TestCase
     }
 
     #[Test]
-    public function avisaYSaltaLasPaginasConPuntoEnElNombre(): void
+    public function avisaYSaltaLasPaginasConUnCodigoDeIdiomaQueElSitioNoDeclara(): void
     {
         $this->crearSitioMinimo();
         $this->crearFichero('contenido/contacto.en.md', 'Contact');
         $this->crearFichero('contenido/sitemap.xml.twig', '<urlset/>');
-        $this->crearFichero('contenido/guia.v2.md', 'Guía');
-        $this->crearFichero('contenido/guia.antigua.es.md', 'Guía');
 
         $lectura = $this->leer();
 
         self::assertSame([], $lectura->paginas);
         self::assertSame([
             'contenido/contacto.en.md: El punto en el nombre está reservado para el idioma, y «en» no es un idioma del sitio (formato §15.2); este fichero no se compila',
-            'contenido/guia.antigua.es.md: El punto en el nombre está reservado para el idioma (formato §15.2); este fichero no se compila',
-            'contenido/guia.v2.md: El punto en el nombre está reservado para el idioma (formato §15.2); este fichero no se compila',
             'contenido/sitemap.xml.twig: El punto en el nombre está reservado para el idioma, y «xml» no es un idioma del sitio (formato §15.2); este fichero no se compila',
         ], $this->avisos($lectura));
     }

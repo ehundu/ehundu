@@ -2776,6 +2776,28 @@ adelante entonces, no el formato 1 (decisión 132).
     sitio necesita, y dejarla como detalle de implementación, que era lo que
     había y que impide reproducir las direcciones de otro. Ninguna dirección
     cambia: la tabla es la que ya tenía el código.
+135. **Cerrada.** Un punto en el nombre de una página, de un fichero de `datos/`
+    o de un `_datos.yml` que no es el de un código de idioma detiene el build con
+    un error que nombra el fichero (§15.2), también en un sitio de un solo idioma.
+    Antes se saltaba el fichero con un aviso y código de salida 0: `guia.v2.md`
+    no salía en el sitio, y el siguiente despliegue la borraba del servidor, que
+    es justo lo que el §4 evita para un front matter roto. Lo mismo valía para
+    `_datos.v2.yml`, que quita de una carpeta lo que tenía en común. Salió de
+    revisar lo que se iba a congelar: el §15 dice que un sitio de un solo idioma
+    «no cambia en nada», y no era verdad para los nombres con puntos, que
+    afectarán a migraciones de blogs con nombres como `2024.10.01-titulo.md`.
+    Es un error cuando lo que hay tras el último punto no tiene forma de código
+    (dos o tres letras minúsculas), o cuando hay otro punto antes; si tiene forma
+    de código pero el sitio no lo declara (`contacto.fr.md`), sigue siendo un
+    aviso, porque puede ser una traducción preparada de antemano. Queda por tanto
+    un caso en aviso que se parece: una plantilla `sitemap.xml.twig`, cuyo
+    `xml` tiene forma de código. Se descartó aceptar los puntos en los sitios de
+    un solo idioma, porque uno que pasara a bilingüe vería cambiar el significado
+    de sus nombres y dejaría de ser cierto que se puede pasar a bilingüe sin
+    renombrar nada, y dejar el aviso y corregir el texto del §15, que quedaría
+    documentado pero con el mismo riesgo de borrar una página sin querer. Ningún
+    sitio de prueba tiene un punto que no sea el de un idioma, así que no cambia
+    ninguno.
 
 ---
 
@@ -2792,7 +2814,8 @@ fichero, en el mismo árbol que las demás, y el idioma va en el nombre:
       blog/
         un-articulo.md         solo en castellano
 
-Un sitio en un solo idioma no escribe nada de esto y no cambia en nada.
+Un sitio en un solo idioma no escribe nada de esto y no cambia en nada, salvo
+que el punto en el nombre de un fichero está reservado siempre (§15.2).
 
 ### 15.1 Idiomas en `sitio.yml`
 
@@ -2834,10 +2857,15 @@ página. No hay que declararlo en ningún sitio, y un editor puede mostrarlas
 como pestañas de idioma sobre la misma página.
 
 Un fichero con un código que el sitio no declara (`contacto.fr.md` en un sitio
-sin francés), o con un punto de más en el nombre (`guia.v2.md`), no se lee: se
-salta con un aviso. El punto en el nombre de una página, de un fichero de
-`datos/` o de un `_datos.yml` queda reservado para el idioma. Los ficheros que
-se copian tal cual (`jquery.min.js`) llevan los puntos que quieran.
+sin francés) no se lee: se salta con un aviso, porque puede ser una traducción
+preparada de antemano. El punto en el nombre de una página, de un fichero de
+`datos/` o de un `_datos.yml` está reservado para el idioma en todos los
+sitios, también en los de un solo idioma: un punto que no es el de un código de
+dos o tres letras minúsculas (`guia.v2.md`, `2024.10.01-titulo.md`,
+`guia.antigua.es.md`) detiene el build con un error que nombra el fichero,
+porque saltárselo haría que el despliegue borrara la página del sitio publicado
+(decisión 135). Los ficheros que se copian tal cual (`jquery.min.js`) llevan
+los puntos que quieran.
 
 El idioma sale del nombre del fichero, no del front matter. `idioma` es un
 campo reservado: si se escribe en una página, en un `_datos.yml` o en los

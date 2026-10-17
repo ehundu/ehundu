@@ -508,15 +508,52 @@ donde existe: el `url` de la propia página no lo tiene.
 
 Convierte un texto en un tramo de URL:
 
-- pasa a minúsculas y quita tildes y diéresis (`ü` → `u`, `ñ` → `n`,
-  `ç` → `c`, `ș` → `s`; también `ß` → `ss`, `æ` → `ae`, `œ` → `oe`);
+- pasa a minúsculas y convierte las letras de la tabla de abajo, que quita
+  tildes y diéresis (`ü` → `u`, `ñ` → `n`, `ç` → `c`, `ș` → `s`) y descompone
+  algunas ligaduras (`ß` → `ss`, `æ` → `ae`, `œ` → `oe`);
 - `&` se convierte en `y`, y el punto volado del catalán desaparece
   (`col·legi` → `collegi`);
-- cualquier otro carácter que no sea una letra latina o un número se
-  convierte en guion, sin guiones repetidos ni en los extremos. Las letras de
-  otros alfabetos desaparecen.
+- cualquier otro carácter que no sea una letra `a` a `z` o un número se
+  convierte en guion, sin guiones repetidos ni en los extremos. Eso incluye las
+  letras de otros alfabetos (griego, cirílico…) y las del latino que la tabla no
+  recoge (las del vietnamita, por ejemplo), que desaparecen.
 
 `Cómo elegir un buen libro: guía` da `como-elegir-un-buen-libro-guia`.
+
+La tabla de letras es esta, con lo que sale a la izquierda y las letras que lo
+dan a la derecha (cada una, también en mayúscula):
+
+    a   àáâãäåāăą
+    c   çćĉċč
+    d   ďđð
+    e   èéêëēĕėęě
+    g   ĝğġģ
+    h   ĥħ
+    i   ìíîïĩīĭįı
+    j   ĵ
+    k   ķ
+    l   ĺļľŀł
+    n   ñńņňŉ
+    o   òóôõöøōŏő
+    r   ŕŗř
+    s   śŝşšſș
+    t   ţťŧț
+    u   ùúûüũūŭůűų
+    w   ŵ
+    y   ýÿŷ
+    z   źżž
+    ss  ß
+    ae  æ
+    oe  œ
+    th  þ
+    ij  ĳ
+
+**La tabla y la conversión de `&` en `y` son parte del contrato y no cambian
+dentro de una versión mayor** (decisión 134). Añadir una letra cambiaría la
+dirección de toda página cuyo título la lleve, que hoy sale con un guion. El
+mismo filtro fija el orden alfabético de los textos (§6.1), los grupos de
+`agrupar` (§6.3) y los `id` de los encabezados (§8): lo que se decide aquí vale
+también para ellos.
 
 Para los títulos habituales en español da lo mismo que el filtro `slugify` de
 Eleventy. Difiere en la diéresis (Eleventy da `ue`: `bilingüe` →
@@ -2721,6 +2758,24 @@ adelante entonces, no el formato 1 (decisión 132).
     espacio propio (`pagina.motor.grupo`), que es lo más limpio pero rompe las
     plantillas escritas y sería una versión 2. Ningún sitio de prueba usa los
     cinco nombres, así que no cambia ninguno.
+134. **Cerrada.** La tabla de letras del filtro `slug` y la conversión de `&` en
+    `y` (§5.2) son parte del contrato y no cambian dentro de una versión mayor.
+    El §5.2 enumeraba unas pocas letras y la tabla real tenía bastantes más
+    (`ð`, `đ`, `ø`, `ł`, `ı`, `ſ`, `þ`, `ĳ`…), así que dos implementaciones que
+    siguieran solo el texto habrían dado direcciones distintas; y la tabla no
+    solo fija las URL, también el orden alfabético de los textos, los grupos de
+    `agrupar` y los `id` de los encabezados. Se copia entera al §5.2, con una
+    prueba que compara la del documento con la del código, letra a letra.
+    Cerrarla cuesta que no se pueda añadir una letra, porque cambiaría la
+    dirección de toda página cuyo título la lleve, que hoy sale con un guion: las
+    de otros alfabetos y las del latino que la tabla no recoge (el vietnamita)
+    siguen desapareciendo, y quien las necesite podrá tener más adelante una
+    opción por sitio, que añade y no toca esta tabla. `&` seguirá dando `y`,
+    también en un título en inglés. Se descartó ampliarla ahora (griego,
+    cirílico, `ə`), que exige elegir convenciones de transliteración que ningún
+    sitio necesita, y dejarla como detalle de implementación, que era lo que
+    había y que impide reproducir las direcciones de otro. Ninguna dirección
+    cambia: la tabla es la que ya tenía el código.
 
 ---
 

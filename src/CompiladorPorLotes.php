@@ -10,6 +10,11 @@ namespace Ehundu;
  * vez todo lo que hace falta. Al terminar deja `salida/` y los avisos de una
  * compilación completa. Por dónde va se guarda en `.ehundu/lote.json`, en el
  * proyecto.
+ *
+ * No se promete en la 1.0 (decisión 128): para repartir una compilación en
+ * llamadas, `CompiladorIncrementalEnProceso::avanzar`.
+ *
+ * @internal
  */
 interface CompiladorPorLotes
 {

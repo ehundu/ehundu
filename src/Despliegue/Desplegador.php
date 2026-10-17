@@ -54,8 +54,8 @@ final class Desplegador
      *                                                         agotarse, guarda el manifiesto y para, y el informe dice
      *                                                         que no está completo; la llamada siguiente sigue donde se
      *                                                         quedó. La tarea que ha empezado se termina. Sin él, sube todo
-     * @param Informe|null                          $compilado el de una compilación ya hecha, por ejemplo por lotes
-     *                                                         (formato §10.4), para no volver a compilar en cada llamada
+     * @param Informe|null                          $compilado el de una compilación ya hecha, por ejemplo repartida con
+     *                                                         `avanzar` (formato §10.5), para no volver a compilar en cada llamada
      *
      * @throws ErrorDeProyecto si no se puede compilar o desplegar
      */

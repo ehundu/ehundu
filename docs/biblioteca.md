@@ -45,33 +45,10 @@ incrusta, un editor web.
 - **`Informe`** es lo que devuelve: `$paginas`, `$ficheros`, `$segundos`,
   `$avisos` (una lista de `Aviso`), `$rehechas` y `resumen()`, una frase.
 
-### Compilar por lotes
-
-Para un proceso web que no puede dedicarle de una vez todo lo que hace falta
-([`formato.md`](formato.md), §10.4). Por dónde va se guarda en
-`.ehundu/lote.json`, en el proyecto.
-
-El presupuesto de `avanzar` (`$segundos`), igual en los lotes, en la incremental y
-en el `Desplegador`, se cuenta desde que empieza la llamada. Uno negativo o que no
-es un número (`NAN`) vale 0, que sigue haciendo una tarea, la mínima; y uno de más
-de un día, un día, de modo que `INF` o `PHP_INT_MAX` quieren decir «sin límite».
-
-- **`CompiladorPorLotes`** (interfaz): `iniciar(Proyecto): Lote`, que empieza un
-  lote nuevo, descarta el que hubiera y comprueba, antes de escribir nada, lo
-  que detendría una compilación completa; `avanzar(Proyecto, float $segundos): Lote`,
-  que retoma el lote que haya y hace tareas hasta agotar el presupuesto, y
-  siempre al menos una (si no hay lote, empieza uno; si el proyecto ha
-  cambiado, empieza de nuevo; si está completo, no hace nada);
-  `estado(Proyecto): ?Lote`, sin hacer nada; y `abandonar(Proyecto)`.
-- **`CompiladorPorLotesEnProceso`** la implementa. `__construct(?\DateTimeImmutable $ahora = null)`
-  fija el momento con el que se decide qué está publicado; se guarda al empezar
-  el lote y no cambia en todo él. Cada tarea se escribe en `salida/` al hacerse,
-  así que `salida/` mezcla páginas nuevas y viejas hasta que el lote está completo.
-  Lanza `ErrorDeProyecto` si una tarea falla.
-- **`Lote`**: `$hechas`, `$total`, `completo()`, `progreso()` (de 0 a 1),
-  `informe()` (un `Informe`, cuando está completo), `reiniciado()` (si esta
-  llamada ha empezado de nuevo porque el proyecto cambió) y `ocupado()` (si otra
-  llamada estaba avanzando y esta no ha hecho nada).
+`CompiladorPorLotes` y `CompiladorPorLotesEnProceso`, la compilación por lotes de
+la 0.12 ([`formato.md`](formato.md), §10.4), **no se prometen**: son `@internal`
+(decisión 128). Para repartir una compilación en llamadas con un presupuesto de
+tiempo se usa `avanzar`, en la compilación incremental (más abajo).
 
 ### Compilar de forma incremental
 
@@ -92,15 +69,22 @@ proceso, y el resultado es siempre el de una compilación completa.
   proyecto no se puede compilar, y entonces deja la memoria y `salida/` como
   estaban.
 - **`avanzar(Proyecto, float $segundos): Lote`** hace lo mismo con un
-  presupuesto, como los lotes: rehace páginas hasta agotarlo, y siempre al
-  menos una, guarda lo hecho y devuelve un `Lote` (ver arriba) que dice si
-  está completo. La llamada siguiente sigue donde se quedó, también si el
-  proyecto ha cambiado entretanto: solo se rehace lo que el cambio afecta. Hasta
-  que el `Lote` está completo, `salida/` mezcla páginas nuevas y viejas. Una
-  llamada que llega mientras otra está avanzando no espera: devuelve
-  `ocupado()`.
+  presupuesto: rehace páginas hasta agotarlo, y siempre al menos una, guarda lo
+  hecho y devuelve un `Lote` que dice si está completo. La llamada siguiente
+  sigue donde se quedó, también si el proyecto ha cambiado entretanto: solo se
+  rehace lo que el cambio afecta. Hasta que el `Lote` está completo, `salida/`
+  mezcla páginas nuevas y viejas, y nada debe publicarse. Una llamada que llega
+  mientras otra está avanzando no espera: devuelve `ocupado()`.
 - **`olvidar(Proyecto)`** borra la memoria: la siguiente compilación será
   completa.
+- **`Lote`**, lo que devuelve `avanzar`: `$hechas`, `$total`, `completo()`,
+  `progreso()` (de 0 a 1), `informe()` (un `Informe`, cuando está completo) y
+  `ocupado()` (si otra llamada estaba avanzando y esta no ha hecho nada).
+
+El presupuesto de `avanzar` (`$segundos`), igual en el `Desplegador`, se cuenta
+desde que empieza la llamada. Uno negativo o que no es un número (`NAN`) vale 0,
+que sigue haciendo una tarea, la mínima; y uno de más de un día, un día, de modo
+que `INF` o `PHP_INT_MAX` quieren decir «sin límite».
 
 La memoria pesa del orden de `salida/` más lo leído (97 MB en un sitio de 1.200
 páginas) y se carga en una fracción de segundo; el proceso que la usa necesita
@@ -152,7 +136,7 @@ quiera llevar el despliegue a su manera, como hace un editor web que las usa.
   que sube un plan ya trazado y dice si lo ha hecho entero. Con `$segundos`, al
   agotarse guarda el manifiesto y para (siempre hace al menos un fichero), y la
   llamada siguiente sigue donde se quedó; con `$compilado`, el `Informe` de una
-  compilación ya hecha (por lotes, por ejemplo), no vuelve a compilar. Con `$todo`
+  compilación ya hecha (repartida con `avanzar`, por ejemplo), no vuelve a compilar. Con `$todo`
   no se reparte: cada llamada empezaría de cero; la primera lleva `$todo` y las
   siguientes no.
 - **`Despliegue\Configuracion`**: `Configuracion::leer(Proyecto, array $secretos, Avisos)`,

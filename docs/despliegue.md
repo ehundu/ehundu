@@ -75,9 +75,9 @@ siguiente traza el plan otra vez, ve en el manifiesto lo que ya está subido y
 sigue por el resto. Con `$todo` no se reparte, porque sube todo sin mirar el
 manifiesto: la primera llamada lleva `$todo` y las siguientes no.
 
-Junto con una compilación por lotes ya terminada (`CompiladorPorLotes`), se pasa
-su `Informe` como `$compilado` y el despliegue no vuelve a compilar en cada
-llamada.
+Junto con una compilación repartida en llamadas que ya ha terminado
+(`CompiladorIncrementalEnProceso::avanzar`), se pasa su `Informe` como
+`$compilado` y el despliegue no vuelve a compilar en cada llamada.
 
 ## Cada destino
 

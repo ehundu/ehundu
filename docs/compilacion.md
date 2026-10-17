@@ -155,17 +155,22 @@ abajo): solo se rehace lo que el cambio afecta.
 
 Compilar decide primero qué se aprovecha (`Plan`) y después rehace el resto.
 
-## Compilar por lotes
+## Compilar por lotes (interno)
 
 Un proceso web puede no tener tiempo de compilar un sitio grande de una vez.
-`CompiladorPorLotes` ([`biblioteca.md`](biblioteca.md), formato §10.4) reparte la
-compilación **completa** en tareas (cada página, cada fichero que se copia, el
-sitemap con el feed, la limpieza final) y las hace en varias llamadas, cada una
-con un presupuesto de tiempo. No es la compilación incremental: no recuerda qué
-se rehizo la vez anterior, y cada lote lo rehace todo. Para un sitio que se
-compila una y otra vez, `CompiladorIncrementalEnProceso` (más arriba) hace lo
-mismo con memoria; los lotes quedan para quien quiere una compilación completa
-repartida sin guardar nada del sitio.
+`CompiladorPorLotes` (formato §10.4) reparte la compilación **completa** en
+tareas (cada página, cada fichero que se copia, el sitemap con el feed, la
+limpieza final) y las hace en varias llamadas, cada una con un presupuesto de
+tiempo. No es la compilación incremental: no recuerda qué se rehizo la vez
+anterior, y cada lote lo rehace todo. Para un sitio que se compila una y otra
+vez, `CompiladorIncrementalEnProceso` (más arriba) hace lo mismo con memoria;
+los lotes quedan para quien quiere una compilación completa repartida sin
+guardar nada del sitio.
+
+**No se promete en la 1.0** (decisión 128): `CompiladorPorLotes` y
+`CompiladorPorLotesEnProceso` son `@internal`, y para repartir una compilación en
+llamadas se usa `CompiladorIncrementalEnProceso::avanzar`. Lo que sigue cuenta
+cómo funcionan hoy, y puede cambiar.
 
 Cada llamada vuelve a leer el proyecto entero (con `agrupar` y `paginar`
 expandidos) y construye de nuevo el maquetador; lo único que viaja de una a otra

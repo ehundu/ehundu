@@ -8,9 +8,9 @@ namespace Ehundu;
  * Compila un proyecto y deja el resultado en su carpeta `salida/`.
  *
  * Es una interfaz para que quien hospeda el motor (la consola, una
- * herramienta de edición) no dependa de cómo se compila: hoy en el propio
- * proceso, más adelante de forma incremental, por lotes o en un trabajador
- * aparte.
+ * herramienta de edición) no dependa de cómo se compila: de una vez en el
+ * propio proceso (`CompiladorEnProceso`) o de forma incremental, también entre
+ * procesos (`CompiladorIncrementalEnProceso`).
  */
 interface Compilador
 {

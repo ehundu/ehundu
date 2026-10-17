@@ -18,6 +18,11 @@ use Ehundu\Plantillas\Maquetador;
  * (con su PDF), cada fichero que se copia, el sitemap y el feed, y la limpieza
  * de lo que sobra en `salida/`. Cada una se escribe al hacerla, así que `salida/`
  * mezcla páginas nuevas y viejas hasta que el lote está completo.
+ *
+ * No se promete en la 1.0 (decisión 128): para repartir una compilación en
+ * llamadas, `CompiladorIncrementalEnProceso::avanzar`.
+ *
+ * @internal
  */
 final class CompiladorPorLotesEnProceso implements CompiladorPorLotes
 {

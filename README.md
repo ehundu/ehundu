@@ -213,10 +213,11 @@ servidor no lo toca nunca. Con `--simular` dice qué haría sin hacerlo.
   (`menu.pdf.twig`) y sin programas externos. El mismo proyecto da siempre los
   mismos bytes, así que un PDF que no cambia no se vuelve a subir.
 - **Un `sitemap.xml`**, y un feed Atom si se pide.
-- **Compilación por lotes**, para un proceso web que no tiene tiempo de
-  compilar un sitio grande de una vez: la biblioteca la reparte, y también la
-  subida, en varias llamadas con un presupuesto de segundos cada una, y al
-  terminar da lo mismo que una compilación completa.
+- **Compilación y subida repartidas en llamadas**, para un proceso web que no
+  tiene tiempo de compilar un sitio grande de una vez: la biblioteca las reparte
+  en varias llamadas con un presupuesto de segundos cada una (`avanzar`, en la
+  compilación incremental, y el `Desplegador`), y al terminar dan lo mismo que
+  una compilación completa.
 - **Compilación incremental entre procesos**, para un proceso web que compila
   el mismo sitio una y otra vez: lo que recuerda se guarda en el proyecto
   (`.ehundu/`) y cambiar una página rehace unas pocas, en un sitio de 1.200

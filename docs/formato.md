@@ -1356,54 +1356,25 @@ plantilla o de lo que lee de `publico/`, igual que su página
 (`compilacion.md`). El sitemap no lleva PDF
 (§10.1).
 
-### 10.4 Compilación por lotes
+### 10.4 Compilación por lotes (no se promete)
 
-Compilar un sitio grande de una vez puede pasarse del tiempo que da un
-alojamiento a cada petición web. La compilación por lotes
-(`CompiladorPorLotes`, [`biblioteca.md`](biblioteca.md)) la reparte en varias
-llamadas, cada una con un presupuesto de tiempo, y al terminar deja `salida/`
-y los avisos que daría una compilación completa del mismo proyecto. La consola
-no la necesita y no la ofrece.
+El motor trae una compilación por lotes (`CompiladorPorLotes`): reparte una
+compilación **completa** en tareas (cada página, cada fichero que se copia, el
+sitemap con el feed y la limpieza final) y las hace en varias llamadas, cada una
+con un presupuesto de tiempo, sin recordar nada del sitio entre ellas. Por dónde
+va lo guarda en `.ehundu/lote.json` (§1). Gasta poca memoria a cambio de volver
+a leer el proyecto y hacer todas las páginas cada vez. Cómo funciona se cuenta
+en `compilacion.md`.
 
-- **Tareas.** El trabajo se divide en tareas que no se parten: hacer una
-  página (con su PDF, si lo tiene), copiar un fichero de `publico/` o de
-  `contenido/`, el sitemap y el feed, y la limpieza final, por ese orden, que
-  es el de una compilación completa. Cada llamada hace tareas hasta agotar su
-  presupuesto y siempre al menos una; la que ha empezado se termina, así que
-  una sola puede tardar más que el presupuesto.
-- **El estado.** Vive en `.ehundu/lote.json` (§1): el momento fijado para
-  decidir qué está publicado, la huella del proyecto, cuántas tareas hay y
-  cuántas se han hecho, los ficheros que ha escrito y los avisos que han dado.
-  No lleva nada del sitio: cada llamada vuelve a leer el proyecto entero, que
-  cuesta poco frente a hacer las páginas (en el sitio más grande de los de
-  prueba, con 1.200 páginas, leerlo y expandir `agrupar` y `paginar` son menos
-  de 1 s, y hacerlas, unos 40).
-- **Antes de escribir.** Empezar un lote comprueba lo que detiene una
-  compilación completa sin tocar `salida/`: un proyecto que no se lee, dos
-  páginas en el mismo fichero, un fichero PHP en `publico/`. Si falla, no
-  deja `salida/` a medias.
-- **Si el proyecto cambia** entre dos llamadas, el lote empieza de nuevo,
-  porque las páginas ya hechas podrían no corresponder a las que quedan, y lo
-  dice (`Lote::reiniciado()`). Es un cambio si cambia el tamaño o la fecha de
-  `sitio.yml` o de cualquier fichero de `contenido/`, `datos/`, `plantillas/`,
-  `parciales/` o `publico/`. Lo ya escrito que no cambia se queda como estaba.
-- **`salida/` mientras tanto.** Cada página se escribe al hacerla, y lo que
-  sobra se borra en la última tarea. Hasta que el lote está completo,
-  `salida/` mezcla páginas nuevas y viejas: es lo contrario de la garantía de
-  la compilación completa, que ante un error deja `salida/` como estaba, y por
-  eso el lote lo dice con `completo()` y nada debe publicarse mientras sea
-  falso. Un error del proyecto mientras se hacen las páginas (una plantilla
-  que falla) detiene el lote como `ErrorDeProyecto`, y deja el estado y lo
-  escrito como están.
-- **Seguir y repetir.** Empezar un lote descarta el que hubiera. Avanzar
-  retoma el que haya y, si no hay ninguno, empieza uno; en uno completo no
-  hace nada. Una llamada que llega mientras otra está avanzando no espera ni
-  estropea nada: devuelve el estado, con `ocupado()`.
-- **El mismo resultado.** Un lote completo y una compilación completa del
-  mismo proyecto dan los mismos ficheros en `salida/` y los mismos avisos,
-  también si el lote se corta y se retoma tantas veces como se quiera.
+**No forma parte de lo que promete la 1.0** (decisión 128): `CompiladorPorLotes`
+y `CompiladorPorLotesEnProceso` son `@internal` y pueden cambiar o desaparecer
+en cualquier versión. Lo que se promete para repartir una compilación en
+llamadas con un presupuesto de tiempo es `avanzar` de la compilación
+incremental (§10.5). De este apartado, del formato solo vale que `.ehundu/` es
+del motor (§1) y que `lote.json` es un nombre que el motor puede usar en él.
 
-El despliegue (`despliegue.md`) se reparte igual: ver la decisión 125.
+El despliegue (`despliegue.md`) se reparte con un presupuesto de tiempo y eso
+sí se promete: ver la decisión 125.
 
 ### 10.5 Compilación incremental entre procesos
 
@@ -1433,15 +1404,20 @@ consola no la necesita y no la ofrece.
 - **Cuándo se guarda.** Solo cuando una llamada sale bien. Un error del
   proyecto deja la memoria y `salida/` como estaban, y el siguiente cambio
   vuelve a aprovecharla.
-- **Por presupuesto.** `avanzar` hace lo mismo con un presupuesto de segundos,
-  como los lotes (§10.4): rehace páginas hasta agotarlo, siempre al menos una,
-  guarda lo hecho y devuelve un `Lote` que dice si está completo. La llamada
-  siguiente sigue: lo que ya está hecho se aprovecha por la misma regla que
-  cualquier otro cambio, y a una memoria con la mitad de las páginas solo le
+- **Por presupuesto.** `avanzar` hace lo mismo con un presupuesto de segundos:
+  rehace páginas hasta agotarlo, siempre al menos una (la que ha empezado se
+  termina, así que una llamada puede tardar más que el presupuesto), guarda lo
+  hecho y devuelve un `Lote` que dice si está completo con `completo()`. La
+  llamada siguiente sigue: lo que ya está hecho se aprovecha por la misma regla
+  que cualquier otro cambio, y a una memoria con la mitad de las páginas solo le
   faltan páginas, así que no hace falta ningún estado aparte, y si el proyecto
   cambia entre dos llamadas solo se rehace lo que el cambio afecta, no todo.
-  Hasta que está completo, `salida/` mezcla páginas nuevas y viejas: vale lo
-  del §10.4.
+  Cada página se escribe al hacerla, así que hasta que el `Lote` está completo
+  `salida/` mezcla páginas nuevas y viejas: es lo contrario de la garantía de la
+  compilación completa, que ante un error deja `salida/` como estaba, y por eso
+  nada debe publicarse mientras `completo()` sea falso. Completo, `salida/` y
+  los avisos son los de una compilación completa, también si se ha cortado y
+  retomado tantas veces como se quiera.
 - **Una llamada a la vez.** Una llamada que llega mientras otra está avanzando
   no espera ni estropea nada: devuelve el estado, con `ocupado()`.
 - **El primer arranque** (sin memoria) es una compilación completa: con
@@ -2519,7 +2495,8 @@ un sitio de la v1 no debe usarlo como campo propio.
     copiaría `publico/` otra vez (puede ser de gigas), y escribir cada página al
     hacerla deja `salida/` mezclada hasta el último lote, que el lote
     reconoce con `completo()`. La compilación incremental guardada entre
-    peticiones no entra: es otra función, que los lotes no impiden.
+    peticiones no entra: es otra función, que los lotes no impiden. (La decisión
+    128 los sacó después de lo que promete la 1.0.)
 125. **Cerrada.** El despliegue también se reparte en lotes. `Desplegador`
     acepta un presupuesto de tiempo (`$segundos`): cuando se agota, guarda el
     manifiesto y para, y lo dice, y la llamada siguiente sigue donde se quedó.
@@ -2546,8 +2523,9 @@ un sitio de la v1 no debe usarlo como campo propio.
     faltan páginas, y el plan de la incremental ya rehace las que faltan y
     aprovecha las que valen, también si el proyecto cambia entre dos llamadas
     (con los lotes, empezaba de nuevo). Los lotes se quedan como están, porque
-    la decisión 124 ya los promete, y esto los complementa: son los que
-    reparten una compilación completa sin recordar nada. Cuesta lo que pesa la
+    la decisión 124 ya los promete (la 128 retiró después esa promesa), y esto
+    los complementa: son los que reparten una compilación completa sin recordar
+    nada. Cuesta lo que pesa la
     memoria, en disco y en el proceso que la carga, y que la primera
     compilación tras cada cambio de versión del motor sea completa. Se
     descartó guardar solo lo que usó cada página y volver a leer el HTML de
@@ -2574,6 +2552,32 @@ un sitio de la v1 no debe usarlo como campo propio.
     función de plantilla (`{{ generador() }}`) por no ser por defecto, y poner
     también la versión en el feed (`<generator version="…">` de Atom), porque el
     feed cambiaría con cada versión como las páginas.
+128. **Cerrada.** La compilación por lotes (§10.4) deja de ser parte de lo que
+    promete la 1.0: `CompiladorPorLotes`, `CompiladorPorLotesEnProceso` y su
+    estado en `.ehundu/lote.json` pasan a `@internal`, y lo que se promete para
+    repartir una compilación en llamadas con un presupuesto de tiempo es
+    `CompiladorIncrementalEnProceso::avanzar` (§10.5), que devuelve el mismo
+    `Lote`. Corrige la decisión 124, que los prometía, y la 126, que los dejaba
+    «como están, porque la 124 ya los promete». Salió de revisar lo que se iba a
+    congelar: la lista pública tendría tres maneras de compilar, y dos de ellas
+    con un `avanzar` casi igual, así que quien incruste el motor se
+    encontraría con dos puertas que hacen lo mismo. Y los lotes traen rarezas
+    que la incremental no podría imitar sin cambiar de significado: `iniciar`,
+    `estado` y `abandonar` (un estado que se pueda leer sin cargar la memoria
+    entera, descartar un lote), `Lote::reiniciado()` (siempre falso en la
+    incremental) y un `Lote::$total` que cuenta tareas en unos y páginas en la
+    otra. Además, mantener las dos obliga a mantener dos implementaciones del
+    bucle de páginas hasta una versión mayor. Prometer es irreversible dentro de
+    una versión mayor y no prometer no lo es: añadir algo a la lista en una
+    versión menor no cuesta nada y quitarlo exige una mayor. Se descartaron
+    mantener la clase pública prometiendo solo `avanzar` y `Lote` (conserva lo
+    único que los lotes hacen mejor, compilar un sitio grande con unas decenas de
+    megas por llamada frente a las centenas de la incremental, pero deja dos
+    clases públicas con el mismo `avanzar`) y dejarlo como estaba (congela las
+    rarezas). El código se queda, `@internal`, y se decidirá si se borra cuando la
+    incremental pueda guardar su memoria por partes. No cambia nada para quien los
+    use hoy, solo que no se promete. La decisión 125 (el despliegue repartido en
+    llamadas) no cambia.
 
 ---
 

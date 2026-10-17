@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace Ehundu;
 
 /**
- * Cómo va una compilación por lotes (formato §10.4): lo que devuelven
- * `CompiladorPorLotes::iniciar()`, `avanzar()` y `estado()`.
+ * Cómo va una compilación repartida en llamadas (formato §10.5): lo que devuelve
+ * `CompiladorIncrementalEnProceso::avanzar()` y, por dentro, la compilación por
+ * lotes (§10.4, decisión 128).
  */
 final readonly class Lote
 {
@@ -54,7 +55,8 @@ final readonly class Lote
 
     /**
      * Si esta llamada ha tenido que empezar de nuevo porque el proyecto había
-     * cambiado desde la anterior.
+     * cambiado desde la anterior. No se promete en la 1.0: solo lo usa la
+     * compilación por lotes (decisión 128), y en la incremental es siempre falso.
      */
     public function reiniciado(): bool
     {

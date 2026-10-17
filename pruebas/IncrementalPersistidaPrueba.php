@@ -334,6 +334,7 @@ final class IncrementalPersistidaPrueba extends TestCase
 
         self::assertTrue($lote->ocupado());
         self::assertFalse($lote->completo());
+        self::assertSame(0.0, $lote->progreso(), 'Un lote ocupado no ha hecho nada: no va por el 100 %');
         self::assertSame(0, $lote->hechas);
         self::assertFileDoesNotExist($this->carpetaTemporal() . '/salida/index.html');
         self::assertFalse($this->compilador()->avanzar($proyecto, 600.0)->ocupado(), 'Suelto el cerrojo, avanza');

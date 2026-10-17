@@ -109,6 +109,28 @@ final class AtajosPrueba extends TestCase
     }
 
     #[Test]
+    public function unAtajoNoLeeFicherosDeFueraDePublico(): void
+    {
+        $this->crearFichero('secreto.txt', 'no se enseña');
+        $this->crearFichero('publico/doc.pdf', 'x');
+
+        $this->cuerpo("[archivo fichero=\"../secreto.txt\"]
+
+[imagen fichero=\"../secreto.txt\" alt=\"x\"]
+
+[video fichero=\"img/../../secreto.txt\"]
+
+[archivo fichero=\"docs\\doc.pdf\"]");
+
+        self::assertSame([
+            'contenido/index.md:5: [archivo] «fichero» tiene que ser un fichero de dentro de publico/, sin «..» ni barras invertidas: ../secreto.txt; no se inserta nada',
+            'contenido/index.md:7: [imagen] «fichero» tiene que ser un fichero de dentro de publico/, sin «..» ni barras invertidas: ../secreto.txt; no se inserta nada',
+            'contenido/index.md:9: [video] «fichero» tiene que ser un fichero de dentro de publico/, sin «..» ni barras invertidas: img/../../secreto.txt; no se inserta nada',
+            'contenido/index.md:11: [archivo] «fichero» tiene que ser un fichero de dentro de publico/, sin «..» ni barras invertidas: docs\doc.pdf; no se inserta nada',
+        ], $this->avisos());
+    }
+
+    #[Test]
     public function elAtajoVideoAdmiteYoutubeVimeoYFicheros(): void
     {
         $this->crearFichero('publico/video/visita.mp4', 'mp4');

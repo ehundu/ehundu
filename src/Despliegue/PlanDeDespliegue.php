@@ -158,7 +158,7 @@ final readonly class PlanDeDespliegue
     private static function turno(string $ruta): int
     {
         return match (true) {
-            $ruta === 'sitemap.xml' || $ruta === 'feed.xml' => 2,
+            in_array(basename($ruta), ['sitemap.xml', 'feed.xml'], true) => 2,
             in_array(strtolower(pathinfo($ruta, PATHINFO_EXTENSION)), ['html', 'htm'], true) => 1,
             default => 0,
         };

@@ -266,11 +266,29 @@ final class ExtensionTwig extends AbstractExtension
             return '';
         }
 
-        $svg = $this->proyecto->leerTexto($fichero);
-        $svg = (string) preg_replace('/^\s*<\?xml[^>]*\?>\s*/i', '', $svg);
-        $svg = (string) preg_replace('/^\s*<!DOCTYPE[^>]*>\s*/i', '', $svg);
+        return $this->svgs[$relativa] = self::sinPrologo($this->proyecto->leerTexto($fichero));
+    }
 
-        return $this->svgs[$relativa] = $svg;
+    /**
+     * El SVG sin la declaración XML ni el DOCTYPE (con su subconjunto interno, si lo lleva), que no caben dentro de
+     * HTML, estén donde estén antes de la etiqueta `<svg>`: Illustrator, por ejemplo, pone un comentario entre las dos.
+     * Los comentarios se dejan.
+     */
+    private static function sinPrologo(string $svg): string
+    {
+        $inicio = stripos($svg, '<svg');
+
+        if ($inicio === false) {
+            return $svg;
+        }
+
+        $prologo = (string) preg_replace('/<\?xml[^>]*\?>/i', '', substr($svg, 0, $inicio));
+        $prologo = (string) preg_replace('/<!DOCTYPE(?:[^>\[]|\[[^\]]*\])*>/i', '', $prologo);
+
+        $prologo = trim($prologo);
+
+        return ($prologo === '' ? '' : $prologo . "
+") . substr($svg, $inicio);
     }
 
     /**

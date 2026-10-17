@@ -18,8 +18,8 @@ namespace Ehundu;
  */
 final class Agrupador
 {
-    /** Para saber si el patrón de `url` usa el grupo: `{{ grupo }}` o `{{ grupo|slug }}`. */
-    private const string USA_EL_GRUPO = '/\{\{\s*grupo\s*(?:\|\s*slug\s*)?\}\}/';
+    /** Para saber si el patrón de `url` usa el grupo: `{{ grupo }}` o `{{ grupo|slug }}` (`slugify` es el mismo filtro). */
+    private const string USA_EL_GRUPO = '/\{\{\s*grupo\s*(?:\|\s*(?:slug|slugify)\s*)?\}\}/';
 
     /**
      * @throws ErrorDeProyecto si una plantilla de páginas depende de las que se generan

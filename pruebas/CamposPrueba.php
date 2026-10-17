@@ -396,6 +396,14 @@ final class CamposPrueba extends TestCase
         self::assertSame(['contenido/a.md:2: «url» tiene que ser un texto o false'], $this->avisos());
     }
 
+    #[Test]
+    public function unaUrlDeSoloEspaciosEsUnaEnBlanco(): void
+    {
+        self::assertSame(['url' => ''], $this->normalizar('url: "   "'));
+        self::assertSame(['url' => '/hola/'], $this->normalizar('url: " /hola/ "'));
+        self::assertSame([], $this->avisos());
+    }
+
     /**
      * @return array<array-key, mixed>
      */

@@ -44,6 +44,22 @@ final class AgruparPrueba extends TestCase
     }
 
     #[Test]
+    public function elGrupoEnElPatronAdmiteElAliasSlugify(): void
+    {
+        $this->crearSitio();
+        $ruta = $this->carpetaTemporal() . '/contenido/tema.md';
+        file_put_contents($ruta, str_replace('{{ grupo|slug }}', '{{ grupo|slugify }}', (string) file_get_contents($ruta)));
+
+        $construccion = $this->construir();
+
+        self::assertSame([], array_map(strval(...), $construccion->avisos));
+        self::assertSame(
+            ['tema/cultura-pop/index.html', 'tema/ideas/index.html', 'tema/oficio/index.html'],
+            $this->paginasGeneradas($construccion),
+        );
+    }
+
+    #[Test]
     public function laColeccionDeLasPaginasGeneradasHaceElIndiceConSusRecuentos(): void
     {
         $this->crearSitio();

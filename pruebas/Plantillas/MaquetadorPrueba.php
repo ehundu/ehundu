@@ -137,6 +137,26 @@ final class MaquetadorPrueba extends TestCase
     }
 
     #[Test]
+    public function svgQuitaLaDeclaracionYElDoctypeAunqueUnComentarioLosSepare(): void
+    {
+        $this->crearFichero('publico/svg/ai.svg', "<?xml version=\"1.0\" encoding=\"utf-8\"?>
+<!-- Generator: Adobe Illustrator -->
+<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\" [
+<!ENTITY ns \"http://x\">
+]>
+<svg id=\"ai\"></svg>
+");
+        $this->crearFichero('contenido/index.twig', "---
+plantilla: false
+---
+{{ svg('svg/ai.svg') }}");
+
+        self::assertSame("<!-- Generator: Adobe Illustrator -->
+<svg id=\"ai\"></svg>
+", $this->maquetar('index.twig'));
+    }
+
+    #[Test]
     public function svgInsertaElFicheroTalCualSinDeclaracionXml(): void
     {
         $this->crearFichero('publico/svg/telefono.svg', "<?xml version=\"1.0\"?>\n<!DOCTYPE svg>\n<svg viewBox=\"0 0 1 1\"><path d=\"M0 0\"/></svg>\n");

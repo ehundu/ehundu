@@ -181,9 +181,37 @@ final class PaginarPrueba extends TestCase
 
         self::assertSame(['blog.html'], array_values(array_filter(array_keys($construccion->escritos), fn (string $f) => str_starts_with($f, 'blog.') || str_contains($f, 'pagina'))));
         self::assertSame(
-            ['contenido/blog/index.md: La «url» de una página con «paginar» tiene que acabar en / para que las demás salgan en /blog.htmlpagina/2/; si no, se escribe «paginar.url». No se parte nada'],
+            ['contenido/blog/index.md: La «url» de una página con «paginar» (/blog.html) tiene que acabar en / para que las demás salgan en pagina/2/, pagina/3/…; si no, se escribe «paginar.url». No se parte nada'],
             $this->avisos($construccion),
         );
+    }
+
+    #[Test]
+    public function sinBarraFinalAvisaAunqueTodoQuepaEnUnTrozo(): void
+    {
+        $this->crearSitio();
+        $this->cambiarLaDefinicion('url: /blog/', 'url: /blog.html');
+        $this->cambiarLaDefinicion('porPagina: 3', 'porPagina: 50');
+
+        $construccion = $this->construir();
+
+        // Con la entrada que llene el trozo la página dejaría de partirse: se avisa ya, no cuando pase
+        self::assertCount(1, $this->avisos($construccion));
+        self::assertStringContainsString('(/blog.html) tiene que acabar en /', $this->avisos($construccion)[0]);
+        self::assertStringStartsWith('[/]|prev=|next=|', $construccion->escritos['blog.html']);
+    }
+
+    #[Test]
+    public function elNumeroEnElPatronAdmiteElAliasSlugify(): void
+    {
+        $this->crearSitio();
+        $this->cambiarLaDefinicion('orden: fecha desc', "orden: fecha desc
+  url: \"/blog/p-{{ numero|slugify }}/\"");
+
+        $construccion = $this->construir();
+
+        self::assertSame([], $this->avisos($construccion));
+        self::assertArrayHasKey('blog/p-2/index.html', $construccion->escritos);
     }
 
     #[Test]

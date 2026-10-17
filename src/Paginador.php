@@ -23,8 +23,8 @@ namespace Ehundu;
  */
 final class Paginador
 {
-    /** Para saber si el patrón de `paginar.url` usa el número: `{{ numero }}` o `{{ numero|slug }}`. */
-    private const string USA_EL_NUMERO = '/\{\{\s*numero\s*(?:\|\s*slug\s*)?\}\}/';
+    /** Para saber si el patrón de `paginar.url` usa el número: `{{ numero }}` o `{{ numero|slug }}` (`slugify` es el mismo filtro). */
+    private const string USA_EL_NUMERO = '/\{\{\s*numero\s*(?:\|\s*(?:slug|slugify)\s*)?\}\}/';
 
     public function expandir(Lectura $lectura, \DateTimeImmutable $ahora, bool $conBorradores = false): Lectura
     {
@@ -216,18 +216,19 @@ final class Paginador
         $urls = [1 => $primera];
         $prefijo = $sitio->idiomas->prefijo($definidora->idioma);
 
+        // Se comprueba aunque hoy quepa todo en un trozo: con la entrada que lo llene, la página dejaría de partirse
+        if ($patron === null && !str_ends_with($primera, '/')) {
+            $avisos->registrar(
+                "La «url» de una página con «paginar» ({$primera}) tiene que acabar en / para que las demás salgan en pagina/2/, pagina/3/…; "
+                . 'si no, se escribe «paginar.url». No se parte nada',
+                $fichero,
+            );
+
+            return null;
+        }
+
         for ($numero = 2; $numero <= $total; $numero++) {
             if ($patron === null) {
-                if (!str_ends_with($primera, '/')) {
-                    $avisos->registrar(
-                        "La «url» de una página con «paginar» tiene que acabar en / para que las demás salgan en {$primera}pagina/2/; "
-                        . 'si no, se escribe «paginar.url». No se parte nada',
-                        $fichero,
-                    );
-
-                    return null;
-                }
-
                 $urls[$numero] = "{$primera}pagina/{$numero}/";
 
                 continue;

@@ -38,10 +38,14 @@ final readonly class Lote
     }
 
     /**
-     * Lo que lleva hecho, de 0 a 1.
+     * Lo que lleva hecho, de 0 a 1. Un lote ocupado, que no ha hecho nada, va por el 0.
      */
     public function progreso(): float
     {
+        if ($this->ocupado) {
+            return 0.0;
+        }
+
         return $this->total === 0 ? 1.0 : min(1.0, $this->hechas / $this->total);
     }
 

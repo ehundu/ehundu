@@ -26,7 +26,7 @@ final class Lector
     {
         $avisos = new Avisos();
         $sitio = $this->leerSitio($proyecto, $avisos);
-        [$datos, $datosPorIdioma] = $this->leerDatos($proyecto, $sitio->idiomas, $avisos);
+        [$datos, $datosPorIdioma] = $this->leerDatos($proyecto, $sitio->idiomas, $sitio->zonaHoraria, $avisos);
         $cascada = new Cascada($proyecto, $avisos, $sitio->zonaHoraria);
 
         $paginas = [];
@@ -103,6 +103,7 @@ final class Lector
             );
         }
 
+        $campos = Campos::diaDelSitio($campos, $zonaHoraria);
         $idiomas = self::leerIdiomas($campos, $lineas, $avisos);
         $enlacesExternos = EnlacesExternos::leer($campos['enlacesExternos'] ?? null, $lineas['enlacesExternos'] ?? null, $idiomas, $avisos);
         $encabezados = Encabezados::leer($campos['encabezados'] ?? null, $lineas['encabezados'] ?? null, $idiomas, $avisos);
@@ -240,7 +241,7 @@ final class Lector
      *
      * @return array{0: array<string, mixed>, 1: array<string, array<string, mixed>>} los comunes y los de cada idioma
      */
-    private function leerDatos(Proyecto $proyecto, Idiomas $idiomas, Avisos $avisos): array
+    private function leerDatos(Proyecto $proyecto, Idiomas $idiomas, \DateTimeZone $zonaHoraria, Avisos $avisos): array
     {
         /** @var array<string, array<string, array<string, string>>> $ficheros por idioma ('' los comunes), nombre y formato */
         $ficheros = [];
@@ -284,7 +285,7 @@ final class Lector
 
                 $fichero = $porFormato['yml'] ?? $porFormato['json'];
                 $texto = $proyecto->leerTexto($fichero);
-                $valor = isset($porFormato['yml']) ? Yaml::leer($texto, $fichero) : self::leerJson($texto, $fichero);
+                $valor = isset($porFormato['yml']) ? Campos::diaDelSitio(Yaml::leer($texto, $fichero), $zonaHoraria) : self::leerJson($texto, $fichero);
 
                 if ($idioma === '') {
                     $datos[$nombre] = $valor;

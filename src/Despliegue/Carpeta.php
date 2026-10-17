@@ -11,14 +11,21 @@ use Ehundu\Proyecto;
  * Publicar en una carpeta local: la raíz de un servidor web de la propia
  * máquina, una carpeta sincronizada, un disco de red. Una ruta relativa se
  * cuenta desde la raíz del proyecto. La carpeta no puede estar dentro del
- * proyecto: el motor solo escribe en él dentro de `salida/`.
+ * proyecto: el motor solo escribe en él dentro de `salida/`. Si no existe, se
+ * crea al subir el primer fichero y no antes: simular no deja nada.
  */
 final class Carpeta implements Destino
 {
     private string $raiz;
 
+    private bool $creada = false;
+
+    private readonly string $proyectoReal;
+
+    private readonly string $escrita;
+
     /**
-     * @throws ErrorDeProyecto si la carpeta está dentro del proyecto o no se puede crear
+     * @throws ErrorDeProyecto si la carpeta está dentro del proyecto o, al escribir en ella, no se puede crear
      */
     public function __construct(string $ruta, Proyecto $proyecto)
     {
@@ -35,15 +42,30 @@ final class Carpeta implements Destino
             throw $dentroDelProyecto;
         }
 
-        if (!is_dir($completa) && !@mkdir($completa, 0777, true) && !is_dir($completa)) {
-            throw new ErrorDeProyecto("No se puede crear la carpeta de despliegue {$ruta}", Proyecto::SITIO);
+        $this->proyectoReal = $proyectoReal;
+        $this->escrita = $ruta;
+        $this->raiz = $completa;
+
+        if (is_dir($completa)) {
+            $this->comprobarLaRaiz();
+        }
+    }
+
+    /**
+     * La raíz existe: se miran los enlaces, por si llevan al proyecto.
+     */
+    private function comprobarLaRaiz(): void
+    {
+        $this->raiz = str_replace('\\', '/', (string) realpath($this->raiz));
+
+        if (self::dentro($this->raiz, $this->proyectoReal)) {
+            throw new ErrorDeProyecto(
+                "La carpeta de despliegue no puede estar dentro del proyecto: {$this->escrita}. Ehundu solo escribe en el proyecto dentro de salida/",
+                Proyecto::SITIO,
+            );
         }
 
-        $this->raiz = str_replace('\\', '/', (string) realpath($completa));
-
-        if (self::dentro($this->raiz, $proyectoReal)) {
-            throw $dentroDelProyecto;
-        }
+        $this->creada = true;
     }
 
     public function leer(string $ruta): ?string
@@ -101,6 +123,14 @@ final class Carpeta implements Destino
 
     private function preparar(string $ruta): void
     {
+        if (!$this->creada) {
+            if (!is_dir($this->raiz) && !@mkdir($this->raiz, 0777, true) && !is_dir($this->raiz)) {
+                throw new ErrorDeProyecto("No se puede crear la carpeta de despliegue {$this->escrita}", Proyecto::SITIO);
+            }
+
+            $this->comprobarLaRaiz();
+        }
+
         $carpeta = dirname("{$this->raiz}/{$ruta}");
 
         if (!is_dir($carpeta) && !@mkdir($carpeta, 0777, true) && !is_dir($carpeta)) {

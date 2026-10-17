@@ -193,9 +193,10 @@ final class ConfiguracionPrueba extends TestCase
     {
         $this->sitio("  destino: ftp\n  servidor: ftp.ejemplo.com\n  usuario: esquina");
 
-        $volcado = print_r($this->leer(['clave' => 'muy-secreta']), true);
+        $volcado = print_r($this->leer(['clave' => 'muy-secreta', 'clavePrivada' => '~/.ssh/muy-privada']), true);
 
         self::assertStringNotContainsString('muy-secreta', $volcado);
+        self::assertStringNotContainsString('muy-privada', $volcado, 'Dónde está la clave privada tampoco se enseña');
         self::assertStringContainsString('(oculta)', $volcado);
     }
 

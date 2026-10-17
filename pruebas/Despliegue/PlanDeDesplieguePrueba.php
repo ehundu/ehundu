@@ -75,10 +75,12 @@ final class PlanDeDesplieguePrueba extends TestCase
             'css/a.css' => self::fichero('4'),
             'blog/index.html' => self::fichero('5'),
             'img/b.jpg' => self::fichero('6'),
+            'eu/feed.xml' => self::fichero('7'),
+            'eu/index.html' => self::fichero('8'),
         ], null);
 
         self::assertSame(
-            ['css/a.css', 'img/b.jpg', 'blog/index.html', 'index.html', 'feed.xml', 'sitemap.xml'],
+            ['css/a.css', 'img/b.jpg', 'blog/index.html', 'eu/index.html', 'index.html', 'eu/feed.xml', 'feed.xml', 'sitemap.xml'],
             array_column($plan->subidas, 'ruta'),
         );
     }

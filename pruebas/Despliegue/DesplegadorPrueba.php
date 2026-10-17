@@ -302,6 +302,32 @@ final class DesplegadorPrueba extends TestCase
     }
 
     #[Test]
+    public function simularNoCreaLaCarpetaDeDestinoYDesplegarLaCreaAlSubirElPrimerFichero(): void
+    {
+        $this->crearSitio();
+        $publicado = $this->carpetaTemporal() . '-publicado-nuevo';
+        $this->crearFichero('sitio.yml', "nombre: Prueba
+url: https://ejemplo.com
+despliegue:
+  destino: carpeta
+  ruta: {$publicado}
+");
+
+        try {
+            $informe = (new Desplegador())->desplegar(Proyecto::abrir($this->carpetaTemporal()), simular: true);
+
+            self::assertNotSame([], $informe->subidos);
+            self::assertDirectoryDoesNotExist($publicado, 'Simular no toca el destino, tampoco para crearlo');
+
+            (new Desplegador())->desplegar(Proyecto::abrir($this->carpetaTemporal()));
+
+            self::assertFileExists("{$publicado}/index.html");
+        } finally {
+            self::borrarCarpeta($publicado);
+        }
+    }
+
+    #[Test]
     public function unaCarpetaDentroDelProyectoNoSeCreaNiSeUsa(): void
     {
         $this->crearSitio();

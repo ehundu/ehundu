@@ -182,8 +182,24 @@ final class Campos
             in_array($nombre, self::LISTAS, true) => self::listaDeTextos($valor),
             $nombre === 'plantilla' => self::plantilla($valor),
             $nombre === 'url' => self::url($valor),
-            default => $valor,
+            default => self::diaDelSitio($valor, $zona),
         };
+    }
+
+    /**
+     * Un día sin hora, como lo lee YAML (su medianoche en UTC), es ese día en la zona horaria del sitio, a cualquier
+     * profundidad (formato §4): sin esto, `|fecha` en una zona al oeste de UTC escribiría el día anterior. Una fecha
+     * con hora se deja como se leyó, un instante.
+     */
+    public static function diaDelSitio(mixed $valor, \DateTimeZone $zona): mixed
+    {
+        if ($valor instanceof \DateTimeInterface) {
+            return $valor->format('H:i:s') === '00:00:00' && $valor->getOffset() === 0
+                ? new \DateTimeImmutable($valor->format('Y-m-d') . ' 00:00:00', $zona)
+                : $valor;
+        }
+
+        return is_array($valor) ? array_map(static fn (mixed $dentro): mixed => self::diaDelSitio($dentro, $zona), $valor) : $valor;
     }
 
     /**
@@ -430,8 +446,13 @@ final class Campos
 
     private static function url(mixed $valor): string|false
     {
-        if (is_string($valor) || $valor === false) {
-            return $valor;
+        // Sin los espacios de alrededor: una url de solo espacios es una en blanco, que se deriva de la ruta
+        if (is_string($valor)) {
+            return trim($valor);
+        }
+
+        if ($valor === false) {
+            return false;
         }
 
         throw new \UnexpectedValueException('%s tiene que ser un texto o false');

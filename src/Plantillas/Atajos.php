@@ -159,6 +159,12 @@ final class Atajos
             return null;
         }
 
+        if (!Variantes::rutaValida($fichero)) {
+            $aviso("«fichero» tiene que ser un fichero de dentro de publico/, sin «..» ni barras invertidas: {$fichero}; no se inserta nada");
+
+            return null;
+        }
+
         // Una imagen con variantes no necesita el fichero que da nombre a su
         // tronco: puede que solo estén ellas en publico/.
         $variantes = $this->variantesDe($fichero, $aviso);
@@ -317,6 +323,12 @@ final class Atajos
             return null;
         }
 
+        if (!Variantes::rutaValida($fichero)) {
+            $aviso("«fichero» tiene que ser un fichero de dentro de publico/, sin «..» ni barras invertidas: {$fichero}; no se inserta nada");
+
+            return null;
+        }
+
         if (!$this->existe($fichero)) {
             $aviso("no existe publico/{$fichero}");
         }
@@ -336,6 +348,12 @@ final class Atajos
 
         if ($fichero === '') {
             $aviso('falta «fichero», el documento dentro de publico/; no se inserta nada');
+
+            return null;
+        }
+
+        if (!Variantes::rutaValida($fichero)) {
+            $aviso("«fichero» tiene que ser un fichero de dentro de publico/, sin «..» ni barras invertidas: {$fichero}; no se inserta nada");
 
             return null;
         }

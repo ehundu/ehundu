@@ -179,7 +179,7 @@ final readonly class Configuracion
     {
         $datos = get_object_vars($this);
 
-        foreach (['clave', 'frase'] as $secreta) {
+        foreach (self::SECRETAS as $secreta) {
             if ($datos[$secreta] !== null) {
                 $datos[$secreta] = '(oculta)';
             }

@@ -102,9 +102,9 @@ documentación son inventados.
    completa (ver `docs/compilacion.md`). Cualquier cosa nueva que una
    plantilla, un atajo o el Markdown puedan leer (un fichero, una colección,
    otra página) tiene que anotarse en el registro de la página, y las pruebas
-   de equivalencia tienen que cubrirla. Los lotes llegarán más adelante: no
-   mezcles decidir qué se rehace con rehacerlo, ni al compilar ni al
-   desplegar.
+   de equivalencia tienen que cubrirla. Repartir el trabajo en llamadas ya
+   existe (formato §10.4 y §10.5): no mezcles decidir qué se rehace con
+   rehacerlo, ni al compilar ni al desplegar.
 10. **Errores claros y en español**, con fichero y línea cuando se pueda. Un
     valor que no vale en un campo reservado avisa; no rompe el build salvo
     que sea imprescindible (§4 del formato).

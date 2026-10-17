@@ -12,5 +12,5 @@ namespace Ehundu;
  */
 final class Version
 {
-    public const string ACTUAL = '0.15.0-dev';
+    public const string ACTUAL = '0.15.0';
 }

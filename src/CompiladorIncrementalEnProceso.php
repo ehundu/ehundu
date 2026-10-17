@@ -16,6 +16,12 @@ use Ehundu\Incremental\Almacen;
  * compilación completa. Con `avanzar` esa compilación, o cualquier otra, se reparte en las llamadas que haga falta.
  *
  * Solo si la compilación sale bien se guarda la memoria; un error del proyecto la deja como estaba.
+ *
+ * La memoria guardada pide, para cargarla y rehacer lo que cambie, unas tres veces lo que mide el fichero más 16 MB
+ * (`Almacen::MEMORIA_POR_BYTE`). Si no cabe en el `memory_limit` de PHP, `compilar` hace una compilación completa
+ * sin recordar nada, como `CompiladorEnProceso`, y lo dice en un aviso; `avanzar`, que sin la memoria no puede
+ * repartir el trabajo, falla con un error que dice a cuánto subir el límite. Ninguna de las dos toca la memoria
+ * guardada, que vuelve a servir en cuanto cabe.
  */
 final class CompiladorIncrementalEnProceso implements Compilador
 {
@@ -82,6 +88,17 @@ final class CompiladorIncrementalEnProceso implements Compilador
         try {
             $proyecto->comprobarSalida();
 
+            $tamano = Almacen::tamano($proyecto);
+            $limite = Almacen::limiteDeMemoria();
+
+            if ($tamano !== null && $limite !== null && !Almacen::cabe($tamano, $limite, memory_get_usage(true))) {
+                if ($segundos !== null) {
+                    throw new ErrorDeProyecto(Almacen::noCabe($tamano, $limite), Almacen::FICHERO);
+                }
+
+                return $this->completaSinMemoria($proyecto, $inicio, Almacen::noCabe($tamano, $limite));
+            }
+
             $guardada = Almacen::cargar($proyecto);
             $constructor = new Constructor(incremental: true);
             $constructor->recordar($guardada['memoria'] ?? null);
@@ -131,6 +148,23 @@ final class CompiladorIncrementalEnProceso implements Compilador
         } finally {
             Almacen::soltar($cerrojo);
         }
+    }
+
+    /**
+     * Una compilación completa que no lee ni guarda la memoria, para cuando no cabe en el `memory_limit`.
+     */
+    private function completaSinMemoria(Proyecto $proyecto, int $inicio, string $motivo): Lote
+    {
+        $construccion = (new Constructor())->construir($proyecto, $this->ahora);
+
+        $proyecto->sincronizarSalida($construccion->escritos, $construccion->copias);
+
+        return new Lote($construccion->total, $construccion->total, new Informe(
+            paginas: $construccion->paginas,
+            avisos: [...$construccion->avisos, new Aviso($motivo . '; mientras tanto se compila el sitio entero cada vez, sin recordar nada')],
+            segundos: (hrtime(true) - $inicio) / 1e9,
+            ficheros: count($construccion->copias),
+        ));
     }
 
     /**

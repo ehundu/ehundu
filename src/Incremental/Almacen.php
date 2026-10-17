@@ -14,9 +14,12 @@ use Ehundu\Proyecto;
  * proceso (formato §10.5).
  *
  * El fichero lleva una línea con la marca, la versión de la memoria, la huella del motor que la escribió,
- * cuándo se guardó y cuántos bytes mide lo que sigue, y detrás la memoria serializada. Si no vale (no está, está
- * dañada o a medio escribir, es de otra versión de la memoria o del motor, o es de otro proyecto) no hay error:
- * se devuelve null y se hace una compilación completa.
+ * cuándo se guardó y cuántos bytes mide lo que sigue (con ceros delante hasta doce cifras, porque se escribe al
+ * final), y detrás los registros: uno con lo que se leyó del proyecto, uno por cada cuerpo convertido y uno por
+ * cada página. Cada registro es su largo en cuatro bytes y el valor serializado. Se guarda y se lee de uno en uno
+ * para no tener en memoria, además de la propia memoria, una copia serializada entera: en un sitio grande son
+ * cien megas de más. Si no vale (no está, está dañada o a medio escribir, es de otra versión de la memoria o
+ * del motor, o es de otro proyecto) no hay error: se devuelve null y se hace una compilación completa.
  *
  * @internal
  */
@@ -33,7 +36,18 @@ final class Almacen
     private const float SONDEO = 0.1;
 
     /** Cambia cuando cambia cómo se guarda la memoria */
-    public const int VERSION = 2;
+    public const int VERSION = 3;
+
+    /**
+     * Cuánta memoria de PHP pide la memoria guardada por cada byte que mide el fichero, más `MEMORIA_BASE`, para
+     * cargarla y rehacer lo que cambie. Se mide en el peor caso (una plantilla cambiada rehace todas las páginas):
+     * en los sitios de prueba salen unas 2,5 veces el fichero más unos 10 MB, y esto lo deja con un 20 % de
+     * holgura. Ver `docs/compilacion.md`.
+     */
+    public const float MEMORIA_POR_BYTE = 3.0;
+
+    /** La parte de lo que pide la memoria guardada que no depende de lo que mide: PHP, Twig y el motor. */
+    public const int MEMORIA_BASE = 16 * 1048576;
 
     private const string MARCA = 'EHUNDU-MEMORIA';
 
@@ -92,27 +106,103 @@ final class Almacen
             }
 
             $bytes = (int) $partes[4];
-            $datos = $bytes > 0 ? stream_get_contents($gestor) : false;
 
             // Un fichero cortado (se agotó el espacio, o se mató el proceso al escribir) no vale
-            if ($datos === false || strlen($datos) !== $bytes) {
+            if ($bytes <= 0 || (fstat($gestor)['size'] ?? -1) !== strlen($cabecera) + $bytes) {
                 return null;
             }
+
+            $memoria = self::leerRegistros($gestor, $bytes);
+        } catch (\Throwable) {
+            return null;
         } finally {
             fclose($gestor);
         }
 
-        try {
-            $memoria = @unserialize($datos, ['allowed_classes' => self::CLASES]);
-        } catch (\Throwable) {
-            return null;
-        }
-
-        if (!$memoria instanceof Memoria || $memoria->raiz !== $proyecto->raiz) {
+        if ($memoria->raiz !== $proyecto->raiz) {
             return null;
         }
 
         return ['memoria' => $memoria, 'guardada' => (int) $partes[3]];
+    }
+
+    /**
+     * Lee los registros que siguen a la cabecera: todos los bytes que ésta dice y ni uno más.
+     *
+     * @param resource $gestor
+     *
+     * @throws \UnexpectedValueException si algo no es lo que tiene que ser
+     */
+    private static function leerRegistros($gestor, int $bytes): Memoria
+    {
+        $quedan = $bytes;
+        $principio = self::leerRegistro($gestor, $quedan);
+
+        if (!is_array($principio) || count($principio) !== 8 || !is_int($principio[6]) || !is_int($principio[7]) || $principio[6] < 0 || $principio[7] < 0
+            || ($principio[6] + $principio[7]) * 8 > $quedan) {
+            throw new \UnexpectedValueException('La cabecera de la memoria no es válida');
+        }
+
+        [$raiz, $conBorradores, $lectura, $huellas, $publicadas, $huellasTomadas, $cuerpos, $paginas] = $principio;
+        $registros = ['cuerpos' => [], 'paginas' => []];
+
+        foreach (['cuerpos' => $cuerpos, 'paginas' => $paginas] as $cuales => $cuantos) {
+            for ($i = 0; $i < $cuantos; $i++) {
+                $registro = self::leerRegistro($gestor, $quedan);
+
+                if (!is_array($registro) || count($registro) !== 2 || !array_key_exists(0, $registro) || !(is_string($registro[0]) || is_int($registro[0]))) {
+                    throw new \UnexpectedValueException('Un registro de la memoria no es válido');
+                }
+
+                $registros[$cuales][$registro[0]] = $registro[1];
+            }
+        }
+
+        if ($quedan !== 0) {
+            throw new \UnexpectedValueException('Sobran datos al final de la memoria');
+        }
+
+        return new Memoria($raiz, $conBorradores, $lectura, $huellas, $publicadas, $registros['cuerpos'], $registros['paginas'], $huellasTomadas);
+    }
+
+    /**
+     * @param resource $gestor
+     * @param int      $quedan los bytes de registros que faltan por leer; se rebaja con lo que se lee
+     */
+    private static function leerRegistro($gestor, int &$quedan): mixed
+    {
+        $largo = $quedan >= 4 ? fread($gestor, 4) : false;
+
+        if (!is_string($largo) || strlen($largo) !== 4) {
+            throw new \UnexpectedValueException('La memoria acaba antes de tiempo');
+        }
+
+        $largo = (int) (unpack('N', $largo)[1] ?? -1);
+
+        if ($largo <= 0 || $largo > $quedan - 4) {
+            throw new \UnexpectedValueException('Un registro de la memoria mide más de lo que queda');
+        }
+
+        $datos = '';
+
+        while (strlen($datos) < $largo) {
+            $trozo = fread($gestor, $largo - strlen($datos));
+
+            if ($trozo === false || $trozo === '') {
+                throw new \UnexpectedValueException('La memoria acaba antes de tiempo');
+            }
+
+            $datos .= $trozo;
+        }
+
+        $quedan -= 4 + $largo;
+        $valor = @unserialize($datos, ['allowed_classes' => self::CLASES]);
+
+        if ($valor === false) {
+            throw new \UnexpectedValueException('Un registro de la memoria no se puede leer');
+        }
+
+        return $valor;
     }
 
     /**
@@ -124,17 +214,136 @@ final class Almacen
     {
         Estado::prepararCarpeta($proyecto);
 
-        $datos = serialize($memoria);
-        $cabecera = implode(' ', [self::MARCA, self::VERSION, self::huellaDelMotor(), time(), strlen($datos)]) . "\n";
         $fichero = $proyecto->ruta(self::FICHERO);
         $nuevo = $fichero . '.nuevo';
         $gestor = @fopen($nuevo, 'wb');
+        $huella = self::huellaDelMotor();
+        $momento = time();
+        $cabecera = self::cabecera($huella, $momento, 0);
+        $bien = $gestor !== false && fwrite($gestor, $cabecera) === strlen($cabecera);
+        $bytes = 0;
 
-        if ($gestor === false || fwrite($gestor, $cabecera) !== strlen($cabecera) || fwrite($gestor, $datos) !== strlen($datos) || !fclose($gestor) || !@rename($nuevo, $fichero)) {
+        if ($bien) {
+            foreach (self::registros($memoria) as $registro) {
+                $datos = serialize($registro);
+                $unidad = pack('N', strlen($datos)) . $datos;
+
+                if (fwrite($gestor, $unidad) !== strlen($unidad)) {
+                    $bien = false;
+
+                    break;
+                }
+
+                $bytes += strlen($unidad);
+            }
+        }
+
+        // El largo de lo que sigue a la cabecera se sabe al final: se vuelve a escribir, con el mismo ancho
+        $bien = $bien && rewind($gestor) && fwrite($gestor, self::cabecera($huella, $momento, $bytes)) === strlen($cabecera);
+
+        if ($gestor !== false) {
+            $bien = fclose($gestor) && $bien;
+        }
+
+        if (!$bien || !@rename($nuevo, $fichero)) {
             @unlink($nuevo);
 
             throw new ErrorDeProyecto('No se puede guardar lo que recuerda la compilación incremental', self::FICHERO);
         }
+    }
+
+    private static function cabecera(string $huella, int $momento, int $bytes): string
+    {
+        return implode(' ', [self::MARCA, self::VERSION, $huella, $momento, sprintf('%012d', $bytes)]) . "\n";
+    }
+
+    /**
+     * Lo que se guarda, registro a registro: lo que no son cuerpos ni páginas, con cuántos hay de cada, y después
+     * un par de ruta y valor por cada cuerpo y cada página.
+     *
+     * @return \Generator<int, array<mixed>>
+     */
+    private static function registros(Memoria $memoria): \Generator
+    {
+        yield [$memoria->raiz, $memoria->conBorradores, $memoria->lectura, $memoria->huellas, $memoria->publicadas, $memoria->huellasTomadas, count($memoria->cuerpos), count($memoria->paginas)];
+
+        foreach ($memoria->cuerpos as $ruta => $cuerpo) {
+            yield [$ruta, $cuerpo];
+        }
+
+        foreach ($memoria->paginas as $ruta => $pagina) {
+            yield [$ruta, $pagina];
+        }
+    }
+
+    /**
+     * Lo que mide la memoria guardada, o null si no hay.
+     */
+    public static function tamano(Proyecto $proyecto): ?int
+    {
+        $fichero = $proyecto->ruta(self::FICHERO);
+        clearstatcache(true, $fichero);
+        $tamano = @filesize($fichero);
+
+        return $tamano === false ? null : $tamano;
+    }
+
+    /**
+     * El `memory_limit` de PHP en bytes, o null si no tiene (o si no se entiende lo que dice).
+     */
+    public static function limiteDeMemoria(): ?int
+    {
+        return self::bytesDe((string) ini_get('memory_limit'));
+    }
+
+    /**
+     * Los bytes que dice un valor de `memory_limit`: un número con una `K`, `M` o `G` detrás, o sin nada. Null si no
+     * hay límite (`-1`, `0`) o no se entiende.
+     */
+    public static function bytesDe(string $valor): ?int
+    {
+        if (preg_match('/^\s*(\d+)\s*([kmg]?)b?\s*$/i', $valor, $partes) !== 1) {
+            return null;
+        }
+
+        $bytes = (int) $partes[1] * match (strtolower($partes[2])) {
+            'k' => 1024,
+            'm' => 1024 ** 2,
+            'g' => 1024 ** 3,
+            default => 1,
+        };
+
+        return $bytes > 0 ? $bytes : null;
+    }
+
+    /**
+     * Los bytes de memoria de PHP que pide una memoria guardada de `$tamano` bytes (ver `MEMORIA_POR_BYTE`).
+     */
+    public static function necesaria(int $tamano): int
+    {
+        return (int) ceil($tamano * self::MEMORIA_POR_BYTE) + self::MEMORIA_BASE;
+    }
+
+    /**
+     * Si una memoria guardada de `$tamano` bytes cabe en lo que queda de `$limite`, con `$enUso` ya ocupados.
+     * Sin límite, siempre cabe.
+     */
+    public static function cabe(int $tamano, ?int $limite, int $enUso): bool
+    {
+        return $limite === null || $enUso + self::necesaria($tamano) <= $limite;
+    }
+
+    /**
+     * Lo que se le dice a quien tiene un `memory_limit` que no da para la memoria guardada: cuánto ocupa, cuánto
+     * hace falta, cuánto hay y a cuánto subirlo (a un múltiplo de 64 MB).
+     */
+    public static function noCabe(int $tamano, int $limite): string
+    {
+        $megas = static fn (int $bytes): string => number_format(max(1, (int) ceil($bytes / 1048576)), 0, ',', '.');
+        $sugerido = (int) ceil((self::necesaria($tamano) + 8 * 1048576) / (64 * 1048576)) * 64;
+
+        return "La memoria de la compilación incremental ocupa {$megas($tamano)} MB y para usarla hacen falta unos {$megas(self::necesaria($tamano))} MB, "
+            . "pero el memory_limit de PHP es de {$megas($limite)} MB. Sube el memory_limit a {$sugerido} MB o más";
     }
 
     /**

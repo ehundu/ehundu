@@ -6,9 +6,12 @@ namespace Ehundu\Pruebas;
 
 use Ehundu\CompiladorEnProceso;
 use Ehundu\CompiladorIncrementalEnProceso;
+use Ehundu\Constructor;
 use Ehundu\ErrorDeProyecto;
 use Ehundu\Incremental\Almacen;
 use Ehundu\Informe;
+use Ehundu\Memoria;
+use Ehundu\Plantillas\Registro;
 use Ehundu\Proyecto;
 use Ehundu\Pruebas\Apoyo\CarpetaTemporal;
 use PHPUnit\Framework\Attributes\After;
@@ -193,6 +196,21 @@ final class IncrementalPersistidaPrueba extends TestCase
         yield 'basura' => [static fn (string $f) => file_put_contents($f, str_repeat("basura\n", 100))];
         yield 'de otra versión de la memoria' => [static fn (string $f) => file_put_contents($f, preg_replace('/^(EHUNDU-MEMORIA) \d+/', '$1 999', (string) file_get_contents($f), 1))];
         yield 'de otro motor' => [static fn (string $f) => file_put_contents($f, preg_replace('/^(EHUNDU-MEMORIA \d+) \S+/', '$1 0000000000000000', (string) file_get_contents($f), 1))];
+        yield 'con datos de más al final' => [static function (string $f): void {
+            file_put_contents($f, 'sobra', FILE_APPEND);
+        }];
+        yield 'con el largo de un registro estropeado' => [static function (string $f): void {
+            $datos = (string) file_get_contents($f);
+            $principio = (int) strpos($datos, "\n") + 1;
+            file_put_contents($f, substr_replace($datos, "\xFF\xFF\xFF\xFF", $principio, 4));
+        }];
+        yield 'con un registro sin leer, del mismo tamaño' => [static function (string $f): void {
+            $datos = (string) file_get_contents($f);
+            $principio = (int) strpos($datos, "\n") + 1;
+            // El primer registro: su largo se respeta, pero lo que lleva ya no es un valor serializado
+            $largo = (int) unpack('N', substr($datos, $principio, 4))[1];
+            file_put_contents($f, substr_replace($datos, str_repeat('x', $largo), $principio + 4, $largo));
+        }];
         yield 'con la carga estropeada' => [static function (string $f): void {
             $datos = (string) file_get_contents($f);
             // Mismo tamaño que dice la cabecera, pero ya no es una memoria
@@ -413,6 +431,166 @@ final class IncrementalPersistidaPrueba extends TestCase
         self::assertSame("listo\n", fgets($tuberias[1]), 'El otro proceso tenía que coger el cerrojo');
 
         return $proceso;
+    }
+
+    #[Test]
+    public function laMemoriaGuardadaPorRegistrosSeCargaIgualQueLaOriginal(): void
+    {
+        $this->crearSitio();
+        $proyecto = Proyecto::abrir($this->carpetaTemporal());
+        $constructor = new Constructor(incremental: true);
+        $constructor->construir($proyecto, $this->ahora());
+        $original = $constructor->memoria() ?? self::fail('Una construcción incremental deja memoria');
+
+        Almacen::guardar($proyecto, $original);
+        $cargada = Almacen::cargar($proyecto);
+
+        self::assertNotNull($cargada);
+        self::assertEquals($original, $cargada['memoria']);
+        self::assertGreaterThan(0, count($original->cuerpos));
+        self::assertGreaterThan(0, count($original->paginas));
+        self::assertEqualsWithDelta(time(), $cargada['guardada'], 5);
+    }
+
+    #[Test]
+    public function unaPaginaCuyaRutaEsUnNumeroSeReconoceDespuesDeCargarLaMemoria(): void
+    {
+        $this->crearFichero('sitio.yml', "nombre: Prueba\nurl: https://ejemplo.com\n");
+        $this->crearFichero('plantillas/pagina.twig', "{{ pagina.contenido }}\n");
+        $this->crearFichero('contenido/404.md', "---\ntitulo: No está\n---\nNo está.\n");
+        $this->crearFichero('contenido/2024.md', "---\ntitulo: Año\n---\nUn año.\n");
+        $proyecto = Proyecto::abrir($this->carpetaTemporal());
+
+        $this->compilador()->compilar($proyecto);
+        $segunda = $this->compilador()->compilar(Proyecto::abrir($this->carpetaTemporal()));
+
+        self::assertSame(0, $segunda->rehechas, 'La memoria se carga con las rutas que eran números');
+    }
+
+    #[Test]
+    public function guardarYCargarPorRegistrosNoPidenUnaCopiaEnteraDeLaMemoria(): void
+    {
+        $this->crearSitio();
+        $proyecto = Proyecto::abrir($this->carpetaTemporal());
+        $constructor = new Constructor(incremental: true);
+        $constructor->construir($proyecto, $this->ahora());
+        $pequena = $constructor->memoria() ?? self::fail('Una construcción incremental deja memoria');
+
+        // Cien páginas de 400 kB cada una, todas distintas: unos 40 MB
+        $paginas = [];
+
+        for ($i = 0; $i < 100; $i++) {
+            $paginas["pagina-{$i}"] = ['html' => $i . str_repeat('x', 400_000), 'pdf' => null, 'paquetes' => [], 'registro' => new Registro()];
+        }
+
+        $grande = new Memoria($pequena->raiz, $pequena->conBorradores, $pequena->lectura, $pequena->huellas, $pequena->publicadas, [], $paginas, $pequena->huellasTomadas);
+        $peso = 100 * 400_000;
+
+        memory_reset_peak_usage();
+        $antes = memory_get_usage();
+        Almacen::guardar($proyecto, $grande);
+        $alGuardar = memory_get_peak_usage() - $antes;
+
+        self::assertGreaterThan($peso, (int) filesize($proyecto->ruta(Almacen::FICHERO)));
+        self::assertLessThan($peso / 4, $alGuardar, 'Guardar no serializa la memoria entera de una vez');
+
+        unset($grande, $paginas);
+        memory_reset_peak_usage();
+        $antes = memory_get_usage();
+        $cargada = Almacen::cargar($proyecto);
+        $alCargar = memory_get_peak_usage() - $antes;
+
+        self::assertNotNull($cargada);
+        self::assertCount(100, $cargada['memoria']->paginas);
+        self::assertLessThan($peso * 1.3, $alCargar, 'Cargar no lee el fichero entero antes de convertirlo');
+    }
+
+    #[Test]
+    public function siLaMemoriaNoCabeEnElLimiteDePhpSeCompilaEnteroSinTocarlaYSeAvisa(): void
+    {
+        $this->crearSitio();
+        $proyecto = Proyecto::abrir($this->carpetaTemporal());
+        $this->compilador()->compilar($proyecto);
+        $this->engordarLaMemoria();
+        $antes = md5_file($proyecto->ruta(Almacen::FICHERO));
+
+        $informe = $this->conLimiteDeMemoria(fn () => $this->compilador()->compilar($proyecto));
+
+        self::assertSame($informe->paginas, $informe->rehechas, 'Sin memoria, se hace todo');
+        self::assertSame($antes, md5_file($proyecto->ruta(Almacen::FICHERO)), 'La memoria guardada se deja como estaba');
+        $avisos = array_map(strval(...), $informe->avisos);
+        $nuestro = array_values(array_filter($avisos, fn (string $a) => str_contains($a, 'memory_limit')));
+        self::assertCount(1, $nuestro);
+        self::assertStringContainsString('Sube el memory_limit a', $nuestro[0]);
+        self::assertStringContainsString('se compila el sitio entero cada vez', $nuestro[0]);
+
+        $completa = $this->copiaDelProyecto();
+        (new CompiladorEnProceso($this->ahora()))->compilar(Proyecto::abrir($completa));
+        self::assertSame($this->arbol($completa . '/salida'), $this->arbol($this->carpetaTemporal() . '/salida'));
+    }
+
+    #[Test]
+    public function avanzarConUnaMemoriaQueNoCabeFallaDiciendoAQuePedirElLimite(): void
+    {
+        $this->crearSitio();
+        $proyecto = Proyecto::abrir($this->carpetaTemporal());
+        $this->compilador()->compilar($proyecto);
+        $this->engordarLaMemoria();
+        $antes = md5_file($proyecto->ruta(Almacen::FICHERO));
+
+        try {
+            $this->conLimiteDeMemoria(fn () => $this->compilador()->avanzar($proyecto, 5.0));
+            self::fail('Sin memoria no se puede repartir el trabajo');
+        } catch (ErrorDeProyecto $error) {
+            self::assertStringContainsString('el memory_limit de PHP es de', $error->getMessage());
+            self::assertStringContainsString('Sube el memory_limit a', $error->getMessage());
+            self::assertSame(Almacen::FICHERO, $error->fichero);
+        }
+
+        self::assertSame($antes, md5_file($proyecto->ruta(Almacen::FICHERO)));
+        self::assertNotNull(Almacen::bloquear($proyecto), 'Fallar no deja el cerrojo cogido');
+    }
+
+    /**
+     * Hace que el fichero de la memoria mida más de lo que cabe en `conLimiteDeMemoria`. Ya no es una memoria
+     * que valga: el resguardo mira cuánto mide antes de leerla.
+     */
+    private function engordarLaMemoria(): void
+    {
+        $gestor = fopen($this->carpetaTemporal() . '/.ehundu/memoria.bin', 'ab');
+        self::assertNotFalse($gestor);
+
+        for ($i = 0; $i < 24; $i++) {
+            fwrite($gestor, str_repeat('0', 1_048_576));
+        }
+
+        fclose($gestor);
+    }
+
+    /**
+     * Ejecuta algo con un `memory_limit` que da 64 MB más de lo que ocupa ahora el proceso, que no da para una
+     * memoria guardada de 24 MB (pide unos 88).
+     *
+     * @template T
+     *
+     * @param callable(): T $hacer
+     *
+     * @return T
+     */
+    private function conLimiteDeMemoria(callable $hacer): mixed
+    {
+        $anterior = (string) ini_get('memory_limit');
+        $limite = memory_get_usage(true) + 64 * 1_048_576;
+
+        if (ini_set('memory_limit', (string) $limite) === false) {
+            self::markTestSkipped('No se puede cambiar el memory_limit en este PHP');
+        }
+
+        try {
+            return $hacer();
+        } finally {
+            ini_set('memory_limit', $anterior);
+        }
     }
 
     #[Test]

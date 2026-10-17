@@ -76,14 +76,19 @@ proceso, y el resultado es siempre el de una compilación completa.
   valga (la primera vez, tras cambiar de versión del motor, o si se borra
   `.ehundu/`) hace una compilación completa. Lanza `ErrorDeProyecto` si el
   proyecto no se puede compilar, y entonces deja la memoria y `salida/` como
-  estaban.
+  estaban. Si la memoria guardada no cabe en el `memory_limit` de PHP (pide unas
+  tres veces lo que mide el fichero más 16 MB), compila entero sin usarla ni
+  tocarla y da un aviso que dice a cuánto subir el límite.
 - **`avanzar(Proyecto, float $segundos): Lote`** hace lo mismo con un
   presupuesto: rehace páginas hasta agotarlo, y siempre al menos una, guarda lo
   hecho y devuelve un `Lote` que dice si está completo. La llamada siguiente
   sigue donde se quedó, también si el proyecto ha cambiado entretanto: solo se
   rehace lo que el cambio afecta. Hasta que el `Lote` está completo, `salida/`
   mezcla páginas nuevas y viejas, y nada debe publicarse. Una llamada que llega
-  mientras otra está avanzando no espera: devuelve `ocupado()`.
+  mientras otra está avanzando no espera: devuelve `ocupado()`. Si la memoria
+  guardada no cabe en el `memory_limit` de PHP, lanza `ErrorDeProyecto` con lo que
+  ocupa, lo que pide y a cuánto subir el límite, porque sin ella no puede repartir
+  el trabajo.
 - **`olvidar(Proyecto)`** borra la memoria: la siguiente compilación será
   completa.
 - **`Lote`**, lo que devuelve `avanzar`: `$hechas`, `$total`, `completo()`,

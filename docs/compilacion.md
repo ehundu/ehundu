@@ -138,6 +138,22 @@ y guardarla), frente a los 35–45 s de una compilación completa. La memoria pe
 del orden de `salida/` más lo leído (97 MB en ese sitio) y se carga en unos
 0,06 s. Son medidas de un sitio y de una máquina, no una promesa del formato.
 
+**La memoria de PHP.** Se guarda y se lee registro a registro (decisión 141), sin
+construir ni leer el fichero entero de una vez. En el mismo sitio, el pico de
+memoria de PHP (la reservada, la que cuenta el `memory_limit`) es de 170 MB en la
+primera compilación, 190 al cambiar el cuerpo de una página y 252 al cambiar una
+plantilla, que rehace todas; con la memoria guardada en una sola cadena eran 332,
+352 y 416. En otros dos sitios de 27 y 29 MB de memoria guardada, de 770 y 295
+páginas, el peor caso es de 80 y 82 MB. Lo que cuenta es el peso del HTML, no el
+número de páginas, y la regla que sale es unas 2,5 veces lo que mide
+`.ehundu/memoria.bin` más unos 10 MB en el peor caso: con 128 MB caben memorias
+de hasta unos 45 MB, con 256 MB hasta unos 95, y con 512 MB hasta unos 200. El
+motor, antes de cargarla, usa tres veces su tamaño más 16 MB y, si eso no cabe en
+el `memory_limit`, compila entero y avisa (`compilar`) o falla con el límite que
+hace falta (`avanzar`). La primera compilación, sin fichero que medir, no se
+comprueba. Una compilación completa sin memoria (`CompiladorEnProceso`) pide
+menos: unos 136 MB en ese sitio.
+
 **Cuándo no vale lo guardado.** Si el fichero falta, está cortado o dañado, lo
 escribió otra versión de la memoria o del motor (se compara una huella del
 contenido de su código, de las versiones de sus dependencias y de la versión

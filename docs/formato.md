@@ -1555,6 +1555,16 @@ consola no la necesita y no la ofrece.
   versión del motor, de alguna de sus dependencias o de PHP, o tocar el código
   del motor, hace que la primera compilación sea completa: lo que puede
   cambiar el HTML que sale no se mezcla con lo que se recordó con otra cosa.
+- **Cuando no cabe en la memoria de PHP.** Cargar la memoria guardada y rehacer lo
+  que cambie pide, de la memoria de PHP, del orden de tres veces lo que mide el
+  fichero más 16 MB (las medidas, en `compilacion.md`; la cifra no se promete). Si
+  eso no cabe en el `memory_limit` de PHP, no se intenta: `compilar` hace una
+  compilación completa sin leer ni tocar la memoria y lo dice en un aviso, con
+  cuánto ocupa lo guardado, cuánto pide y a cuánto subir el límite; `avanzar`,
+  que sin la memoria no puede repartir el trabajo, falla con un `ErrorDeProyecto`
+  que dice lo mismo. Es la única vez que una memoria que existe y es válida
+  impide hacer lo que se pide, y en cuanto el límite da para ella vuelve a
+  servir. Sin `memory_limit` (`-1`) no se comprueba.
 - **Cuándo se guarda.** Solo cuando una llamada sale bien. Un error del
   proyecto deja la memoria y `salida/` como estaban, y el siguiente cambio
   vuelve a aprovecharla.
@@ -2788,3 +2798,29 @@ si hace falta, la anterior lleva una nota entre paréntesis.
     una y otra. Se descartó sacar las motivaciones largas del registro a otro
     documento, que deja una línea por decisión pero pierde el porqué junto a lo
     decidido, y no tocarlo.
+141. **Cerrada.** La memoria de la compilación incremental se guarda y se lee
+    registro a registro, y si no cabe en el `memory_limit` de PHP se avisa en vez
+    de agotarlo (§10.5). Salió de preguntarse si la incremental servía para lo que
+    Ehundu promete, compilar en cualquier alojamiento compartido, donde 128 o 256 MB
+    son lo corriente. En el sitio más pesado de los de prueba (97 MB de memoria
+    guardada), el pico de PHP era de 332 MB en la primera compilación, 352 al
+    cambiar una página y 416 al cambiar una plantilla, de los que unos 160 eran
+    solo la cadena entera que se construía al guardar y al cargar. Ahora un
+    registro por cada cuerpo y por cada página, con la cabecera delante: los picos
+    bajan a 170, 190 y 252 MB (en sitios de 27 a 29 MB, de 102-134 a 50-82 MB), con
+    el mismo fichero. El formato del fichero es interno (`Almacen::VERSION`), no se
+    promete (decisión 136), y la primera compilación tras actualizar es completa,
+    como siempre que cambia. El resguardo compara lo que mide el fichero con lo que
+    queda de `memory_limit` antes de cargarlo, con tres veces su tamaño más 16 MB
+    (lo medido es 2,5 y unos 10, con un 20 % de holgura): sin él, un cron con el
+    límite de consola de 128 MB que encuentra la memoria de un proceso web de 512
+    terminaba con el error de PHP, que no dice qué hacer. `compilar` puede dar lo
+    mismo con otro coste, así que compila entero y avisa; `avanzar` no, porque
+    repartir el trabajo sin memoria obligaría a empezar de cero en cada llamada.
+    No cubre la primera compilación, que no tiene fichero que medir. Se
+    descartó quitar los cuerpos que ninguna otra página lee (el fichero baja un
+    28 %): reconvertirlos al cambiar una plantilla duplicaba el tiempo de rehacer
+    (de 9 a 20 s en el sitio más pesado), y no guardar en memoria el HTML de las
+    páginas que no cambian, que bajaría el pico a unos 50 MB, queda para si hace
+    falta: obliga a cambiar cómo el compilador entrega las páginas a quien las
+    escribe.

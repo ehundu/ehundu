@@ -21,8 +21,10 @@ prometen: están pensados para que los lea una persona.
     ehundu servir [carpeta] [--puerto=8000] [--borradores] [--completo]
     ehundu desplegar [carpeta] [--simular] [--todo]
     ehundu --ayuda
+    ehundu --version
 
-Las órdenes, sus opciones y lo que hacen son los de `ehundu --ayuda`. El
+Las órdenes, sus opciones y lo que hacen son los de `ehundu --ayuda`.
+`ehundu --version` escribe `Ehundu` y el número de la versión, y sale con `0`. El
 código de salida es `0` si todo ha ido bien, `1` si el proyecto no se puede
 compilar o desplegar, y `2` si la orden está mal escrita. Se prometen los
 nombres y el efecto, no el texto que escriben en la terminal.
@@ -109,6 +111,15 @@ memoria para ella (unos 350 MB en ese sitio).
   `false` en un fragmento), `$cuerpo`, `$lineaCuerpo`, `$idioma`, `clave()`
   (lo que comparte con sus traducciones), `valor(string $campo)`, `urlPdf()` y
   `estaPublicada(\DateTimeImmutable $ahora, bool $conBorradores = false)`.
+  `$campos` es el front matter como lo deja el motor (formato §4): los nombres
+  ingleses pasan a su nombre en español; `fecha` y `publicar` son
+  `\DateTimeImmutable` (el día, a medianoche, en la zona del sitio); `borrador`,
+  `listada`, `pdf` y `publicarEnSuFecha` son `bool`; `orden` es un número;
+  `etiquetas`, `css` y `js` son listas de textos; `plantilla` es un texto o
+  `false`; el resto, como lo lee YAML. Un valor que no valía se avisó y no está.
+  `valor()` da además los nombres que escribe el motor (`url`, `ruta`, `idioma`,
+  `pdf`). `Lectura::$datos` son los ficheros de `datos/` tal como los leen YAML y
+  JSON.
 - **`Formato`**: `VERSION`, la versión del formato que entiende esta versión
   de Ehundu, y `leer(mixed $valor, string $fichero, ?int $linea): int`, que
   comprueba la que declara un proyecto o un esquema ([`formato.md`](formato.md),
@@ -134,9 +145,13 @@ las demás clases son las piezas con las que se compone, para un programa que
 quiera llevar el despliegue a su manera, como hace un editor web que las usa.
 
 - **`Despliegue\Desplegador`**: `__construct(Compilador $compilador = ..., ?\Closure $abrir = null)`,
-  `desplegar(Proyecto, bool $simular, bool $todo, array $secretos, ..., ?float $segundos, ?Informe $compilado)`,
-  que devuelve un `InformeDeDespliegue`, y `ejecutar(PlanDeDespliegue, Proyecto, Destino, ?Manifiesto, ..., ?float $segundos): bool`,
-  que sube un plan ya trazado y dice si lo ha hecho entero. Con `$segundos`, al
+  `desplegar(Proyecto $proyecto, bool $simular = false, bool $todo = false, array $secretos = [], ?\Closure $alAvanzar = null, ?\Closure $alCompilar = null, ?\Closure $alAvisar = null, ?float $segundos = null, ?Informe $compilado = null)`,
+  que devuelve un `InformeDeDespliegue`, y `ejecutar(PlanDeDespliegue $plan, Proyecto $proyecto, Destino $destino, ?Manifiesto $anterior, ?\Closure $alAvanzar = null, ?float $segundos = null): bool`,
+  que sube un plan ya trazado y dice si lo ha hecho entero. Los nombres de los
+  parámetros forman parte de la API, porque se pasan por nombre (`segundos:`,
+  `compilado:`): `alAvanzar` se llama con «subido» o «borrado» y la ruta, según
+  se va haciendo; `alCompilar`, con el `Informe` de la compilación antes de
+  conectar con el destino; y `alAvisar`, con cada `Aviso` según sale. Con `$segundos`, al
   agotarse guarda el manifiesto y para (siempre hace al menos un fichero), y la
   llamada siguiente sigue donde se quedó; con `$compilado`, el `Informe` de una
   compilación ya hecha (repartida con `avanzar`, por ejemplo), no vuelve a compilar. Con `$todo`

@@ -11,6 +11,7 @@ use Ehundu\ErrorDeProyecto;
 use Ehundu\Informe;
 use Ehundu\Previsualizacion\Servidor;
 use Ehundu\Proyecto;
+use Ehundu\Version;
 
 /**
  * La orden de consola. Es una envoltura fina: interpreta los argumentos,
@@ -47,6 +48,7 @@ final class Aplicacion
                                       confirma que el destino es de este sitio
                                       si ha cambiado su url.
           ehundu --ayuda              Muestra esta ayuda.
+          ehundu --version            Dice la versión de Ehundu.
 
         TXT;
 
@@ -97,6 +99,12 @@ final class Aplicacion
 
         if (in_array($orden, ['--ayuda', '-h', '--help'], true)) {
             $this->escribir($this->salida, self::AYUDA);
+
+            return self::EXITO;
+        }
+
+        if (in_array($orden, ['--version', '-V'], true)) {
+            $this->escribir($this->salida, 'Ehundu ' . Version::ACTUAL . "\n");
 
             return self::EXITO;
         }

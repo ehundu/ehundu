@@ -11,6 +11,7 @@ use Ehundu\Consola\Aplicacion;
 use Ehundu\Informe;
 use Ehundu\Proyecto;
 use Ehundu\Pruebas\Apoyo\CarpetaTemporal;
+use Ehundu\Version;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -47,6 +48,24 @@ final class AplicacionPrueba extends TestCase
 
         self::assertSame(Aplicacion::EXITO, $codigo);
         self::assertStringContainsString('ehundu compilar [carpeta]', $this->leer($this->salida));
+    }
+
+    #[Test]
+    public function dicelaVersionCuandoSePide(): void
+    {
+        foreach (['--version', '-V'] as $orden) {
+            $this->salida = fopen('php://memory', 'w+');
+            $codigo = $this->aplicacion()->ejecutar([$orden]);
+
+            self::assertSame(Aplicacion::EXITO, $codigo, $orden);
+            self::assertSame('Ehundu ' . Version::ACTUAL . "\n", $this->leer($this->salida), $orden);
+        }
+    }
+
+    #[Test]
+    public function laVersionTieneLaFormaDeUnaVersion(): void
+    {
+        self::assertMatchesRegularExpression('/^\d+\.\d+\.\d+(-dev)?$/', Version::ACTUAL);
     }
 
     #[Test]

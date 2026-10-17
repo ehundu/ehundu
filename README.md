@@ -321,7 +321,7 @@ of the PHP library that 1.0 will promise to keep.
 Its project format is deliberately in Spanish (folder names, front matter
 fields), as a commitment to Spanish-speaking web developers; the usual English
 field names are accepted to ease migrations from Eleventy or Lume.
-Documentation is in Spanish for now and will be available in English too.
+The documentation is in Spanish, like the format.
 
 The name *ehundu* is Basque for "to weave".
 

@@ -359,7 +359,8 @@ Campos reservados:
 `idioma` también está reservado, pero no se escribe: sale del nombre del
 fichero (`contacto.eu.md`, §15.2).
 
-Cualquier otro campo se pasa a la plantilla sin tocarlo. El motor no valida
+Cualquier otro campo se pasa a la plantilla sin tocarlo, salvo que tenga el
+nombre de uno de los que el motor escribe en `pagina` (§7.2). El motor no valida
 campos desconocidos: eso es tarea del esquema (§11) y del editor. Un campo con
 el nombre mal escrito es, para el motor, un campo desconocido más.
 
@@ -875,6 +876,26 @@ el valor, y `pagina.paginas`, las páginas del grupo. Las páginas generadas
 las tienen también cuando salen de `coleccion()`. Una página con `paginar`
 (§6.4), y las que genera, tienen `pagina.paginas`, las de su trozo, y
 `pagina.paginacion`.
+
+Los nombres que el motor escribe en `pagina` son estos, y solo estos. Si el
+front matter de una página tiene un campo con el mismo nombre, el del motor
+tapa el suyo (decisión 133):
+
+| Nombre         | Qué es                                          | Cuándo | Un campo propio con ese nombre |
+|----------------|-------------------------------------------------|--------|--------------------------------|
+| `url`          | su dirección (§5)                               | siempre | reservado (§4)               |
+| `idioma`       | su idioma (§15.2)                               | siempre | reservado: se avisa y se ignora |
+| `pdf`          | la dirección de su PDF (§10.3)                  | con `pdf: sí` | reservado: en el front matter es sí/no |
+| `ruta`         | su fichero, desde `contenido/`                  | siempre | se avisa y se ignora |
+| `contenido`    | su cuerpo ya convertido a HTML                  | siempre | se avisa y se ignora |
+| `markdown`     | su cuerpo en Markdown, sin convertir            | en una página `.md` | se avisa y se ignora |
+| `encabezados`  | sus encabezados con `id` (§8)                   | siempre, vacía si no hay | se avisa y se ignora |
+| `traducciones` | sus traducciones (§15.8)                        | siempre, vacía si no hay | se avisa y se ignora |
+| `grupo`        | el valor de su grupo (§6.3)                     | en lo que genera `agrupar` | solo se tapa en esas páginas |
+| `paginas`      | las páginas del grupo o del trozo (§6.3, §6.4)  | en lo que genera `agrupar` o `paginar` | solo se tapa en esas páginas |
+| `paginacion`   | dónde está en la lista partida (§6.4)           | en lo que genera `paginar` | solo se tapa en esas páginas |
+
+Un nombre nuevo no se añade sin anunciarlo (§12, regla 5).
 
 Un campo que falta sale vacío, como en Nunjucks: `{% if pagina.imagen %}`
 funciona sin comprobar antes si existe. Twig escapa el HTML de todo lo que
@@ -1973,7 +1994,12 @@ cumple esto es un error del esquema. El motor no lee el esquema y no cambia: lo
    campo, una función, un filtro, un tipo de campo del esquema o una opción
    nuevos no cambian lo que ya significaba un proyecto escrito. Quitar algo
    o cambiar su significado es una versión mayor. Lo que va a dejar de valer
-   se avisa durante, al menos, una versión menor antes de quitarse.
+   se avisa durante, al menos, una versión menor antes de quitarse. Tiene una
+   excepción, la de los nombres: un campo reservado nuevo (§4) o un nombre
+   nuevo que el motor escriba en `pagina` (§7.2) puede tapar un campo propio
+   que un sitio ya tuviera con ese nombre. Por eso se anuncia en una versión
+   menor, y el motor que lo añade avisa a los sitios que ya lo usan como
+   propio.
 6. La biblioteca PHP y la orden de consola prometen lo que dice
    [`biblioteca.md`](biblioteca.md), con la misma regla: lo que no está allí
    puede cambiar en cualquier versión.
@@ -2675,6 +2701,26 @@ adelante entonces, no el formato 1 (decisión 132).
     puertas cerradas que el plan quiere abrir, y partir el §13 en «para siempre»
     y «por ahora», que obliga a decidir hoy qué es para siempre y casi nada lo
     es salvo la regla 4.
+133. **Cerrada.** «Solo crece» (§12, regla 5) tiene una excepción, la de los
+    nombres: un campo reservado nuevo o un nombre nuevo que el motor escriba en
+    `pagina` puede tapar un campo propio con el mismo nombre que un sitio ya
+    tuviera, y por eso un nombre nuevo se anuncia en una versión menor y el
+    motor que lo añade avisa a los sitios que ya lo usan. Los nombres que el
+    motor escribe en `pagina` se juntan en una tabla (§7.2), y los cinco que
+    escribe siempre (`ruta`, `contenido`, `markdown`, `encabezados` y
+    `traducciones`) avisan ahora si el front matter los usa, y el campo se
+    ignora, como ya hacía `idioma`: hasta ahora lo tapaban en silencio. Salió
+    de revisar lo que se iba a congelar: había once nombres repartidos por el
+    documento, cada párrafo avisaba por su lado de que tapaba un campo, y la
+    regla 5 prometía lo contrario. Un sitio de prueba usa `grupo` como campo
+    propio, sin `agrupar`: es el tipo de nombre que un sitio escoge, y por eso
+    `grupo`, `paginas` y `paginacion` solo tapan en las páginas que genera
+    `agrupar` o `paginar` y no avisan antes. Se descartó reservar ahora un
+    conjunto amplio de nombres, que reservaría para siempre palabras comunes y
+    avisaría a sitios que hoy funcionan, y mover lo que añade el motor a un
+    espacio propio (`pagina.motor.grupo`), que es lo más limpio pero rompe las
+    plantillas escritas y sería una versión 2. Ningún sitio de prueba usa los
+    cinco nombres, así que no cambia ninguno.
 
 ---
 

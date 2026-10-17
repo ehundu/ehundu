@@ -28,6 +28,13 @@ final class Campos
         'permalink' => 'url',
     ];
 
+    /**
+     * Los nombres que el motor escribe siempre en `pagina` (formato §7.2, decisión 133): taparían un campo propio
+     * con el mismo nombre, así que se avisa y el campo se ignora. `url`, `pdf` e `idioma` están reservados aparte, y
+     * `grupo`, `paginas` y `paginacion` solo los escribe el motor en las páginas que genera `agrupar` o `paginar`.
+     */
+    public const array DEL_MOTOR = ['ruta', 'contenido', 'markdown', 'encabezados', 'traducciones'];
+
     private const array TEXTOS = ['titulo', 'subtitulo', 'descripcion', 'imagen', 'imagenAlt', 'icono'];
     private const array FECHAS = ['fecha', 'publicar'];
     private const array SI_NO = ['borrador', 'listada', 'pdf', 'publicarEnSuFecha'];
@@ -73,6 +80,17 @@ final class Campos
         foreach ($normalizados as $nombre => $valor) {
             if ($nombre === 'idioma') {
                 $avisos->registrar('«idioma» sale del nombre del fichero (formato §15.2); este campo se ignora', $fichero, $lineas[$escrito[$nombre]] ?? null);
+                unset($normalizados[$nombre]);
+
+                continue;
+            }
+
+            if ($valor !== null && in_array($nombre, self::DEL_MOTOR, true)) {
+                $avisos->registrar(
+                    "«{$escrito[$nombre]}» es un nombre que el motor escribe siempre en la página (formato §7.2) y taparía este campo; se ignora",
+                    $fichero,
+                    $lineas[$escrito[$nombre]] ?? null,
+                );
                 unset($normalizados[$nombre]);
 
                 continue;

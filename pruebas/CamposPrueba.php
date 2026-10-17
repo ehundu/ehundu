@@ -55,6 +55,49 @@ final class CamposPrueba extends TestCase
         self::assertSame(['contenido/a.md:2: «title» y «titulo» son el mismo campo; se usa «titulo»'], $this->avisos());
     }
 
+    /**
+     * Los nombres que el motor escribe siempre en `pagina` (formato §7.2, decisión 133).
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function nombresDelMotor(): iterable
+    {
+        foreach (['ruta', 'contenido', 'markdown', 'encabezados', 'traducciones'] as $nombre) {
+            yield $nombre => [$nombre];
+        }
+    }
+
+    #[Test]
+    #[DataProvider('nombresDelMotor')]
+    public function unCampoConUnNombreQueElMotorSiempreEscribeSeAvisaYSeIgnora(string $nombre): void
+    {
+        $campos = $this->normalizar("titulo: Inicio\n{$nombre}: texto propio");
+
+        self::assertSame(['titulo' => 'Inicio'], $campos);
+        self::assertSame(
+            ["contenido/a.md:3: «{$nombre}» es un nombre que el motor escribe siempre en la página (formato §7.2) y taparía este campo; se ignora"],
+            $this->avisos(),
+        );
+    }
+
+    #[Test]
+    public function losNombresDelMotorQueNoSiempreSeEscribenSeDejanPasar(): void
+    {
+        // `grupo`, `paginas` y `paginacion` solo los escribe el motor en lo que genera `agrupar` o `paginar`
+        $yaml = "grupo: Rojos\npaginas: una lista\npaginacion: algo\nnombre: Ana";
+
+        self::assertSame(['grupo' => 'Rojos', 'paginas' => 'una lista', 'paginacion' => 'algo', 'nombre' => 'Ana'], $this->normalizar($yaml));
+        self::assertSame([], $this->avisos());
+    }
+
+    #[Test]
+    public function unCampoEnBlancoConUnNombreDelMotorNoAvisa(): void
+    {
+        // Como cualquier campo en blanco, pasa sin aviso y sin valor: el motor lo cubre igual
+        self::assertSame(['titulo' => 'Inicio', 'markdown' => null], $this->normalizar("titulo: Inicio\nmarkdown:"));
+        self::assertSame([], $this->avisos());
+    }
+
     #[Test]
     public function dejaLosCamposDesconocidosComoVienen(): void
     {

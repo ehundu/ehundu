@@ -440,7 +440,13 @@ Detalles de los tipos:
   mayúsculas ni espacios de más (`Sí`, `NO`). YAML solo reconoce los dos
   últimos, así que el motor traduce los otros tres; y `true` y `false` solo
   valen sin comillas, como los lee YAML: `"true"` entre comillas es un texto y
-  se avisa.
+  se avisa. Todo esto es solo para los campos reservados. En cualquier otro
+  campo (de una página, de un `_datos.yml` o de `datos/`), `sí` y `no` llegan a
+  la plantilla como el texto que son, porque YAML no los lee como verdadero y
+  falso: `destacado: sí` es el texto «sí», y `no` es un texto, que una plantilla
+  toma por verdadero. Para filtrar por él se compara con el texto,
+  `donde('destacado', 'sí')`, y para un verdadero o un falso de verdad se escribe
+  `true` o `false`, sin comillas (decisión 149).
 - **fecha** se escribe `AAAA-MM-DD`, con o sin comillas, con dos cifras para el
   mes y el día (sin comillas, YAML también lee `2026-1-5`, pero entre comillas
   no). Es ese día en la zona horaria del sitio (§2), desde su medianoche: `publicar: 2026-10-01`
@@ -3071,3 +3077,15 @@ si hace falta, la anterior lleva una nota entre paréntesis.
     `url` de solo espacios es una en blanco. La justificación de «un fichero por
     idioma» pasa a la decisión 4, porque era historia dentro de la parte
     normativa. No cambia ninguno de los veintitrés sitios de prueba.
+149. **Cerrada.** Los valores `sí` y `no` solo son verdadero y falso en los campos
+    reservados (§4). En cualquier otro campo, de una página, de un `_datos.yml` o de
+    `datos/`, llegan a la plantilla como el texto que son, tal como los lee YAML: un
+    `destacado: no` es un texto, y `{% if pagina.destacado %}` lo toma por
+    verdadero. Es lo que el motor ya hacía; se escribe porque quien migra o
+    escribe un campo propio con `sí` (los andamios de portfolio lo usan para
+    `destacado`) espera lo mismo que en `borrador`, y `donde('destacado', true)` no
+    encuentra nada. Se descartó traducir también los campos propios: un valor
+    escrito por quien desarrolla el sitio llega como lo escribió, y el motor no
+    puede saber si un `no` quiere decir falso o es un texto, como el código de país
+    de Noruega. Para un verdadero o un falso se escribe `true` o `false`, sin
+    comillas. No cambia ninguno de los veintitrés sitios de prueba.

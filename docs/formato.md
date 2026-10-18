@@ -1534,6 +1534,19 @@ Se genera en formato Atom si `sitio.yml` tiene una sección `feed`:
       limite: 20          # cuántas, las más recientes; 20 si no se indica
       titulo: Novedades   # el nombre del sitio si no se indica
 
+El `titulo` es el `<title>` del feed. Un sitio con varios idiomas (§15.1) puede dar
+un texto por idioma, con su código como clave, porque cada feed es el de un
+idioma:
+
+      titulo:
+        es: Novedades
+        en: News
+
+Un texto suelto vale para todos los idiomas y no se avisa: puede ser el nombre
+de una marca, que no se traduce. Un idioma sin título lleva el nombre del sitio,
+como un feed sin `titulo`, y se avisa de ello; un código que el sitio no declara
+y un valor que no es un texto se avisan y se ignoran (decisión 150).
+
 Cada entrada lleva el título, la dirección completa, la fecha, la
 `descripcion` como resumen si la tiene, y el contenido completo (el cuerpo de la
 página, `pagina.contenido`, no la página con su plantilla), con el `href` y el
@@ -2045,9 +2058,10 @@ el HTML de cada página.
 El feed (§10.2) sale de la misma colección en cada idioma, cada uno en la raíz
 de su idioma y con su `xml:lang`: `/feed.xml` en el predeterminado y
 `/eu/feed.xml` en euskera. El del predeterminado se genera siempre, como en un
-sitio de un solo idioma; el de los demás, solo si tienen alguna entrada. Todos
-llevan el mismo título. Como en §10, un `/eu/feed.xml` del proyecto gana al
-del motor.
+sitio de un solo idioma; el de los demás, solo si tienen alguna entrada. Cada
+uno lleva el título de su idioma si `feed.titulo` lo da por idioma, y el mismo
+en todos si es un solo texto (§10.2, decisión 150). Como en §10, un
+`/eu/feed.xml` del proyecto gana al del motor.
 
 ### 15.11 Por qué un fichero por idioma
 
@@ -3089,3 +3103,16 @@ si hace falta, la anterior lleva una nota entre paréntesis.
     puede saber si un `no` quiere decir falso o es un texto, como el código de país
     de Noruega. Para un verdadero o un falso se escribe `true` o `false`, sin
     comillas. No cambia ninguno de los veintitrés sitios de prueba.
+150. **Cerrada.** El `titulo` del feed puede ser un texto por idioma, con su
+    código como clave, además de un solo texto (§10.2, §15.10). Hasta ahora todos
+    los feeds de un sitio llevaban el mismo título, y un sitio en castellano e
+    inglés tenía que elegir uno de los dos, o uno doble, para los dos. Se lee con
+    las reglas del `aviso` de `enlacesExternos` (§2), salvo en dos cosas: un texto
+    suelto en un sitio con varios idiomas se usa en todos y no se avisa, porque un
+    título puede ser un nombre propio, y un idioma sin título no se queda sin
+    nada, lleva el nombre del sitio, que es lo que lleva un feed sin `titulo`. Se
+    avisa de un idioma sin título, de un código que el sitio no declara y de un
+    valor que no es un texto. Es crecer (§12, regla 5): un `titulo` que ya era un
+    texto se lee igual, y un `titulo` que no lo era (un número, una lista) pasa de
+    ignorarse en silencio a ignorarse con un aviso. Los feeds de los sitios de
+    prueba que tienen `titulo` salen idénticos.

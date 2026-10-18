@@ -68,14 +68,16 @@ final class Feed
     }
 
     /**
-     * @param array{0: string, 1: int, 2: string} $configuracion colección, límite y título
-     * @param \Closure(Pagina): string            $cuerpo
+     * @param array{0: string, 1: int, 2: array<string, string>} $configuracion colección, límite y título de cada idioma
+     * @param \Closure(Pagina): string                           $cuerpo
      *
      * @return string|null null si no es el idioma predeterminado y no tiene entradas
      */
     private static function deUnIdioma(Sitio $sitio, string $idioma, array $configuracion, Colecciones $colecciones, \Closure $cuerpo, Avisos $avisos): ?string
     {
-        [$coleccion, $limite, $titulo] = $configuracion;
+        [$coleccion, $limite, $titulos] = $configuracion;
+        // Un idioma sin título propio lleva el nombre del sitio, como un feed sin `titulo`
+        $titulo = $titulos[$idioma] ?? $sitio->nombre;
         $entradas = [];
 
         foreach ($colecciones->coleccion($coleccion, $idioma) as $pagina) {
@@ -127,7 +129,7 @@ final class Feed
     }
 
     /**
-     * @return array{0: string, 1: int, 2: string}|null colección, límite y título
+     * @return array{0: string, 1: int, 2: array<string, string>}|null colección, límite y título de cada idioma
      */
     private static function configuracion(Sitio $sitio, Avisos $avisos): ?array
     {
@@ -150,9 +152,12 @@ final class Feed
             $limite = self::LIMITE_POR_DEFECTO;
         }
 
-        $titulo = is_string($feed['titulo'] ?? null) && $feed['titulo'] !== '' ? $feed['titulo'] : $sitio->nombre;
+        // Un texto vale para todos los idiomas, sin aviso: puede ser el nombre de una marca; o un texto por idioma, con su
+        // código como clave (formato §10.2, decisión 150)
+        $titulos = (new TextosPorIdioma('feed', 'titulo', 'el', 'los feeds', false, 'el feed de ese idioma se titula como el sitio'))
+            ->leer($feed['titulo'] ?? null, null, $sitio->idiomas, $avisos);
 
-        return [$feed['coleccion'], $limite, $titulo];
+        return [$feed['coleccion'], $limite, $titulos];
     }
 
     /**

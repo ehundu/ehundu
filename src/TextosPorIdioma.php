@@ -7,7 +7,7 @@ namespace Ehundu;
 /**
  * Un campo de una sección de `sitio.yml` que lleva un texto, o un texto por
  * idioma del sitio con su código como clave (`aviso` de `enlacesExternos`,
- * `etiqueta` de `encabezados`; formato §2).
+ * `etiqueta` de `encabezados`, `titulo` de `feed`; formato §2).
  *
  * Lo que no vale se avisa, con la línea de la sección, y se ignora: nunca
  * detiene la compilación. Los avisos nombran la sección y el campo.
@@ -17,16 +17,22 @@ namespace Ehundu;
 final readonly class TextosPorIdioma
 {
     /**
-     * @param string $seccion   la sección de `sitio.yml`: `enlacesExternos`
-     * @param string $campo     el campo: `aviso`
-     * @param string $articulo  el que le corresponde en castellano: `el`
-     * @param string $afectados a quién deja sin texto un idioma que no lo tiene: `los enlaces`
+     * @param string      $seccion         la sección de `sitio.yml`: `enlacesExternos`
+     * @param string      $campo           el campo: `aviso`
+     * @param string      $articulo        el que le corresponde en castellano: `el`
+     * @param string      $afectados       a quién deja sin texto un idioma que no lo tiene: `los enlaces`
+     * @param bool        $avisaDeUnTexto  si un solo texto en un sitio con varios idiomas se avisa (conviene uno por idioma)
+     *                                     o es lo que se quiere, como un título que es el nombre de una marca
+     * @param string|null $sinTexto        qué pasa con un idioma que se queda sin texto, para los avisos; si falta, que
+     *                                     no lleva el campo
      */
     public function __construct(
         private string $seccion,
         private string $campo,
         private string $articulo,
         private string $afectados,
+        private bool $avisaDeUnTexto = true,
+        private ?string $sinTexto = null,
     ) {
     }
 
@@ -53,7 +59,7 @@ final readonly class TextosPorIdioma
                 return [];
             }
 
-            if (count($codigos) > 1) {
+            if ($this->avisaDeUnTexto && count($codigos) > 1) {
                 $avisos->registrar(
                     "«{$seccion}»: «{$campo}» es un solo texto y el sitio tiene varios idiomas (" . implode(', ', $codigos)
                     . "); se usa en todos. Conviene un texto por idioma: {$campo}: {" . $codigos[0] . ': …, ' . $codigos[1] . ': …}',
@@ -88,7 +94,7 @@ final readonly class TextosPorIdioma
 
             if (!is_string($texto) || trim($texto) === '') {
                 $avisos->registrar(
-                    "«{$seccion}»: {$this->articulo} «{$campo}» de «{$codigo}» tiene que ser un texto; ese idioma no lleva {$campo}",
+                    "«{$seccion}»: {$this->articulo} «{$campo}» de «{$codigo}» tiene que ser un texto; " . ($this->sinTexto ?? "ese idioma no lleva {$campo}"),
                     $fichero,
                     $linea,
                 );
@@ -102,7 +108,7 @@ final readonly class TextosPorIdioma
         foreach ($codigos as $codigo) {
             if (!array_key_exists($codigo, $valor)) {
                 $avisos->registrar(
-                    "«{$seccion}»: «{$campo}» no tiene texto en «{$codigo}»; {$this->afectados} de ese idioma no llevan {$campo}",
+                    "«{$seccion}»: «{$campo}» no tiene texto en «{$codigo}»; " . ($this->sinTexto ?? "{$this->afectados} de ese idioma no llevan {$campo}"),
                     $fichero,
                     $linea,
                 );

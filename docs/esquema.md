@@ -184,7 +184,7 @@ sin escribir, una imagen sin elegir, una lista de textos sin líneas, una
 Un campo no puede llamarse como un nombre que el motor escribe en `pagina`
 (§7.2: `contenido`, `ruta`, `markdown`, `encabezados`, `traducciones`, `idioma`,
 `grupo`, `paginas`, `paginacion`), ni usar un alias inglés (`title`) en lugar del
-nombre español; y un campo reservado (§4) tiene el tipo que le toca: `fecha` y
+nombre español; y un campo reservado (§4) tiene el tipo que le toca: `fecha`,
 `publicar` y `publicarHasta` son `fecha`; `orden`, `numero`; `listada`, `borrador`, `pdf` y
 `publicarEnSuFecha`, `booleano`; los demás de §4 que son texto, `texto` o
 `parrafo`, y las listas (`etiquetas`, `css`, `js`), `lista-texto`. Lo que no

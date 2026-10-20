@@ -82,6 +82,25 @@ hispanohablante que desarrolla para la web es enorme y merece herramientas
 pensadas en su idioma. Para migrar desde Eleventy o Lume se aceptan los nombres
 ingleses habituales (`title`, `date`, `tags`, `layout`, `permalink`).
 
+## Lo que Ehundu no pretende ser
+
+**Un generador rápido a toda costa.** Ehundu prefiere funcionar en cualquier
+alojamiento con PHP antes que competir en velocidad con los generadores escritos
+en Go o en Rust, como Hugo. Que una compilación sea corta importa, y por eso
+rehace solo lo que un cambio afecta, pero no a costa de dejar de funcionar en un
+alojamiento compartido corriente.
+
+**Un ecosistema de extensiones.** No tiene plugins ni ejecuta código propio de
+cada sitio, y no es un descuido: es una promesa del contrato (regla 4 del
+[§12 de `docs/formato.md`](docs/formato.md)). Un sitio es una carpeta de ficheros
+y compila igual en cualquier máquina. Ehundu se apoya en unas pocas piezas de
+software libre maduro, como Twig, y no pretende crecer en dependencias. Si
+necesitas un plugin para cada detalle, probablemente te encaje mejor otra
+herramienta.
+
+Lo que Ehundu no hace todavía, y por qué eso no cambia el resto, está en el §13
+del [contrato](docs/formato.md).
+
 ## Instalación
 
 Hace falta PHP 8.4 o superior con la extensión `mbstring`. Para publicar por
@@ -340,6 +359,10 @@ Its project format is deliberately in Spanish (folder names, front matter
 fields), as a commitment to Spanish-speaking web developers; the usual English
 field names are accepted to ease migrations from Eleventy or Lume.
 The documentation is in Spanish, like the format.
+
+It does not try to be the fastest generator out there, nor an ecosystem of
+extensions: it prefers to run on any PHP hosting, and it has no plugins and runs
+no per-site code (rule 4 of the contract, in `docs/formato.md`).
 
 The name *ehundu* is Basque for "to weave".
 

@@ -405,6 +405,7 @@ Campos reservados:
 | `orden`       | número  | Orden manual dentro de una colección.                     |
 | `borrador`    | sí/no   | Si es `sí`, no se publica.                                |
 | `publicar`    | fecha   | No se publica antes de esa fecha.                         |
+| `publicarHasta` | fecha | Se publica hasta el final de ese día, y no después (abajo). |
 | `publicarEnSuFecha` | sí/no | Si es `sí`, no se publica antes de su `fecha` (abajo). |
 | `pdf`         | sí/no   | Si es `sí`, la página sale además en PDF (§10.3).         |
 | `componentes` | —       | Reservado para el catálogo de componentes (§13): no hace nada, y avisa si una página lo usa. |
@@ -450,11 +451,12 @@ Detalles de los tipos:
 - **fecha** se escribe `AAAA-MM-DD`, con o sin comillas, con dos cifras para el
   mes y el día (sin comillas, YAML también lee `2026-1-5`, pero entre comillas
   no). Es ese día en la zona horaria del sitio (§2), desde su medianoche: `publicar: 2026-10-01`
-  publica a las 00:00 del 1 de octubre en esa zona. Es un día y nada más: si
+  publica a las 00:00 del 1 de octubre en esa zona, y `publicarHasta: 2026-10-01`
+  deja de publicar a las 00:00 del 2. Es un día y nada más: si
   se escribe también una hora (`2026-10-01 18:30:00`, `2026-10-01T18:30`) o una
   zona, la hora no cuenta, se toma solo el día y se avisa (decisión 129). Una
   fecha sin comillas que no existe (`2026-13-01`) se lee como el texto que es:
-  en `fecha` y `publicar` avisa, como cualquier fecha imposible, y en un campo
+  en `fecha`, `publicar` y `publicarHasta` avisa, como cualquier fecha imposible, y en un campo
   que no es reservado llega así a la plantilla, sin aviso (decisión 88). Una
   fecha llega a la plantilla como una fecha, no como un texto: se escribe con
   el filtro `fecha` o con `date` (§7.3), y `{{ pagina.fecha }}` sin filtro
@@ -491,6 +493,40 @@ página sin `fecha`, o con la `fecha` ya pasada, no se ve afectada.
   común de la página (§15.7), así que salen el mismo día.
 - **La previsualización con borradores** (`ehundu servir --borradores`) lo
   trata como a `publicar`: lo enseña todo.
+
+**Dejar de publicar.** `publicarHasta` es el último día en que la página se ve:
+`publicarHasta: 2026-10-31` la publica hasta el final del 31 de octubre y la
+retira a las 00:00 del 1 de noviembre, en la zona horaria del sitio (§2). Sirve
+para lo que caduca y nadie se acordará de dar de baja, como el aviso de «plazo
+de inscripción abierto» de una portada: un fragmento (`url: false`) de una
+colección que la portada lista. Se pone donde se pondría cualquier valor común,
+en la página o en el `_datos.yml` de la carpeta (§3); una página lo cambia con
+otra fecha, o lo quita dejándolo en blanco (`publicarHasta:`).
+
+- **Con `publicar`.** Las dos juntas dan una ventana: `publicar: 2026-10-05` y
+  `publicarHasta: 2026-10-12` publican del 5 al 12, los dos días incluidos. Si
+  `publicarHasta` es anterior a `publicar`, la ventana está vacía y la página no
+  se publica nunca, sin aviso: los dos pueden venir de capas distintas de la
+  cascada y el motor los ve ya mezclados. También se combina con
+  `publicarEnSuFecha`, que fija el principio con la `fecha`.
+- **Quién manda.** `borrador` manda sobre todo: una página en borrador no se
+  publica aunque esté dentro de su ventana.
+- **A qué hora.** La fecha es un día, como en `publicar`: una hora no cuenta y se
+  avisa (decisión 129). La página se va a la medianoche que cierra ese día, que
+  es la del siguiente día natural en la zona del sitio, también cuando el día
+  dura veinticinco horas por el cambio de hora. El sitio es estático, así que
+  desaparece cuando se vuelve a compilar después de ese momento (§11,
+  *Programar*), y de la web cuando se vuelve a desplegar (despliegue.md: se
+  borra lo que Ehundu subió y ya no se genera).
+- **Lo demás.** Todo lo que este documento dice de un borrador o de una página
+  con `publicar` en el futuro (§5.3, §6, §10, §15.8) vale también para una con
+  `publicarHasta` pasado: no genera fichero ni sale en colecciones, sitemap,
+  feed ni traducciones, y un fragmento caducado deja de estar en su colección.
+  Se decide en cada compilación, también en la incremental y en la repartida en
+  lotes (§10.4, §10.5): lo que lista la página se rehace aunque no haya cambiado
+  ningún fichero.
+- **La previsualización con borradores** (`ehundu servir --borradores`) lo
+  trata como a `publicar`: lo enseña todo, también lo caducado.
 
 Se aceptan como alias los nombres ingleses habituales en Eleventy y Lume
 (`title`, `subtitle`, `description`, `date`, `tags`, `layout`, `permalink`),
@@ -647,8 +683,8 @@ páginas y se puede editar desde un editor, pero no genera fichero.
 Si dos páginas que se publican van al mismo fichero de salida, el build se
 detiene con un error que nombra las dos. Las mayúsculas no cuentan, porque en
 Windows y en macOS `/Blog/` y `/blog/` son la misma carpeta. Los fragmentos,
-los borradores y las páginas con `publicar` en el futuro no generan fichero,
-así que no chocan con nada.
+los borradores, las páginas con `publicar` en el futuro y las que ya han pasado
+su `publicarHasta` no generan fichero, así que no chocan con nada.
 
 ---
 
@@ -667,7 +703,8 @@ colección se compara exacto, con mayúsculas y sin recortar espacios:
 `coleccion('Blog')` no es `coleccion('blog')`.
 
 No entran en ninguna colección, tampoco en `todo`, los borradores, las páginas
-con `publicar` en el futuro y las de `listada: no`. Este último es el caso de
+con `publicar` en el futuro, las que ya han pasado su `publicarHasta` y las de
+`listada: no`. Este último es el caso de
 los textos legales, la página de error o `robots.txt`: se publican, pero no
 salen en listados ni en el sitemap.
 
@@ -768,8 +805,8 @@ llame igual, solo en las páginas generadas.
 Reglas:
 
 - **Qué entra.** Las páginas de la colección, tal como las da `coleccion()`
-  (§6): sin borradores, sin las de `publicar` en el futuro y sin las de
-  `listada: no`, y en el idioma de la página que define el grupo (§15.5). Por
+  (§6): sin borradores, sin las de `publicar` en el futuro ni las que ya han
+  pasado su `publicarHasta`, y sin las de `listada: no`, y en el idioma de la página que define el grupo (§15.5). Por
   eso un valor que solo usan páginas que aún no se publican no tiene página
   hasta que sale la primera, y nunca hay un grupo vacío.
 - **Los valores.** `campo` es un campo de las páginas de la colección, tal como
@@ -859,8 +896,8 @@ Una entrada nueva que llene la última página abre la siguiente sin que nadie
 cree nada, y una que se quita la cierra.
 
 - **Qué entra.** Las páginas de la colección, tal como las da `coleccion()`
-  (§6): sin borradores, sin las de `publicar` en el futuro y sin las de
-  `listada: no`, y en el idioma de la página (§15.5). La propia página que
+  (§6): sin borradores, sin las de `publicar` en el futuro ni las que ya han
+  pasado su `publicarHasta`, y sin las de `listada: no`, y en el idioma de la página (§15.5). La propia página que
   pagina no entra en su colección, aunque lleve su etiqueta, ni tampoco las
   que genera: `blog/index.md` hereda la etiqueta `blog` de su carpeta (§3) y no
   por eso se lista a sí misma.
@@ -1734,7 +1771,7 @@ vez de tener que entender todos los 1.x (decisión 139).
    mismo HTML con la misma versión del motor y de sus dependencias, salvo lo
    que una plantilla elija al azar con `random()` o saque de la fecha del
    momento (§7.3), y salvo qué páginas salen, que depende del momento en que se
-   compila (`publicar` y `publicarEnSuFecha`, §4). Entre versiones del motor no
+   compila (`publicar`, `publicarEnSuFecha` y `publicarHasta`, §4). Entre versiones del motor no
    se promete el mismo HTML byte a byte: Twig 3, CommonMark 2, Symfony YAML 8 y
    dompdf 3, que Composer deja actualizar dentro de su versión mayor, deciden
    partes del resultado (el escapado, las listas, las tablas y las notas al pie,
@@ -2002,7 +2039,7 @@ Todas las páginas, también las que dan `coleccion()`, llevan:
 - `pagina.traducciones`, sus versiones publicadas, ella incluida, por código y
   en el orden de `idiomas`: `pagina.traducciones.eu.url`. Cada una tiene la
   misma forma que cualquier otra página. Un borrador o una traducción con
-  `publicar` en el futuro no están. Una página generada por `agrupar` o por
+  `publicar` en el futuro, o con su `publicarHasta` pasado, no están. Una página generada por `agrupar` o por
   `paginar`, salvo la primera de esta, solo tiene como traducción a sí misma
   (§6.3, §6.4).
 
@@ -3116,3 +3153,27 @@ si hace falta, la anterior lleva una nota entre paréntesis.
     texto se lee igual, y un `titulo` que no lo era (un número, una lista) pasa de
     ignorarse en silencio a ignorarse con un aviso. Los feeds de los sitios de
     prueba que tienen `titulo` salen idénticos.
+151. **Cerrada.** `publicarHasta` (§4), un campo reservado nuevo, retira una página
+    después de un día: se publica hasta el final de esa fecha y desaparece a la
+    medianoche siguiente, en la zona del sitio. Es la pareja de `publicar`. Salió
+    del aviso de «plazo de inscripción abierto» de la portada de un sitio, que
+    nadie se acuerda de quitar: con `publicar` y `publicarEnSuFecha` una página
+    podía no estar hasta un día, pero no dejar de estar. Se descartó llamarlo
+    `hasta`: es un nombre que un sitio usa para sus propios datos (`desde` ya
+    aparece como dato propio en sitios reales, y una agenda con `desde` y `hasta`
+    es lo primero que se escribe), y reservarlo habría hecho desaparecer
+    en silencio las páginas de quien ya lo usara, que es peor que un campo que no
+    hace nada; `publicarHasta` lleva el prefijo de `publicar` y de
+    `publicarEnSuFecha`. Se descartó también el día exclusivo: quien escribe «hasta
+    el 31 de octubre» espera ver la página el 31. Se decide en
+    `Pagina::estaPublicada`, el mismo punto que ya decide `publicar`, así que vale
+    sin más cambios para las colecciones, el sitemap, el feed, las traducciones y
+    las compilaciones incremental y por lotes; y como estas ya comprueban la fecha
+    en cada llamada, una página que caduca se va sin que cambie ningún fichero. No
+    avisa de una ventana vacía (`publicarHasta` anterior a `publicar`): los dos
+    pueden venir de capas distintas de la cascada y el motor los ve ya mezclados.
+    El editor (§11) todavía no lo ofrece, como ofrece `publicar` con `programar`:
+    es otra clave del esquema y se decide aparte. Es crecer (§12, regla 5), con la
+    excepción de los nombres: un sitio que ya escribiera `publicarHasta` como campo
+    propio vería retirada su página al pasar la fecha, y uno con un valor que no es
+    una fecha recibe el aviso; ningún sitio de prueba lo usa.

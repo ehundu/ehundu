@@ -151,7 +151,7 @@ mucho (en ese sitio, entre 170 y 250 MB según lo que se rehaga; las medidas, en
   `estaPublicada(\DateTimeImmutable $ahora, bool $conBorradores = false)`.
   `$campos` es lo que queda de la cascada (el `_datos.yml`, el `.yml` común de la
   página y su front matter, formato §3) como lo deja el motor (formato §4): los
-  nombres ingleses pasan a su nombre en español; `fecha` y `publicar` son
+  nombres ingleses pasan a su nombre en español; `fecha`, `publicar` y `publicarHasta` son
   `\DateTimeImmutable` (el día, a medianoche, en la zona del sitio), y un día sin
   hora de cualquier otro campo también; `borrador`, `listada`, `pdf` y
   `publicarEnSuFecha` son `bool`; `orden` es un número; `titulo`, `subtitulo`,

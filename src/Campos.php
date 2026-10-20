@@ -36,7 +36,7 @@ final class Campos
     public const array DEL_MOTOR = ['ruta', 'contenido', 'markdown', 'encabezados', 'traducciones'];
 
     private const array TEXTOS = ['titulo', 'subtitulo', 'descripcion', 'imagen', 'imagenAlt', 'icono'];
-    private const array FECHAS = ['fecha', 'publicar'];
+    private const array FECHAS = ['fecha', 'publicar', 'publicarHasta'];
     private const array SI_NO = ['borrador', 'listada', 'pdf', 'publicarEnSuFecha'];
     private const array LISTAS = ['etiquetas', 'css', 'js'];
 

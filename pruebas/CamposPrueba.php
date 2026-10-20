@@ -231,6 +231,8 @@ final class CamposPrueba extends TestCase
         yield 'con T y sin segundos' => ['fecha: "2026-10-01T18:30"'];
         yield 'publicar con segundos' => ['publicar: 2026-10-01 09:00:00'];
         yield 'publicar sin segundos' => ['publicar: 2026-10-01 09:00'];
+        yield 'publicarHasta con segundos' => ['publicarHasta: 2026-10-01 18:30:00'];
+        yield 'publicarHasta sin segundos' => ['publicarHasta: 2026-10-01 18:30'];
         yield 'el alias date' => ['date: 2026-10-01 18:30:00'];
     }
 
@@ -255,7 +257,7 @@ final class CamposPrueba extends TestCase
     #[Test]
     public function unDiaSinHoraNoAvisaDeNada(): void
     {
-        foreach (['fecha: 2026-10-01', 'fecha: "2026-10-01"', 'publicar: 2026-10-01', 'fecha: 2026-10-01 00:00:00'] as $yaml) {
+        foreach (['fecha: 2026-10-01', 'fecha: "2026-10-01"', 'publicar: 2026-10-01', 'publicarHasta: 2026-10-01', 'fecha: 2026-10-01 00:00:00'] as $yaml) {
             $campos = $this->normalizar($yaml);
 
             self::assertSame('2026-10-01', $campos[$this->nombreDelCampo($yaml)]->format('Y-m-d'), $yaml);
@@ -303,6 +305,31 @@ final class CamposPrueba extends TestCase
     {
         self::assertSame(['titulo' => 'Hola'], $this->normalizar("title: Hola\ndate: mañana"));
         self::assertSame(['contenido/a.md:3: «date» tiene que ser una fecha AAAA-MM-DD'], $this->avisos());
+    }
+
+    #[Test]
+    public function publicarHastaEsUnDiaEnLaZonaDelSitio(): void
+    {
+        $yaml = 'publicarHasta: 2026-11-30';
+        $campos = Campos::normalizar(Yaml::leerCampos($yaml, 'contenido/a.md', 2), $yaml, 2, 'contenido/a.md', $this->avisos, new \DateTimeZone('Europe/Madrid'));
+
+        self::assertInstanceOf(\DateTimeImmutable::class, $campos['publicarHasta']);
+        self::assertSame('2026-11-30 00:00:00 Europe/Madrid', $campos['publicarHasta']->format('Y-m-d H:i:s e'));
+        self::assertSame([], $this->avisos());
+    }
+
+    #[Test]
+    public function unPublicarHastaQueNoEsUnDiaSeAvisaYSeIgnora(): void
+    {
+        self::assertSame([], $this->normalizar('publicarHasta: pronto'));
+        self::assertSame([], $this->normalizar('publicarHasta: 2026-13-01'));
+        self::assertSame([], $this->normalizar('publicarHasta: "2026-02-31"'));
+
+        self::assertSame([
+            'contenido/a.md:2: «publicarHasta» tiene que ser una fecha AAAA-MM-DD',
+            'contenido/a.md:2: «publicarHasta» no es una fecha posible: 2026-13-01',
+            'contenido/a.md:2: «publicarHasta» no es una fecha posible: 2026-02-31',
+        ], $this->avisos());
     }
 
     #[Test]

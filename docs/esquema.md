@@ -185,7 +185,7 @@ Un campo no puede llamarse como un nombre que el motor escribe en `pagina`
 (§7.2: `contenido`, `ruta`, `markdown`, `encabezados`, `traducciones`, `idioma`,
 `grupo`, `paginas`, `paginacion`), ni usar un alias inglés (`title`) en lugar del
 nombre español; y un campo reservado (§4) tiene el tipo que le toca: `fecha` y
-`publicar` son `fecha`; `orden`, `numero`; `listada`, `borrador`, `pdf` y
+`publicar` y `publicarHasta` son `fecha`; `orden`, `numero`; `listada`, `borrador`, `pdf` y
 `publicarEnSuFecha`, `booleano`; los demás de §4 que son texto, `texto` o
 `parrafo`, y las listas (`etiquetas`, `css`, `js`), `lista-texto`. Lo que no
 cumple esto es un error del esquema.
@@ -283,7 +283,10 @@ aparece cuando el sitio se vuelve a compilar y a publicar después de esa fecha,
 y de eso tiene que encargarse quien aloje el editor, por ejemplo con una tarea
 programada. `programar` no depende de `publicarEnSuFecha` (§4), que es cosa de
 quien desarrolla el sitio: el editor ni lo escribe ni lo lee, y un `publicar`
-que escriba sigue mandando sobre él.
+que escriba sigue mandando sobre él. `programar` tampoco escribe
+`publicarHasta` (§4), el día en que la página deja de publicarse: el editor no
+lo ofrece todavía, y un tipo del esquema puede declararlo como un campo más,
+de tipo `fecha`.
 
 **Cuatro claves de un tipo.** Todas son opcionales, y las lee el editor, no el
 motor. Un valor que no cumple lo que sigue es un error del esquema:

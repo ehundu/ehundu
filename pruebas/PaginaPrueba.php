@@ -74,6 +74,122 @@ final class PaginaPrueba extends TestCase
     }
 
     #[Test]
+    public function unaPaginaSePublicaHastaElFinalDelDiaDeSuPublicarHasta(): void
+    {
+        $madrid = new \DateTimeZone('Europe/Madrid');
+        $pagina = $this->pagina(['publicarHasta' => new \DateTimeImmutable('2026-11-30', $madrid)]);
+
+        self::assertTrue($pagina->estaPublicada(new \DateTimeImmutable('2026-11-29 12:00:00', $madrid)));
+        self::assertTrue($pagina->estaPublicada(new \DateTimeImmutable('2026-11-30 00:00:00', $madrid)));
+        self::assertTrue($pagina->estaPublicada(new \DateTimeImmutable('2026-11-30 23:59:59', $madrid)));
+        self::assertFalse($pagina->estaPublicada(new \DateTimeImmutable('2026-12-01 00:00:00', $madrid)));
+        self::assertFalse($pagina->estaPublicada(new \DateTimeImmutable('2027-06-01 12:00:00', $madrid)));
+    }
+
+    #[Test]
+    public function elDiaSiguienteEmpiezaALaMedianocheDeLaZonaAunqueElDiaTengaVeinticincoHoras(): void
+    {
+        // El 25 de octubre de 2026 se atrasa la hora en Madrid: ese día dura 25 horas.
+        $madrid = new \DateTimeZone('Europe/Madrid');
+        $pagina = $this->pagina(['publicarHasta' => new \DateTimeImmutable('2026-10-25', $madrid)]);
+
+        self::assertTrue($pagina->estaPublicada(new \DateTimeImmutable('2026-10-25 23:30:00', $madrid)));
+        self::assertFalse($pagina->estaPublicada(new \DateTimeImmutable('2026-10-26 00:00:00', $madrid)));
+        // Y el día anterior, a las 00:00 del 25, todavía no ha terminado nada.
+        self::assertTrue($this->pagina(['publicarHasta' => new \DateTimeImmutable('2026-10-24', $madrid)])
+            ->estaPublicada(new \DateTimeImmutable('2026-10-24 23:59:59', $madrid)));
+        self::assertFalse($this->pagina(['publicarHasta' => new \DateTimeImmutable('2026-10-24', $madrid)])
+            ->estaPublicada(new \DateTimeImmutable('2026-10-25 00:00:00', $madrid)));
+    }
+
+    #[Test]
+    public function publicarYPublicarHastaDanUnaVentana(): void
+    {
+        $utc = new \DateTimeZone('UTC');
+        $pagina = $this->pagina([
+            'publicar' => new \DateTimeImmutable('2026-09-20', $utc),
+            'publicarHasta' => new \DateTimeImmutable('2026-09-30', $utc),
+        ]);
+
+        self::assertFalse($pagina->estaPublicada(new \DateTimeImmutable('2026-09-19 23:59:59', $utc)));
+        self::assertTrue($pagina->estaPublicada(new \DateTimeImmutable('2026-09-20 00:00:00', $utc)));
+        self::assertTrue($pagina->estaPublicada($this->ahora()));
+        self::assertTrue($pagina->estaPublicada(new \DateTimeImmutable('2026-09-30 23:59:59', $utc)));
+        self::assertFalse($pagina->estaPublicada(new \DateTimeImmutable('2026-10-01 00:00:00', $utc)));
+    }
+
+    #[Test]
+    public function publicarHastaTambienLimitaAUnaPaginaConPublicarEnSuFecha(): void
+    {
+        $utc = new \DateTimeZone('UTC');
+        $pagina = $this->pagina([
+            'publicarEnSuFecha' => true,
+            'fecha' => new \DateTimeImmutable('2026-09-26', $utc),
+            'publicarHasta' => new \DateTimeImmutable('2026-09-28', $utc),
+        ]);
+
+        self::assertFalse($pagina->estaPublicada($this->ahora()));
+        self::assertTrue($pagina->estaPublicada(new \DateTimeImmutable('2026-09-27 12:00:00', $utc)));
+        self::assertTrue($pagina->estaPublicada(new \DateTimeImmutable('2026-09-28 23:00:00', $utc)));
+        self::assertFalse($pagina->estaPublicada(new \DateTimeImmutable('2026-09-29 00:00:00', $utc)));
+    }
+
+    #[Test]
+    public function unPublicarHastaYaPasadoRetieneAunqueLlegueElPublicar(): void
+    {
+        $utc = new \DateTimeZone('UTC');
+
+        self::assertFalse($this->pagina([
+            'publicar' => new \DateTimeImmutable('2020-01-01', $utc),
+            'publicarHasta' => new \DateTimeImmutable('2021-01-01', $utc),
+        ])->estaPublicada($this->ahora()));
+    }
+
+    #[Test]
+    public function unaVentanaAlReveSeVeNunca(): void
+    {
+        $utc = new \DateTimeZone('UTC');
+        $pagina = $this->pagina([
+            'publicar' => new \DateTimeImmutable('2026-10-10', $utc),
+            'publicarHasta' => new \DateTimeImmutable('2026-10-01', $utc),
+        ]);
+
+        foreach (['2026-09-25', '2026-10-01', '2026-10-05', '2026-10-10', '2026-12-01'] as $dia) {
+            self::assertFalse($pagina->estaPublicada(new \DateTimeImmutable($dia . ' 12:00:00', $utc)), $dia);
+        }
+    }
+
+    #[Test]
+    public function unBorradorNoSePublicaDentroDeLaVentana(): void
+    {
+        $utc = new \DateTimeZone('UTC');
+
+        self::assertFalse($this->pagina([
+            'borrador' => true,
+            'publicarHasta' => new \DateTimeImmutable('2030-01-01', $utc),
+        ])->estaPublicada($this->ahora()));
+    }
+
+    #[Test]
+    public function unFragmentoCaducadoNoEstaPublicado(): void
+    {
+        $utc = new \DateTimeZone('UTC');
+        $campos = ['publicarHasta' => new \DateTimeImmutable('2026-09-24', $utc)];
+
+        self::assertFalse(new Pagina('aviso.md', 'md', $campos, false, '', 1)->estaPublicada($this->ahora()));
+        self::assertTrue(new Pagina('aviso.md', 'md', ['publicarHasta' => new \DateTimeImmutable('2026-09-25', $utc)], false, '', 1)->estaPublicada($this->ahora()));
+    }
+
+    #[Test]
+    public function conBorradoresTambienSeVeLoQueHaCaducado(): void
+    {
+        $caducada = $this->pagina(['publicarHasta' => new \DateTimeImmutable('2020-01-01', new \DateTimeZone('UTC'))]);
+
+        self::assertFalse($caducada->estaPublicada($this->ahora()));
+        self::assertTrue($caducada->estaPublicada($this->ahora(), conBorradores: true));
+    }
+
+    #[Test]
     public function unBorradorNoSePublicaAunqueLleguePublicarEnSuFecha(): void
     {
         $pagina = $this->pagina([

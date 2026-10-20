@@ -109,8 +109,8 @@ siempre.
 Tres cosas no se vigilan. La primera, la hora: una plantilla que escriba la
 fecha actual con `"now"|date` no se rehace al cambiar de día. La segunda, lo que
 elige `random()`: una página que no se rehace conserva lo que eligió. Las páginas con `publicar` sí
-entran solas cuando llega su fecha, porque eso se comprueba en cada
-compilación. La tercera, un fichero de `publico/` que cambie sin cambiar ni
+entran solas cuando llega su fecha, y las que llevan `publicarHasta` salen
+solas cuando pasa, porque eso se comprueba en cada compilación. La tercera, un fichero de `publico/` que cambie sin cambiar ni
 de tamaño ni de fecha después de llevar un rato sin tocarse; solo pasa si un
 programa restaura a propósito la fecha antigua.
 

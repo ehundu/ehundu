@@ -90,12 +90,15 @@ final readonly class Pagina
     }
 
     /**
-     * Si la página está publicada en ese momento: no es un borrador y su
-     * fecha de `publicar`, si la tiene, ya ha llegado. Con `publicarEnSuFecha`
-     * y sin `publicar`, la que cuenta es su `fecha` (formato §4); un `publicar`
-     * explícito manda, también si es anterior. Vale también para los
-     * fragmentos, que se publican aunque no generen fichero. Con borradores
-     * (la previsualización con `--borradores`), todo cuenta como publicado.
+     * Si la página está publicada en ese momento: no es un borrador, su fecha
+     * de `publicar`, si la tiene, ya ha llegado y su `publicarHasta`, si lo
+     * tiene, no ha terminado: se publica el día entero que dice, y deja de
+     * estarlo a la medianoche siguiente, en la zona del sitio (formato §4). Con
+     * `publicarEnSuFecha` y sin `publicar`, la que cuenta para empezar es su
+     * `fecha`; un `publicar` explícito manda, también si es anterior. Vale
+     * también para los fragmentos, que se publican aunque no generen fichero.
+     * Con borradores (la previsualización con `--borradores`), todo cuenta
+     * como publicado.
      */
     public function estaPublicada(\DateTimeImmutable $ahora, bool $conBorradores = false): bool
     {
@@ -104,6 +107,12 @@ final readonly class Pagina
         }
 
         if (($this->campos['borrador'] ?? false) === true) {
+            return false;
+        }
+
+        $hasta = $this->campos['publicarHasta'] ?? null;
+
+        if ($hasta instanceof \DateTimeImmutable && $ahora >= $hasta->modify('+1 day')) {
             return false;
         }
 

@@ -1,0 +1,42 @@
+# Las pruebas del motor en un ordenador limpio de GitHub, con cada cambio que se sube y con cada pull request.
+# Corren con PHP 8.4, el mínimo que promete Ehundu, y con 8.5, con el que se trabaja: así, algo exclusivo de 8.5
+# que se cuele por error falla aquí en lugar de en el servidor de quien lo use.
+name: Pruebas
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Un cambio nuevo en la misma rama cancela la ejecución anterior, que ya no sirve
+concurrency:
+  group: pruebas-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pruebas:
+    name: PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      # Que falle una versión no impide ver qué pasa con la otra
+      fail-fast: false
+      matrix:
+        php: ['8.4', '8.5']
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          # mbstring es obligatoria; dom, para el PDF; ftp y openssl, para el despliegue por FTP, FTPS y SFTP
+          extensions: mbstring, dom, ftp, openssl, fileinfo
+          coverage: none
+          tools: composer:v2
+
+      - run: composer install --no-interaction --no-progress --prefer-dist
+
+      - run: composer pruebas

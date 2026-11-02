@@ -21,7 +21,7 @@ Un issue que solo diga «no funciona» se queda sin respuesta hasta que tenga es
 
 ## Fallos de seguridad
 
-No abras un issue público. Escribe a [ehundu@paigar.eu](mailto:ehundu@paigar.eu) contándolo, para poder arreglarlo antes de que se conozca.
+No abras un issue público. Escribe a [ehundu@paigar.eu](mailto:ehundu@paigar.eu) contándolo, para poder arreglarlo antes de que se conozca. La [política de seguridad](SECURITY.md) explica qué datos mandar, qué versiones se arreglan y qué cuenta como fallo.
 
 ## Cómo proponer un cambio
 

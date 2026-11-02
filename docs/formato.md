@@ -1,11 +1,12 @@
-# El formato de un proyecto, versión 1 (borrador)
+# El formato de un proyecto, versión 1
 
 Este documento es el contrato del formato de un proyecto de Ehundu: cómo se
 organiza, qué campos admite y qué significa cada cosa. Ehundu lo implementa,
 una herramienta de edición puede escribirlo y cualquiera puede escribir y
 compilar un proyecto con un editor de texto y la línea de comandos.
 
-Estado: borrador. Las decisiones cerradas están en el apéndice A (§14).
+Estado: estable desde la 1.0 de Ehundu. Dentro de la versión mayor 1 el contrato
+solo crece (§12, regla 5). Las decisiones cerradas están en el apéndice A (§14).
 
 ---
 
@@ -3177,3 +3178,16 @@ si hace falta, la anterior lleva una nota entre paréntesis.
     excepción de los nombres: un sitio que ya escribiera `publicarHasta` como campo
     propio vería retirada su página al pasar la fecha, y uno con un valor que no es
     una fecha recibe el aviso; ningún sitio de prueba lo usa.
+152. **Cerrada.** Con la 1.0 el contrato deja de ser un borrador. El título pierde
+    «(borrador)» y el estado dice «estable»; desde esa versión vale la regla 5 del
+    §12 en todo el documento: dentro de la versión mayor 1 el contrato solo crece.
+    La promesa es la de la decisión 123, sin ampliarla: el formato (este documento,
+    con el esquema de [`esquema.md`](esquema.md)), la orden de consola y la lista de
+    [`biblioteca.md`](biblioteca.md); lo demás de la biblioteca sigue siendo
+    interno. No cambia lo que hace el motor: la 1.0 es la 0.16 con las decisiones
+    150 y 151 en el código y la 149 en el texto. Salió de las dos revisiones
+    previas (decisiones 128 a 148) y de que la 0.16 no sacara, en sitios reales,
+    ningún fallo que obligara a cambiar un comportamiento. Las decisiones anteriores
+    se escribieron con el contrato abierto y conservan sus palabras, igual que las
+    que decían «la v1» (decisión 132): donde digan «antes de la 1.0» o «hasta la
+    1.0», se lee como lo que fue entonces.

@@ -11,38 +11,28 @@ Ehundu es un generador de sitios estáticos escrito en PHP. Toma una carpeta con
 contenido en Markdown, datos en YAML y plantillas Twig, y produce un sitio web
 de HTML plano que se puede alojar en cualquier servidor.
 
-> **Estado: 0.16.** Compila sitios reales, también en varios idiomas, los
-> previsualiza y los publica, saca en PDF las páginas que lo piden, genera una
-> página por cada etiqueta, publica las entradas en su fecha, deja las páginas
-> de una carpeta sin la carpeta en la URL, avisa a los lectores de pantalla de
-> los enlaces que abren otra pestaña, da un `id`, y si se quiere un enlace
-> permanente, a los encabezados del Markdown, para enlazar a un apartado o
-> hacer un índice, ordena los textos al estilo español, sin contar
-> los signos `¿` y `¡`, enlaza el CSS y el JavaScript de una página como un
-> fichero con la huella de su contenido en el nombre, para que el navegador lo
-> guarde, convierte a HTML el texto con formato de un campo, de una línea o
-> de varios párrafos, con el filtro `markdown`, escribe el `srcset` (y el
-> `<picture>`, si hay varios formatos) de las imágenes que ya tienen variantes
-> de ancho, parte una lista larga en páginas con `paginar`, reparte la
-> compilación y la subida de un sitio grande en varias llamadas de unos
-> segundos cada una, recuerda lo que compila entre un proceso y otro para
-> rehacer solo lo que un cambio afecta, marca sus páginas con una etiqueta
-> `generator` (que se quita con `generador: no`), y lleva la versión del
-> formato (`formato: 1` en `sitio.yml`) y una lista corta y documentada de lo que se promete de la
-> biblioteca ([`docs/biblioteca.md`](docs/biblioteca.md)), que es lo que la 1.0
-> congelará. La 0.16 es la relectura final del contrato: tres lectores
-> comprobaron cada afirmación contra el código, lo que el motor hacía sin decirlo
-> queda escrito, lo que antes tomaba a ciegas (un `formato` que no es un número,
-> una `url` con ruta, un punto en el nombre de una página que no es de idioma, un
-> `robots.txt.twig`) detiene el build o avisa, las fechas de un campo propio caen
-> en la zona del sitio, y lo que la incremental recuerda entre procesos se guarda y
-> se lee por registros, con bastante menos memoria de PHP y un aviso claro si no
-> cabe en el `memory_limit`. El registro de decisiones está al final del
-> documento, el esquema tiene el suyo ([`docs/esquema.md`](docs/esquema.md)) y
+> **Estado: 1.0.** La primera versión estable. Compila sitios reales, también
+> en varios idiomas, los previsualiza y los publica, saca en PDF las páginas
+> que lo piden, genera una página por cada etiqueta, parte una lista larga en
+> páginas con `paginar`, publica las entradas en su fecha y las retira en otra
+> (`publicar` y `publicarHasta`), escribe el `srcset` de las imágenes que ya
+> tienen variantes de ancho, enlaza el CSS y el JavaScript de una página como un
+> fichero con la huella de su contenido en el nombre, reparte la compilación y
+> la subida de un sitio grande en varias llamadas de unos segundos cada una, y
+> recuerda lo que compila entre un proceso y otro para rehacer solo lo que un
+> cambio afecta.
+>
+> Desde la 1.0 el contrato es una promesa y no un borrador. Dentro de la versión
+> mayor 1 se compromete a no cambiar tres cosas, y solo a crecer: el formato del
+> proyecto ([`docs/formato.md`](docs/formato.md); un proyecto lo declara con
+> `formato: 1` en `sitio.yml`), la orden de consola y la lista corta de la
+> biblioteca PHP que recoge [`docs/biblioteca.md`](docs/biblioteca.md). Todo lo
+> demás es interno y puede cambiar en cualquier versión. Quitar algo o cambiar
+> lo que significa es una versión mayor, y lo que va a dejar de valer se avisa
+> durante, al menos, una versión menor antes (regla 5 del §12). El registro de
+> decisiones, cada una con su motivo, está al final del contrato; el esquema que
+> usa un editor tiene su documento ([`docs/esquema.md`](docs/esquema.md)) y
 > `ehundu --version` dice qué versión es.
-> Hasta la 1.0 el formato del proyecto todavía puede cambiar; cada cambio
-> queda anotado, con su motivo, en el registro de decisiones de
-> [`docs/formato.md`](docs/formato.md).
 
 ## Por qué otro generador
 
@@ -327,33 +317,34 @@ ilustraciones de Nidel que hay en `marca/`: sus condiciones están en
 
 Ehundu is a static site generator written in PHP, designed to build sites both
 from the command line and from within a web process on ordinary shared PHP
-hosting. The current version is 0.16: it builds Markdown and Twig sites,
-multilingual ones included, renders the pages that ask for it as PDF (with
-the optional dompdf), generates one page per tag, publishes entries on their
-date, drops a folder name from its pages' URLs, flags external links to screen
-readers, gives Markdown headings an id (and, if asked, a permalink) so pages can
-link to a section or build a table of contents, sorts text the way a Spanish
-dictionary does (ignoring the opening marks ¿ and ¡), links a page's CSS and
-JavaScript as a file named after a hash of its contents so browsers can cache
-it for a year, converts the formatted text of a field to HTML, inline or in
-blocks, with a `markdown` filter, writes the `srcset` of images that already
-have width variants, splits long lists into pages, previews them with
-incremental rebuilds, spreads the build and the upload of a big site over
-several calls of a few seconds each (for a web process with a time limit),
-remembers what it built between one process and the next so that a change
-rebuilds only the pages it affects, marks its pages with a `generator` meta
-tag (`generador: no` turns it off), and deploys them to a folder, FTP, SFTP or any S3-compatible storage. It needs
-PHP 8.4 or later with `mbstring` and nothing else, and ships as a single `ehundu.phar` or as
-the Composer package `ehundu/ehundu`. Projects declare the version of the
-format they use (`formato: 1`), and `docs/biblioteca.md` lists the short part
-of the PHP library that 1.0 will promise to keep. Version 0.16 is the final
-read-through of the contract: every claim was checked against the code, what the
-engine did without saying so is now written down, and a few inputs it used to
-take at face value (a malformed `formato`, a `url` with a path, a dot in a page
-name that is not a language, a `robots.txt.twig`) now stop the build or raise a
-warning. What the incremental build remembers between processes is saved and
-read record by record, with much less PHP memory and a clear warning when it does
-not fit in `memory_limit`. `ehundu --version` prints the version.
+hosting. The current version is 1.0, the first stable one: it builds Markdown
+and Twig sites, multilingual ones included, renders the pages that ask for it
+as PDF (with the optional dompdf), generates one page per tag, publishes
+entries on their date and withdraws them on another (`publicar` and
+`publicarHasta`), drops a folder name from its pages' URLs, flags external
+links to screen readers, gives Markdown headings an id (and, if asked, a
+permalink) so pages can link to a section or build a table of contents, sorts
+text the way a Spanish dictionary does (ignoring the opening marks ¿ and ¡),
+links a page's CSS and JavaScript as a file named after a hash of its contents
+so browsers can cache it for a year, converts the formatted text of a field to
+HTML, inline or in blocks, with a `markdown` filter, writes the `srcset` of
+images that already have width variants, splits long lists into pages,
+previews them with incremental rebuilds, spreads the build and the upload of a
+big site over several calls of a few seconds each (for a web process with a
+time limit), remembers what it built between one process and the next so that
+a change rebuilds only the pages it affects, marks its pages with a `generator`
+meta tag (`generador: no` turns it off), and deploys them to a folder, FTP,
+SFTP or any S3-compatible storage. It needs PHP 8.4 or later with `mbstring`
+and nothing else, and ships as a single `ehundu.phar` or as the Composer
+package `ehundu/ehundu`.
+
+With 1.0 the contract stops being a draft. Within major version 1 three things
+are promised and will only grow: the project format (a project declares it with
+`formato: 1`), the console command, and the short part of the PHP library
+listed in `docs/biblioteca.md`. Everything else is internal and may change in
+any release. Removing something or changing what it means takes a new major
+version, and what is about to stop working is announced for at least one minor
+version first (rule 5 of the contract). `ehundu --version` prints the version.
 
 Its project format is deliberately in Spanish (folder names, front matter
 fields), as a commitment to Spanish-speaking web developers; the usual English

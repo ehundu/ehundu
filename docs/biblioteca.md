@@ -22,6 +22,7 @@ los lea una persona.
     ehundu compilar [carpeta]
     ehundu servir [carpeta] [--puerto=8000] [--borradores] [--completo]
     ehundu desplegar [carpeta] [--simular] [--todo]
+    ehundu imagenes [carpeta] [--forzar] [--originales=carpeta]
     ehundu --ayuda
     ehundu --version
 

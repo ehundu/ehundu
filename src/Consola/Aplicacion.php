@@ -8,6 +8,7 @@ use Ehundu\Aviso;
 use Ehundu\Compilador;
 use Ehundu\Despliegue\Desplegador;
 use Ehundu\ErrorDeProyecto;
+use Ehundu\GeneradorDeVariantes;
 use Ehundu\Informe;
 use Ehundu\Previsualizacion\Servidor;
 use Ehundu\Proyecto;
@@ -47,6 +48,15 @@ final class Aplicacion
                 --todo                Lo sube todo, aunque no haya cambiado, y
                                       confirma que el destino es de este sitio
                                       si ha cambiado su url.
+          ehundu imagenes [carpeta]   Genera las variantes de ancho de las
+                                      imágenes de publico/ que declara la
+                                      sección imagenes de sitio.yml. No rehace
+                                      las que ya existen. Necesita la extensión
+                                      GD de PHP.
+                --forzar              Las rehace todas.
+                --originales=carpeta  Lee las imágenes de esa carpeta del
+                                      proyecto, que repite la estructura de
+                                      publico/, y escribe allí las variantes.
           ehundu --ayuda              Muestra esta ayuda.
           ehundu --version            Dice la versión de Ehundu.
 
@@ -109,7 +119,7 @@ final class Aplicacion
             return self::EXITO;
         }
 
-        if (!in_array($orden, ['compilar', 'servir', 'desplegar'], true)) {
+        if (!in_array($orden, ['compilar', 'servir', 'desplegar', 'imagenes'], true)) {
             $this->escribir($this->errores, "Orden desconocida: {$orden}\n\n" . self::AYUDA);
 
             return self::USO_INCORRECTO;
@@ -121,6 +131,8 @@ final class Aplicacion
         $completo = false;
         $simular = false;
         $todo = false;
+        $forzar = false;
+        $originales = null;
 
         foreach (array_slice($argumentos, 1) as $argumento) {
             if ($orden === 'servir' && preg_match('/^--puerto=(\d{1,5})$/', $argumento, $partes) === 1 && (int) $partes[1] >= 1 && (int) $partes[1] <= 65535) {
@@ -133,10 +145,16 @@ final class Aplicacion
                 $simular = true;
             } elseif ($orden === 'desplegar' && $argumento === '--todo') {
                 $todo = true;
+            } elseif ($orden === 'imagenes' && $argumento === '--forzar') {
+                $forzar = true;
+            } elseif ($orden === 'imagenes' && preg_match('/^--originales=(.+)$/', $argumento, $partes) === 1) {
+                $originales = $partes[1];
             } elseif (str_starts_with($argumento, '-')) {
-                $this->escribir($this->errores, str_starts_with($argumento, '--puerto')
-                    ? "El puerto tiene que ser un número entre 1 y 65535: {$argumento}\n"
-                    : "Opción desconocida: {$argumento}\n");
+                $this->escribir($this->errores, match (true) {
+                    str_starts_with($argumento, '--puerto') => "El puerto tiene que ser un número entre 1 y 65535: {$argumento}\n",
+                    $orden === 'imagenes' && str_starts_with($argumento, '--originales') => "«--originales» necesita una carpeta del proyecto: --originales=carpeta\n",
+                    default => "Opción desconocida: {$argumento}\n",
+                });
 
                 return self::USO_INCORRECTO;
             } else {
@@ -157,6 +175,7 @@ final class Aplicacion
                 'compilar' => $this->compilar(Proyecto::abrir($ruta)),
                 'servir' => ($this->servir)(Proyecto::abrir($ruta), $puerto, $conBorradores, $completo),
                 'desplegar' => $this->desplegar(Proyecto::abrir($ruta), $simular, $todo),
+                'imagenes' => $this->imagenes(Proyecto::abrir($ruta), $forzar, $originales),
             };
         } catch (ErrorDeProyecto $error) {
             $this->escribir($this->errores, "Error: {$error->getMessage()}\n");
@@ -168,6 +187,23 @@ final class Aplicacion
     private function compilar(Proyecto $proyecto): int
     {
         $this->informar($this->compilador->compilar($proyecto));
+
+        return self::EXITO;
+    }
+
+    private function imagenes(Proyecto $proyecto, bool $forzar, ?string $originales): int
+    {
+        $informe = GeneradorDeVariantes::abrir($proyecto)->generar(
+            $forzar,
+            $originales,
+            fn (string $ruta) => $this->escribir($this->salida, "  generada  {$ruta}\n"),
+        );
+
+        foreach ($informe->avisos as $aviso) {
+            $this->escribir($this->errores, "Aviso: {$aviso}\n");
+        }
+
+        $this->escribir($this->salida, $informe->resumen() . "\n");
 
         return self::EXITO;
     }

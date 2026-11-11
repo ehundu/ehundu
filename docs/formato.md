@@ -214,8 +214,9 @@ todas las páginas.
 
 La sección `imagenes` dice qué variantes de ancho tienen las imágenes del
 sitio, para que `variantes()` (§7.3), el atajo `imagen` y las figuras del
-Markdown (§8) escriban el `srcset`. El motor no las genera (§9): las busca, con
-el nombre `<tronco>-<ancho>.<formato>`, en `publico/`.
+Markdown (§8) escriban el `srcset`. El motor no las genera al compilar (§9): las
+busca, con el nombre `<tronco>-<ancho>.<formato>`, en `publico/`, y
+`ehundu imagenes` (§9.2) las genera.
 
     imagenes:
       anchos: [480, 960, 1600]
@@ -242,8 +243,8 @@ Sin ella, las imágenes salen sin `srcset`. Con ella:
 
 El tronco de una imagen es su ruta sin la extensión: el de `img/foto.jpg` es
 `img/foto`, y sus variantes son `img/foto-480.avif`, `img/foto-480.webp`,
-`img/foto-960.avif`… Quien las genera (un editor al subir la imagen, o un
-programa aparte) deja un fichero por cada ancho y cada formato, y no amplía
+`img/foto-960.avif`… Quien las genera (`ehundu imagenes`, §9.2; un editor al
+subir la imagen, o un programa aparte) deja un fichero por cada ancho y cada formato, y no amplía
 nunca: si el original es más estrecho que un ancho, el fichero de ese ancho
 sale con el ancho del original. El número del nombre es el ancho que se pidió;
 el que cuenta en el `srcset` es el que tiene el fichero, que el motor lee
@@ -1414,8 +1415,8 @@ imágenes, y publicarlo lo pondría a ejecutarse en el servidor. Hoy no hay
 forma de permitirlo.
 
 Las imágenes no se procesan durante el build. Si hacen falta varios tamaños,
-los genera otra herramienta (por ejemplo, un editor al subir la imagen, §11.6)
-y deja los ficheros en `publico/`, con el nombre que dice la sección `imagenes`
+los genera otra herramienta (`ehundu imagenes`, §9.2, o un editor al subir la
+imagen, §11.6) y deja los ficheros en `publico/`, con el nombre que dice la sección `imagenes`
 de `sitio.yml` (§2). El motor solo los lee: `variantes()` (§7.3), el atajo
 `imagen` y las figuras del Markdown (§8) escriben el `srcset` con lo que
 encuentran.
@@ -1512,6 +1513,54 @@ paquete reúne ficheros de carpetas distintas. En la plantilla de un PDF
       {% block cuerpo %}{% endblock %}
       {{ js_fichero() }}
     </body>
+
+### 9.2 Generar las variantes de imagen
+
+`ehundu imagenes [carpeta]` genera las variantes de ancho que declara la sección
+`imagenes` de `sitio.yml` (§2), con el nombre que busca `variantes()` (§7.3). Es
+una orden aparte: `compilar` no la ejecuta y el build sigue sin procesar ninguna
+imagen (§9). El resultado son ficheros de `publico/`, que se versionan como el
+resto de la carpeta.
+
+Necesita la extensión GD de PHP, que el resto del motor no exige. Si falta, si el
+sitio no declara `imagenes`, o si pide un formato que ese GD no sabe escribir, la
+orden se detiene con un error que lo dice y no escribe nada: `variantes()` avisa de
+cada fichero que falta, y generar a medias sería peor.
+
+- **Qué imágenes.** Cada JPEG, PNG o WebP de `publico/`, en cualquier carpeta.
+  No toca los GIF, los SVG, los AVIF ni los ficheros que se ignoran (§9). Un
+  fichero cuyo nombre sin extensión acaba en `-<ancho>`, con uno de los `anchos`
+  de la sección, y cuya extensión es uno de sus `formatos`, es una variante y no
+  se trata como imagen: así la orden se puede repetir sin que genere variantes de
+  las variantes.
+- **Qué saca de cada una.** Un fichero por cada ancho y cada formato de la
+  sección: de `img/foto.jpg`, `img/foto-480.avif`, `img/foto-480.webp`,
+  `img/foto-960.avif`… Nunca amplía: si el original es más estrecho que un ancho,
+  el fichero de ese ancho sale con el ancho del original (§2). Solo reduce: no
+  recorta ni cambia la proporción.
+- **Lo que le hace a la imagen.** La gira según la orientación que anotó la
+  cámara y no copia ningún dato más que los píxeles: ni la ubicación de una foto
+  de móvil ni el perfil de color (casi siempre sRGB). La transparencia se conserva
+  en AVIF, WebP y PNG; en JPEG, la imagen sale sobre blanco.
+- **La calidad no se configura:** WebP 80, AVIF 55 y JPEG 82 (progresivo); el
+  PNG, sin pérdida y con la mayor compresión.
+- **Lo que ya existe no se rehace.** Una variante que está en `publico/` se deja
+  como está, sea cual sea su fecha; `--forzar` las rehace todas, por ejemplo tras
+  cambiar la imagen original. No se decide por fechas porque en un clon de Git
+  todas valen lo mismo.
+- **`--originales=carpeta`** lee las imágenes de una carpeta del proyecto, fuera
+  de `publico/` y de `salida/`, que repite la estructura de `publico/`: de
+  `originales/img/foto.png` salen `publico/img/foto-480.webp`… Sirve para no
+  versionar los originales grandes. Allí se saltan los ficheros que se ignoran
+  (§9), y un nombre que parece el de una variante no se descarta, porque todo lo
+  que hay en esa carpeta es original.
+- **Una imagen que no se puede tratar** (dañada, de más de 50 millones de
+  píxeles, o que no cabe en la memoria de PHP) se avisa con su ruta y la orden
+  sigue con las demás. Como en `compilar`, los avisos no cambian el código de
+  salida; un error del proyecto, sí.
+
+Terminada la orden, `compilar` encuentra todas las variantes sin avisar de
+ninguna.
 
 ---
 
@@ -1811,17 +1860,19 @@ vez de tener que entender todos los 1.x (decisión 139).
 ## 13. Lo que Ehundu no hace (todavía)
 
 Catálogo de componentes con parámetros y consultas, tokens de estilo por sitio,
-generación de imágenes en varios tamaños, procesadores sobre el HTML ya
-generado, pasos posteriores al build y búsqueda. El motor retoca el HTML ya
+procesadores sobre el HTML ya generado, pasos posteriores al build y búsqueda.
+De las imágenes quedan el recorte a una proporción y la calidad configurable
+(decisión 153). El motor retoca el HTML ya
 maquetado en dos casos, y solo en esos: la etiqueta `generator` (§2, decisión
 127) y las direcciones completas de las entradas del feed (§10.2). El PDF de una
 página (§10.3) no
 es un procesador sobre el HTML ya generado: es una salida más de la página,
 con su propia plantilla, que no toca el HTML de nadie. Los `id` de los
 encabezados (§8) tampoco lo son: se escriben al convertir el Markdown, y el
-HTML ya convertido no se vuelve a recorrer. Y leer las variantes de ancho de
-una imagen que otra herramienta ya generó (`variantes()`, §7.3) no es generar
-imágenes: el motor no procesa ninguna, solo busca ficheros.
+HTML ya convertido no se vuelve a recorrer. Y las variantes de ancho de una
+imagen no son un paso del build: `variantes()` (§7.3) solo busca ficheros, y
+`ehundu imagenes` (§9.2) es una orden aparte, que no se ejecuta al compilar ni
+toca el HTML.
 
 Que estén aquí no las promete ni las descarta: dentro de una versión mayor
 pueden llegar si son aditivas (§12, regla 5), y solo lo que dice la regla 4
@@ -3191,3 +3242,34 @@ si hace falta, la anterior lleva una nota entre paréntesis.
     se escribieron con el contrato abierto y conservan sus palabras, igual que las
     que decían «la v1» (decisión 132): donde digan «antes de la 1.0» o «hasta la
     1.0», se lee como lo que fue entonces.
+153. **Cerrada.** `ehundu imagenes` genera las variantes de ancho que declara la
+    sección `imagenes` de `sitio.yml` (§2, §9.2). Es una orden nueva y aparte:
+    `compilar` no la ejecuta y el build sigue sin procesar ninguna imagen (§9).
+    Salió de que `variantes()` ya leía los ficheros `<tronco>-<ancho>.<formato>`
+    pero nadie los producía: los sitios de prueba que declaraban `imagenes` tenían
+    cada uno su propio programa con GD, y nada garantizaba que sus nombres y sus
+    anchos coincidieran con lo que dice `sitio.yml`; y el editor (§11.6) reduce lo
+    que se sube, pero no hace variantes. Se descartó generarlas al compilar, con
+    una caché en `.ehundu/`: contradice que el build solo lea de `publico/` y
+    escriba en `salida/`, exigiría GD en cada compilación (también dentro de un
+    proceso web, con su límite de memoria y de tiempo) y complicaría la
+    compilación incremental. Se descartó dejar solo un programa modelo en la
+    documentación: es lo que ya había, con copias que divergen. La orden necesita
+    la extensión GD, que el motor no exige: el resto sigue sin ella, y la orden se
+    detiene con un error si falta o si el sitio pide un formato que su GD no sabe
+    escribir. Solo reduce: no recorta ni cambia la proporción, porque el recorte
+    es una decisión de diseño de cada sitio (tarjetas en 3:2 y cabeceras sin
+    recortar, por ejemplo) y un sitio puede seguir con su propio programa; un
+    parámetro de recorte podrá llegar después sin romper nada. La calidad es fija
+    (WebP 80, AVIF 55, JPEG 82, PNG sin pérdida): una clave `calidad` en
+    `imagenes` sería otra clave del contrato y se deja para cuando alguien la
+    pida. Gira la imagen según su orientación y no copia más que los píxeles (ni
+    la ubicación de una foto de móvil), como ya hace el editor. No rehace lo que ya
+    existe, salvo con `--forzar`: decidirlo por fechas se rompe en un clon de Git,
+    donde todas valen lo mismo, y rehacer sin necesidad con otra versión de GD
+    cambiaría los bytes y llenaría de ruido el control de versiones.
+    `--originales=carpeta` lee de una carpeta del proyecto con la estructura de
+    `publico/`, para quien no quiere versionar los originales grandes. Es crecer
+    (§12, regla 5): un sitio que no la ejecuta no cambia en nada, y `imagenes` no
+    choca con ningún campo ni nombre reservado. La clase que lo hace es interna;
+    lo que se promete es la orden y su resultado.

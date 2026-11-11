@@ -184,12 +184,18 @@ portada, `/blog/primer-articulo/` y un `sitemap.xml`.
                                   recompila cuando cambia algo
     ehundu desplegar [carpeta]    lo compila y lo publica en el destino de
                                   sitio.yml
+    ehundu imagenes [carpeta]     genera las variantes de ancho de las
+                                  imágenes (necesita la extensión GD)
 
 `servir` rehace solo lo que afecta a cada cambio, en unas décimas de segundo,
 y da siempre lo mismo que una compilación completa. `desplegar` sube lo nuevo o
 cambiado y borra lo que subió Ehundu y ya no se genera; lo demás que haya en el
 servidor no lo toca nunca. Con `--simular` dice qué haría sin hacerlo.
-`ehundu --ayuda` enseña todas las opciones.
+`imagenes` no forma parte de la compilación: reduce a los anchos de la sección
+`imagenes` de `sitio.yml` las fotos de `publico/` (o de una carpeta de
+originales, con `--originales=carpeta`) y deja los ficheros junto a ellas, sin
+rehacer los que ya existen (`--forzar` los rehace). `ehundu --ayuda` enseña
+todas las opciones.
 
 ## Qué hace
 
@@ -214,10 +220,11 @@ servidor no lo toca nunca. Con `--simular` dice qué haría sin hacerlo.
   en su dirección, y el motor genera las demás (`/blog/pagina/2/`, o la forma
   que se pida), con las entradas de cada trozo y los enlaces para moverse. Una
   entrada nueva que desborde la última abre la siguiente sola.
-- **Imágenes con varios anchos.** El motor no las genera, pero si otra
-  herramienta las deja en `publico/` (`foto-480.webp`, `foto-960.webp`…) y el
-  sitio las declara en `imagenes`, `variantes()`, el atajo `[imagen …]` y las
-  figuras del Markdown escriben el `srcset` con el ancho real de cada fichero.
+- **Imágenes con varios anchos.** Si las variantes están en `publico/`
+  (`foto-480.webp`, `foto-960.webp`…) y el sitio las declara en `imagenes`,
+  `variantes()`, el atajo `[imagen …]` y las figuras del Markdown escriben el
+  `srcset` con el ancho real de cada fichero. El build no las genera, pero
+  `ehundu imagenes` sí, como paso aparte y con GD, en WebP, AVIF, JPEG o PNG.
 - **Varios idiomas**, con un fichero por idioma en el mismo árbol
   (`contacto.md`, `contacto.eu.md`): cada idioma con su prefijo en la URL, las
   traducciones enlazadas entre sí para los `hreflang` y el selector de

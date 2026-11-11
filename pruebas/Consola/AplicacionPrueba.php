@@ -11,6 +11,7 @@ use Ehundu\Consola\Aplicacion;
 use Ehundu\Informe;
 use Ehundu\Proyecto;
 use Ehundu\Pruebas\Apoyo\CarpetaTemporal;
+use Ehundu\Pruebas\Apoyo\ImagenGd;
 use Ehundu\Version;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -132,6 +133,114 @@ final class AplicacionPrueba extends TestCase
 
         self::assertSame(Aplicacion::USO_INCORRECTO, $codigo);
         self::assertSame("Opción desconocida: --borradores\n", $this->leer($this->errores));
+    }
+
+    #[Test]
+    public function laAyudaHablaDeImagenes(): void
+    {
+        $this->aplicacion()->ejecutar(['--ayuda']);
+
+        self::assertStringContainsString('ehundu imagenes [carpeta]', $this->leer($this->salida));
+        self::assertStringContainsString('--originales=carpeta', $this->leer($this->salida));
+    }
+
+    #[Test]
+    public function imagenesGeneraLasVariantesYDiceCuantas(): void
+    {
+        $this->sitioConImagenes();
+        $this->crearFichero('publico/img/foto.jpg', ImagenGd::jpeg(1000, 500));
+
+        $codigo = $this->aplicacion()->ejecutar(['imagenes', $this->carpetaTemporal()]);
+
+        self::assertSame(Aplicacion::EXITO, $codigo);
+        self::assertSame('', $this->leer($this->errores));
+        self::assertStringContainsString("  generada  img/foto-480.webp\n", $this->leer($this->salida));
+        self::assertStringContainsString("  generada  img/foto-960.webp\n", $this->leer($this->salida));
+        self::assertStringContainsString('Variantes: 1 imagen, 2 ficheros generados en ', $this->leer($this->salida));
+        self::assertFileExists($this->carpetaTemporal() . '/publico/img/foto-480.webp');
+    }
+
+    #[Test]
+    public function imagenesNoRehaceLoQueExisteSalvoConForzar(): void
+    {
+        $this->sitioConImagenes();
+        $this->crearFichero('publico/img/foto.jpg', ImagenGd::jpeg(1000, 500));
+        $this->aplicacion()->ejecutar(['imagenes', $this->carpetaTemporal()]);
+
+        $this->salida = fopen('php://memory', 'w+');
+        $this->aplicacion()->ejecutar(['imagenes', $this->carpetaTemporal()]);
+
+        self::assertStringNotContainsString('generada', $this->leer($this->salida));
+        self::assertStringContainsString('Variantes: 1 imagen, 0 ficheros generados (2 ya existían) en ', $this->leer($this->salida));
+
+        $this->salida = fopen('php://memory', 'w+');
+        $this->aplicacion()->ejecutar(['imagenes', '--forzar', $this->carpetaTemporal()]);
+
+        self::assertStringContainsString('Variantes: 1 imagen, 2 ficheros generados en ', $this->leer($this->salida));
+    }
+
+    #[Test]
+    public function imagenesLeeDeLaCarpetaDeOriginales(): void
+    {
+        $this->sitioConImagenes();
+        $this->crearFichero('originales/img/foto.png', ImagenGd::png(1000, 500));
+
+        $codigo = $this->aplicacion()->ejecutar(['imagenes', '--originales=originales', $this->carpetaTemporal()]);
+
+        self::assertSame(Aplicacion::EXITO, $codigo);
+        self::assertFileExists($this->carpetaTemporal() . '/publico/img/foto-480.webp');
+        self::assertFileDoesNotExist($this->carpetaTemporal() . '/publico/img/foto.png');
+    }
+
+    #[Test]
+    public function imagenesAvisaPorLosErroresYSigueConExitoComoCompilar(): void
+    {
+        $this->sitioConImagenes();
+        $this->crearFichero('publico/img/malo.jpg', 'esto no es una imagen');
+        $this->crearFichero('publico/img/bueno.jpg', ImagenGd::jpeg(1000, 500));
+
+        $codigo = $this->aplicacion()->ejecutar(['imagenes', $this->carpetaTemporal()]);
+
+        self::assertSame(Aplicacion::EXITO, $codigo);
+        self::assertStringStartsWith('Aviso: publico/img/malo.jpg: ', $this->leer($this->errores));
+        self::assertStringContainsString(', 1 aviso.', $this->leer($this->salida));
+    }
+
+    #[Test]
+    public function imagenesSinLaSeccionDaUnErrorDelProyecto(): void
+    {
+        $this->crearSitioMinimo();
+
+        $codigo = $this->aplicacion()->ejecutar(['imagenes', $this->carpetaTemporal()]);
+
+        self::assertSame(Aplicacion::FALLO, $codigo);
+        self::assertStringStartsWith('Error: sitio.yml: El sitio no declara la sección «imagenes»', $this->leer($this->errores));
+    }
+
+    #[Test]
+    public function imagenesRechazaUnaOriginalesSinCarpetaYLasOpcionesDeOtrasOrdenes(): void
+    {
+        $codigo = $this->aplicacion()->ejecutar(['imagenes', '--originales']);
+
+        self::assertSame(Aplicacion::USO_INCORRECTO, $codigo);
+        self::assertSame("«--originales» necesita una carpeta del proyecto: --originales=carpeta\n", $this->leer($this->errores));
+
+        foreach ([['compilar', '--forzar'], ['imagenes', '--todo'], ['desplegar', '--originales=x']] as $argumentos) {
+            $this->errores = fopen('php://memory', 'w+');
+
+            self::assertSame(Aplicacion::USO_INCORRECTO, $this->aplicacion()->ejecutar($argumentos), implode(' ', $argumentos));
+            self::assertStringStartsWith('Opción desconocida: ', $this->leer($this->errores), implode(' ', $argumentos));
+        }
+    }
+
+    private function sitioConImagenes(): void
+    {
+        if (!ImagenGd::disponible()) {
+            self::markTestSkipped('Hace falta la extensión GD con JPEG, PNG y WebP');
+        }
+
+        $this->crearFichero('sitio.yml', "nombre: Prueba\nurl: https://ejemplo.com\nimagenes:\n  anchos: [480, 960]\n  formatos: [webp]\n");
+        $this->crearFichero('contenido/.gitkeep', '');
     }
 
     #[Test]

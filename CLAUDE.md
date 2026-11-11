@@ -87,7 +87,9 @@ documentación son inventados.
    vocabulario cerrado, se resuelven sobre el HTML ya convertido y no admiten
    expresiones ni lógica. Ver §8.1 del formato.
 5. **Las imágenes no se procesan en el build.** Se copian tal cual desde
-   `publico/`. Nada de GD ni Imagick, por ahora.
+   `publico/`. Las variantes de ancho las genera `ehundu imagenes`, una orden
+   aparte que usa GD si está y que `compilar` no llama (formato §9.2,
+   decisión 153). Nada de Imagick.
 6. **Sin pipeline de assets.** El CSS y el JS llegan escritos; el motor solo
    los copia, los incrusta o los reúne en un fichero con la huella de su
    contenido cuando una página lo declara. No los transforma.

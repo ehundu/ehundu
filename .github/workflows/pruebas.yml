@@ -32,8 +32,9 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          # mbstring es obligatoria; dom, para el PDF; ftp y openssl, para el despliegue por FTP, FTPS y SFTP
-          extensions: mbstring, dom, ftp, openssl, fileinfo
+          # mbstring es obligatoria; dom, para el PDF; ftp y openssl, para el despliegue por FTP, FTPS y SFTP; gd, para
+          # las variantes de imagen (`ehundu imagenes`), y sin ella esas pruebas se saltan
+          extensions: mbstring, dom, ftp, openssl, fileinfo, gd
           coverage: none
           tools: composer:v2
 

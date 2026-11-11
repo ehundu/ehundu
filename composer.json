@@ -33,7 +33,8 @@
     },
     "suggest": {
         "dompdf/dompdf": "Para generar el PDF de las páginas con pdf: sí (necesita también ext-dom); el ehundu.phar no lo trae",
-        "ext-ftp": "Para desplegar por FTP o FTPS (destino: ftp)"
+        "ext-ftp": "Para desplegar por FTP o FTPS (destino: ftp)",
+        "ext-gd": "Para generar las variantes de imagen con `ehundu imagenes` (WebP, AVIF, JPEG y PNG según cómo esté compilada)"
     },
     "autoload": {
         "psr-4": {

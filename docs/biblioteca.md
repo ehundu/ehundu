@@ -174,8 +174,8 @@ mucho (en ese sitio, entre 170 y 250 MB según lo que se rehaga; las medidas, en
   (§11), pero un editor puede usarla con el suyo.
 - **`Slug`**: `Slug::de(string $texto)`, el filtro `slug` del formato (§5.2).
   Los demás métodos de `Slug` no se prometen.
-- **`Version`**: `Version::ACTUAL`, la versión de Ehundu como texto: `1.0.0` en una
-  publicada y `1.1.0-dev` entre una y otra. Es la que escribe `ehundu --version`.
+- **`Version`**: `Version::ACTUAL`, la versión de Ehundu como texto: `1.1.0` en una
+  publicada y `1.2.0-dev` entre una y otra. Es la que escribe `ehundu --version`.
   No es la versión del formato (`Formato::VERSION`).
 
 ### Avisos y errores

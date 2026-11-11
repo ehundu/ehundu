@@ -11,12 +11,13 @@ Ehundu es un generador de sitios estáticos escrito en PHP. Toma una carpeta con
 contenido en Markdown, datos en YAML y plantillas Twig, y produce un sitio web
 de HTML plano que se puede alojar en cualquier servidor.
 
-> **Estado: 1.0.** La primera versión estable. Compila sitios reales, también
+> **Estado: 1.1.** Estable desde la 1.0. Compila sitios reales, también
 > en varios idiomas, los previsualiza y los publica, saca en PDF las páginas
 > que lo piden, genera una página por cada etiqueta, parte una lista larga en
 > páginas con `paginar`, publica las entradas en su fecha y las retira en otra
 > (`publicar` y `publicarHasta`), escribe el `srcset` de las imágenes que ya
-> tienen variantes de ancho, enlaza el CSS y el JavaScript de una página como un
+> tienen variantes de ancho (y con `ehundu imagenes` las genera, aparte de la
+> compilación), enlaza el CSS y el JavaScript de una página como un
 > fichero con la huella de su contenido en el nombre, reparte la compilación y
 > la subida de un sitio grande en varias llamadas de unos segundos cada una, y
 > recuerda lo que compila entre un proceso y otro para rehacer solo lo que un
@@ -101,6 +102,10 @@ instalaciones.
 Para generar el PDF de una página (`pdf: sí`) hace falta además dompdf, que es
 PHP puro y necesita la extensión `dom`: `composer require dompdf/dompdf`. Es
 opcional, y el `ehundu.phar` no lo trae.
+
+Para generar las variantes de ancho de las imágenes (`ehundu imagenes`) hace
+falta la extensión `gd`, con los formatos que pida el sitio (WebP, AVIF, JPEG o
+PNG). Es opcional y solo la usa esa orden: compilar no la necesita.
 
 **Un solo fichero.** Descarga `ehundu.phar` de la [página de
 versiones](https://github.com/ehundu/ehundu/releases) y úsalo con PHP:
@@ -324,7 +329,7 @@ ilustraciones de Nidel que hay en `marca/`: sus condiciones están en
 
 Ehundu is a static site generator written in PHP, designed to build sites both
 from the command line and from within a web process on ordinary shared PHP
-hosting. The current version is 1.0, the first stable one: it builds Markdown
+hosting. The current version is 1.1, stable since 1.0: it builds Markdown
 and Twig sites, multilingual ones included, renders the pages that ask for it
 as PDF (with the optional dompdf), generates one page per tag, publishes
 entries on their date and withdraws them on another (`publicar` and
@@ -335,7 +340,8 @@ text the way a Spanish dictionary does (ignoring the opening marks ¿ and ¡),
 links a page's CSS and JavaScript as a file named after a hash of its contents
 so browsers can cache it for a year, converts the formatted text of a field to
 HTML, inline or in blocks, with a `markdown` filter, writes the `srcset` of
-images that already have width variants, splits long lists into pages,
+images that already have width variants (`ehundu imagenes` generates them, as a
+step apart from the build, with GD), splits long lists into pages,
 previews them with incremental rebuilds, spreads the build and the upload of a
 big site over several calls of a few seconds each (for a web process with a
 time limit), remembers what it built between one process and the next so that
